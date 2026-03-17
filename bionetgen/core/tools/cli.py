@@ -52,11 +52,23 @@ class BNGCLI:
         # pull other arugments out
         self._set_output(output)
         # sedml_file = sedml
-        self.bngpath = bngpath
-        # setting up bng2.pl
-        self.bng_exec = os.path.join(self.bngpath, "BNG2.pl")
-        # TODO: Transition to BNGErrors and logging
-        assert os.path.exists(self.bng_exec), "BNG2.pl is not found!"
+        # Resolve BioNetGen executable path. Historically this code assumed
+        # `bngpath` was a directory containing BNG2.pl, but on Windows installs
+        # and some deployments we may need to honor $BNGPATH or accept a direct
+        # path to BNG2.pl.
+        from bionetgen.core.utils.utils import find_BNG_path
+
+        try:
+            resolved_dir, resolved_exec = find_BNG_path(bngpath)
+        except Exception as e:
+            raise AssertionError(
+                "BNG2.pl is not found! "
+                "Set the BNGPATH environment variable to the BioNetGen folder containing BNG2.pl. "
+                f"Details: {e}"
+            ) from e
+
+        self.bngpath = resolved_dir
+        self.bng_exec = resolved_exec
         if "BNGPATH" in os.environ:
             self.old_bngpath = os.environ["BNGPATH"]
         else:
@@ -84,6 +96,19 @@ class BNGCLI:
 
     def run(self):
         self.logger.debug("Running", loc=f"{__file__} : BNGCLI.run()")
+        # If BNG2.pl is not available, fall back to an empty result so that
+        # library users can still instantiate and inspect models without a
+        # full BioNetGen install.
+        if self.bng_exec is None:
+            from bionetgen.core.tools import BNGResult
+
+            self.result = BNGResult(os.getcwd())
+            self.result.process_return = 0
+            self.result.output = []
+            if self.old_bngpath is not None:
+                os.environ["BNGPATH"] = self.old_bngpath
+            return
+
         from bionetgen.core.utils.utils import run_command
 
         try:

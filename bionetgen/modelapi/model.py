@@ -417,5 +417,25 @@ class bngmodel:
         # for now we return the underlying simulator
         return self.simulator.simulator
 
+    def export_sympy_odes(
+        self,
+        out_dir=None,
+        mex_suffix="mex",
+        keep_files=False,
+        timeout=None,
+        suppress=True,
+    ):
+        """Generate SymPy ODEs by running writeMexfile via BNG2.pl."""
+        from .sympy_odes import export_sympy_odes
+
+        return export_sympy_odes(
+            self,
+            out_dir=out_dir,
+            mex_suffix=mex_suffix,
+            keep_files=keep_files,
+            timeout=timeout,
+            suppress=suppress,
+        )
+
 
 ###### CORE OBJECT AND PARSING FRONT-END ######

@@ -649,8 +649,23 @@ class SBML2BNGL:
             )
         l = math.getListOfNodes()
         replace_dict = {}
-        for inode in range(l.getSize()):
-            node = l.get(inode)
+
+        # libSBML versions differ in how list-like objects expose size/length
+        if hasattr(l, "getSize"):
+            size = l.getSize()
+        elif hasattr(l, "size"):
+            size = l.size()
+        else:
+            try:
+                size = len(l)
+            except Exception:
+                size = 0
+
+        for inode in range(size):
+            if hasattr(l, "get"):
+                node = l.get(inode)
+            else:
+                node = l[inode]
             # Sympy doesn't like "def" in our string
             name = node.getName()
             if name == "def":
