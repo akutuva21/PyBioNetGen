@@ -199,5 +199,6 @@ setup(
         "python-libsbml",
         "pylru",
         "pyparsing",
+        "packaging",
     ],
 )
