@@ -54,7 +54,7 @@ class Network:
             "parameters",
             "species",
             "reactions",
-            "groups"
+            "groups",
             # "compartments",
             # "molecule_types",
             # "species",

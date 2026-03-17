@@ -91,8 +91,12 @@ class BNGFile:
             if not os.path.exists(xml_path):
                 candidates = glob.glob(os.path.join(temp_folder, "*.xml"))
                 if candidates:
-                    preferred = [c for c in candidates if os.path.basename(c).startswith(model_name)]
-                    xml_path = (preferred[0] if preferred else candidates[0])
+                    preferred = [
+                        c
+                        for c in candidates
+                        if os.path.basename(c).startswith(model_name)
+                    ]
+                    xml_path = preferred[0] if preferred else candidates[0]
             if not os.path.exists(xml_path):
                 return False
             with open(xml_path, "r", encoding="UTF-8") as f:
@@ -232,7 +236,9 @@ class BNGFile:
                     return True
             elif xml_type == "sbml":
                 if self.bngexec is None:
-                    print("SBML generation requires BNG2.pl (BioNetGen) to be installed.")
+                    print(
+                        "SBML generation requires BNG2.pl (BioNetGen) to be installed."
+                    )
                     return False
                 command = ["perl", self.bngexec, "temp.bngl"]
                 rc, _ = run_command(command, suppress=self.suppress)

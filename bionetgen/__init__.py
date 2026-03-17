@@ -19,5 +19,6 @@ __all__ = [
 def __getattr__(name):
     if name in {"SympyOdes", "export_sympy_odes"}:
         from .modelapi.sympy_odes import SympyOdes, export_sympy_odes
+
         return locals()[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

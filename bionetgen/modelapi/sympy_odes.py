@@ -148,7 +148,9 @@ def extract_odes_from_mexfile(mex_c_path: str) -> SympyOdes:
         cleaned = _replace_indexed_symbols(
             cleaned, species_symbol_names, param_symbol_names
         )
-        odes[idx] = parse_expr(cleaned, local_dict=local_dict, transformations=standard_transformations)
+        odes[idx] = parse_expr(
+            cleaned, local_dict=local_dict, transformations=standard_transformations
+        )
 
     return SympyOdes(
         t=t,
@@ -165,10 +167,18 @@ def _extract_odes_from_cvode_mex(text: str, mex_c_path: str) -> SympyOdes:
     n_species = _extract_define_int(text, "__N_SPECIES__")
     n_params = _extract_define_int(text, "__N_PARAMETERS__")
 
-    expr_map = _extract_nv_assignments(_extract_function_body(text, "calc_expressions"), "expressions")
-    obs_map = _extract_nv_assignments(_extract_function_body(text, "calc_observables"), "observables")
-    rate_map = _extract_nv_assignments(_extract_function_body(text, "calc_ratelaws"), "ratelaws")
-    deriv_map = _extract_nv_assignments(_extract_function_body(text, "calc_species_deriv"), "Dspecies")
+    expr_map = _extract_nv_assignments(
+        _extract_function_body(text, "calc_expressions"), "expressions"
+    )
+    obs_map = _extract_nv_assignments(
+        _extract_function_body(text, "calc_observables"), "observables"
+    )
+    rate_map = _extract_nv_assignments(
+        _extract_function_body(text, "calc_ratelaws"), "ratelaws"
+    )
+    deriv_map = _extract_nv_assignments(
+        _extract_function_body(text, "calc_species_deriv"), "Dspecies"
+    )
     if not deriv_map:
         raise ValueError(
             "No ODE assignments found in mex output. "
@@ -225,7 +235,9 @@ def _extract_odes_from_cvode_mex(text: str, mex_c_path: str) -> SympyOdes:
             raise NotImplementedError(rhs)
         cleaned = _normalize_expr(rhs)
         cleaned = _replace_parameters_brackets(cleaned, param_symbol_names)
-        cleaned = _replace_nv_ith_s(cleaned, species_symbol_names, expr_syms, obs_syms, rate_syms)
+        cleaned = _replace_nv_ith_s(
+            cleaned, species_symbol_names, expr_syms, obs_syms, rate_syms
+        )
         return cast(
             sp.Expr,
             parse_expr(
@@ -240,7 +252,9 @@ def _extract_odes_from_cvode_mex(text: str, mex_c_path: str) -> SympyOdes:
     for idx in sorted(expr_map.keys()):
         val = _parse_rhs(expr_map[idx])
         if idx > 0:
-            val = val.subs({expr_syms[j]: expr_exprs[j] for j in range(min(idx, len(expr_exprs)))})
+            val = val.subs(
+                {expr_syms[j]: expr_exprs[j] for j in range(min(idx, len(expr_exprs)))}
+            )
         expr_exprs[idx] = cast(sp.Expr, val)
 
     obs_exprs: List[sp.Expr] = [sp.Integer(0) for _ in range(n_obs)]
@@ -276,7 +290,9 @@ def _extract_odes_from_cvode_mex(text: str, mex_c_path: str) -> SympyOdes:
 
 
 def _extract_define_int(text: str, define_name: str) -> Optional[int]:
-    m = re.search(rf"^\s*#define\s+{re.escape(define_name)}\s+(\d+)\s*$", text, flags=re.M)
+    m = re.search(
+        rf"^\s*#define\s+{re.escape(define_name)}\s+(\d+)\s*$", text, flags=re.M
+    )
     if not m:
         return None
     return int(m.group(1))
@@ -284,7 +300,11 @@ def _extract_define_int(text: str, define_name: str) -> Optional[int]:
 
 def _extract_function_body(text: str, func_name: str) -> str:
     # Best-effort extraction; BioNetGen-generated mex code uses simple, non-nested bodies.
-    m = re.search(rf"\b{re.escape(func_name)}\b\s*\([^)]*\)\s*\{{(.*?)^\}}\s*$", text, flags=re.S | re.M)
+    m = re.search(
+        rf"\b{re.escape(func_name)}\b\s*\([^)]*\)\s*\{{(.*?)^\}}\s*$",
+        text,
+        flags=re.S | re.M,
+    )
     if not m:
         return ""
     return m.group(1)
@@ -322,7 +342,11 @@ def _replace_nv_ith_s(
         var = match.group(1)
         idx = int(match.group(2))
         if var == "species":
-            return species_symbol_names[idx] if idx < len(species_symbol_names) else f"s{idx}"
+            return (
+                species_symbol_names[idx]
+                if idx < len(species_symbol_names)
+                else f"s{idx}"
+            )
         if var == "expressions":
             return expr_syms[idx].name if idx < len(expr_syms) else f"e{idx}"
         if var == "observables":

@@ -151,7 +151,6 @@ class TranslationException(Exception):
 
 
 class NumericStringParser(object):
-
     """
     Most of this code comes from the fourFn.py pyparsing example
 
