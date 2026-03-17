@@ -64,6 +64,50 @@ class BNGInfo:
         # Save version info
         self.info["Perl version"] = text[num_start:num_end] + " (used to run BNG2.pl)"
 
+        # Get NFsim version (if available on PATH or adjacent to BNG2.pl)
+        self.logger.debug("NFsim info", loc=f"{__file__} : BNGInfo.gatherInfo()")
+        nf_version_text = "not found"
+        try:
+            # Try the standard PATH lookup first
+            result = subprocess.run(
+                ["NFsim", "--version"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode == 0:
+                nf_version_text = result.stdout.strip().splitlines()[0]
+            else:
+                nf_version_text = f"exit {result.returncode}"
+        except FileNotFoundError:
+            # If NFsim isn't on PATH, attempt to locate it relative to BNG2.pl
+            try:
+                bng2_path = self.config.get("bionetgen", "bngpath")
+                bng2_dir = os.path.dirname(bng2_path)
+                candidates = [
+                    os.path.join(bng2_dir, "bin", "NFsim"),
+                    os.path.join(bng2_dir, "bin", "NFsim.exe"),
+                ]
+                for cmd in candidates:
+                    if os.path.isfile(cmd):
+                        result = subprocess.run(
+                            [cmd, "--version"],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                            timeout=10,
+                        )
+                        if result.returncode == 0:
+                            nf_version_text = result.stdout.strip().splitlines()[0]
+                            break
+            except Exception:
+                pass
+        except Exception as e:
+            nf_version_text = f"error: {e}"
+
+        self.info["NFsim version"] = nf_version_text
+
         self.logger.debug("PyBNG info", loc=f"{__file__} : BNGInfo.gatherInfo()")
         # Get CLI version
         with open(

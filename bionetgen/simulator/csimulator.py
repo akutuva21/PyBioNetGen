@@ -1,7 +1,13 @@
 import ctypes, os, tempfile, bionetgen
 import numpy as np
 
-from distutils import ccompiler
+# distutils is deprecated in Python 3.12+. setuptools still provides the
+# equivalent via setuptools._distutils for backwards compatibility.
+try:
+    from setuptools._distutils import ccompiler
+except ImportError:
+    from distutils import ccompiler
+
 from .bngsimulator import BNGSimulator
 from bionetgen.main import BioNetGen
 from bionetgen.core.exc import BNGCompileError

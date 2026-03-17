@@ -1,0 +1,35 @@
+name: release-test
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  test-release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install bionetgen from PyPI
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install bionetgen
+
+      - name: Smoke test bionetgen command
+        run: |
+          bionetgen -h
+          python -c "import bionetgen; print('bionetgen', bionetgen.__version__)"
+
+      - name: Run unit tests
+        run: |
+          python -m pip install pytest
+          pytest

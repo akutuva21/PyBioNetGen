@@ -186,6 +186,7 @@ setup(
         [console_scripts]
         bionetgen = bionetgen.main:main
     """,
+    python_requires=">=3.8",
     install_requires=[
         "cement",
         "nbopen",
@@ -201,6 +202,9 @@ setup(
         "python-libsbml",
         "pylru",
         "pyparsing",
+        "pyyed",
+        "matplotlib",
+        "pandas",
         "packaging",
     ],
 )
