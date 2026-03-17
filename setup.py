@@ -14,7 +14,9 @@ def get_folder(arch):
     return fname
 
 
-subprocess.check_call([sys.executable, "-m", "pip", "install", "numpy"])
+# Note: don't run pip install at import time; in PEP 517 builds pip isn't available
+# and running subprocesses during import breaks isolated build environments.
+# numpy is declared in install_requires and will be installed by pip.
 import urllib.request
 import itertools as itt
 
