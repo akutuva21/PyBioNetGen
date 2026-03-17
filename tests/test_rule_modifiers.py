@@ -11,7 +11,12 @@ def _rule_block_parser():
 def test_get_rule_mod_total_rate_string_true():
     xml = {
         "ListOfOperations": {},
-        "RateLaw": {"@type": "Function", "@totalrate": "1", "@id": "r1", "@name": "foo"},
+        "RateLaw": {
+            "@type": "Function",
+            "@totalrate": "1",
+            "@id": "r1",
+            "@name": "foo",
+        },
     }
 
     mod = _rule_block_parser().get_rule_mod(xml)
