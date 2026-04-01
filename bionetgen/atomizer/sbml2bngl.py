@@ -647,10 +647,18 @@ class SBML2BNGL:
             raise TranslationException(
                 f"ERROR:SIM211: Math for reaction with ID '{reactionID}' is not defined"
             )
-        l = math.getListOfNodes()
         replace_dict = {}
-        for inode in range(l.getSize()):
-            node = l.get(inode)
+
+        def traverse_nodes(n, out_list):
+            if n is not None:
+                out_list.append(n)
+                for c in range(n.getNumChildren()):
+                    traverse_nodes(n.getChild(c), out_list)
+
+        all_nodes = []
+        traverse_nodes(math, all_nodes)
+
+        for node in all_nodes:
             # Sympy doesn't like "def" in our string
             name = node.getName()
             if name == "def":
