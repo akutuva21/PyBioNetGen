@@ -73,7 +73,8 @@ class BNGFile:
                 # we just need to pass the basename of the stripped_bngl since we chdir'd
                 stripped_bngl_basename = os.path.basename(stripped_bngl)
                 rc, _ = run_command(
-                    ["perl", self.bngexec, "--xml", stripped_bngl_basename], suppress=self.suppress
+                    ["perl", self.bngexec, "--xml", stripped_bngl_basename],
+                    suppress=self.suppress,
                 )
                 if rc == 1:
                     # if we fail, print out what we have to
@@ -91,6 +92,7 @@ class BNGFile:
                     model_name = model_name.replace(".bngl", "")
 
                     import glob
+
                     xml_files = glob.glob("*.xml")
                     if len(xml_files) == 1:
                         written_xml_file = xml_files[0]
@@ -190,7 +192,8 @@ class BNGFile:
                 # TODO: Make output supression an option somewhere
                 if xml_type == "bngxml":
                     rc, _ = run_command(
-                        ["perl", self.bngexec, "--xml", "temp.bngl"], suppress=self.suppress
+                        ["perl", self.bngexec, "--xml", "temp.bngl"],
+                        suppress=self.suppress,
                     )
                     if rc == 1:
                         print("XML generation failed")
