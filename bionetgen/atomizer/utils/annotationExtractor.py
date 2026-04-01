@@ -158,9 +158,9 @@ class AnnotationExtractor:
                 localSpeciesDict[constituentElement] = annotationToSpeciesDict[
                     constituentElement
                 ]
-                localSpeciesDict[
-                    annotationToSpeciesDict[constituentElement]
-                ] = constituentElement
+                localSpeciesDict[annotationToSpeciesDict[constituentElement]] = (
+                    constituentElement
+                )
             else:
                 unmatchedReactants.append(constituentElement)
 
