@@ -1,6 +1,7 @@
 import os, subprocess
 from bionetgen.core.exc import BNGPerlError
 from distutils import spawn
+from functools import lru_cache
 
 from bionetgen.core.utils.logging import BNGLogger
 
@@ -539,6 +540,7 @@ class ActionList:
         self.action_parser = full_action_tk
 
 
+@lru_cache(maxsize=None)
 def find_BNG_path(BNGPATH=None):
     """
     A simple function finds the path to BNG2.pl from

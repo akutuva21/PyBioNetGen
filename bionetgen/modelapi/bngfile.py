@@ -63,39 +63,53 @@ class BNGFile:
         cur_dir = os.getcwd()
         # temporary folder to work in
         with TemporaryDirectory() as temp_folder:
-            # make a stripped copy without actions in the folder
-            stripped_bngl = self.strip_actions(model_file, temp_folder)
-            # run with --xml
-            os.chdir(temp_folder)
-            # TODO: take stdout option from app instead
-            rc, _ = run_command(
-                ["perl", self.bngexec, "--xml", stripped_bngl], suppress=self.suppress
-            )
-            if rc == 1:
-                # if we fail, print out what we have to
-                # let the user know what BNG2.pl says
-                # if rc.stdout is not None:
-                #     print(rc.stdout.decode('utf-8'))
-                # if rc.stderr is not None:
-                #     print(rc.stderr.decode('utf-8'))
-                # go back to our original location
+            try:
+                # make a stripped copy without actions in the folder
+                stripped_bngl = self.strip_actions(model_file, temp_folder)
+                # run with --xml
+                # we should run from the temp_folder
+                os.chdir(temp_folder)
+                # TODO: take stdout option from app instead
+                # we just need to pass the basename of the stripped_bngl since we chdir'd
+                stripped_bngl_basename = os.path.basename(stripped_bngl)
+                rc, _ = run_command(
+                    ["perl", self.bngexec, "--xml", stripped_bngl_basename],
+                    suppress=self.suppress,
+                )
+                if rc == 1:
+                    # if we fail, print out what we have to
+                    # let the user know what BNG2.pl says
+                    # if rc.stdout is not None:
+                    #     print(rc.stdout.decode('utf-8'))
+                    # if rc.stderr is not None:
+                    #     print(rc.stderr.decode('utf-8'))
+                    # go back to our original location
+                    # shutil.rmtree(temp_folder)
+                    return False
+                else:
+                    # we should now have the XML file
+                    path, model_name = os.path.split(stripped_bngl)
+                    model_name = model_name.replace(".bngl", "")
+
+                    import glob
+
+                    xml_files = glob.glob("*.xml")
+                    if len(xml_files) == 1:
+                        written_xml_file = xml_files[0]
+                    else:
+                        # try without path
+                        written_xml_file = model_name + ".xml"
+
+                    with open(written_xml_file, "r", encoding="UTF-8") as f:
+                        content = f.read()
+                        xml_file.write(content)
+                    # since this is an open file, to read it later
+                    # we need to go back to the beginning
+                    xml_file.seek(0)
+                    # go back to our original location
+                    return True
+            finally:
                 os.chdir(cur_dir)
-                # shutil.rmtree(temp_folder)
-                return False
-            else:
-                # we should now have the XML file
-                path, model_name = os.path.split(stripped_bngl)
-                model_name = model_name.replace(".bngl", "")
-                written_xml_file = model_name + ".xml"
-                with open(written_xml_file, "r", encoding="UTF-8") as f:
-                    content = f.read()
-                    xml_file.write(content)
-                # since this is an open file, to read it later
-                # we need to go back to the beginning
-                xml_file.seek(0)
-                # go back to our original location
-                os.chdir(cur_dir)
-                return True
 
     def strip_actions(self, model_path, folder) -> str:
         """
@@ -169,46 +183,46 @@ class BNGFile:
         cur_dir = os.getcwd()
         # temporary folder to work in
         with TemporaryDirectory() as temp_folder:
-            # write the current model to temp folder
-            os.chdir(temp_folder)
-            with open("temp.bngl", "w", encoding="UTF-8") as f:
-                f.write(bngl_str)
-            # run with --xml
-            # TODO: Make output supression an option somewhere
-            if xml_type == "bngxml":
-                rc, _ = run_command(
-                    ["perl", self.bngexec, "--xml", "temp.bngl"], suppress=self.suppress
-                )
-                if rc == 1:
-                    print("XML generation failed")
-                    # go back to our original location
-                    os.chdir(cur_dir)
-                    return False
+            try:
+                # write the current model to temp folder
+                os.chdir(temp_folder)
+                with open("temp.bngl", "w", encoding="UTF-8") as f:
+                    f.write(bngl_str)
+                # run with --xml
+                # TODO: Make output supression an option somewhere
+                if xml_type == "bngxml":
+                    rc, _ = run_command(
+                        ["perl", self.bngexec, "--xml", "temp.bngl"],
+                        suppress=self.suppress,
+                    )
+                    if rc == 1:
+                        print("XML generation failed")
+                        # go back to our original location
+                        return False
+                    else:
+                        # we should now have the XML file
+                        with open("temp.xml", "r", encoding="UTF-8") as f:
+                            content = f.read()
+                            open_file.write(content)
+                        # go back to beginning
+                        open_file.seek(0)
+                        return True
+                elif xml_type == "sbml":
+                    command = ["perl", self.bngexec, "temp.bngl"]
+                    rc, _ = run_command(command, suppress=self.suppress)
+                    if rc == 1:
+                        print("SBML generation failed")
+                        # go back to our original location
+                        return False
+                    else:
+                        # we should now have the SBML file
+                        with open("temp_sbml.xml", "r", encoding="UTF-8") as f:
+                            content = f.read()
+                            open_file.write(content)
+                        open_file.seek(0)
+                        return True
                 else:
-                    # we should now have the XML file
-                    with open("temp.xml", "r", encoding="UTF-8") as f:
-                        content = f.read()
-                        open_file.write(content)
-                    # go back to beginning
-                    open_file.seek(0)
-                    os.chdir(cur_dir)
-                    return True
-            elif xml_type == "sbml":
-                command = ["perl", self.bngexec, "temp.bngl"]
-                rc, _ = run_command(command, suppress=self.suppress)
-                if rc == 1:
-                    print("SBML generation failed")
-                    # go back to our original location
-                    os.chdir(cur_dir)
+                    print("XML type {} not recognized".format(xml_type))
                     return False
-                else:
-                    # we should now have the SBML file
-                    with open("temp_sbml.xml", "r", encoding="UTF-8") as f:
-                        content = f.read()
-                        open_file.write(content)
-                    open_file.seek(0)
-                    os.chdir(cur_dir)
-                    return True
-            else:
-                print("XML type {} not recognized".format(xml_type))
-                return False
+            finally:
+                os.chdir(cur_dir)
