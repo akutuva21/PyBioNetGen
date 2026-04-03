@@ -13,7 +13,12 @@ import re, sympy
 from collections import Counter
 from collections import defaultdict
 import math as pymath
-from bionetgen.atomizer.utils.util import logMess, TranslationException
+from bionetgen.atomizer.utils.util import (
+    logMess,
+    TranslationException,
+    get_size,
+    get_item,
+)
 import libsbml
 from bionetgen.atomizer.bngModel import bngModel
 
@@ -221,7 +226,7 @@ class SBML2BNGL:
         annotation = self.model.getAnnotation()
         lista = libsbml.CVTermList()
         libsbml.RDFAnnotationParser.parseRDFAnnotation(annotation, lista)
-        for idx in range(lista.getSize()):
+        for idx in range(get_size(lista)):
             # biol,qual = lista.get(idx).getBiologicalQualifierType(), lista.get(idx).getModelQualifierType()
             qualifierType = lista.get(idx).getQualifierType()
             qualifierDescription = (
@@ -231,8 +236,8 @@ class SBML2BNGL:
             )
             if qualifierDescription not in metaInformation:
                 metaInformation[qualifierDescription] = set([])
-            for idx2 in range(0, lista.get(idx).getResources().getLength()):
-                resource = lista.get(idx).getResources().getValue(idx2)
+            for idx2 in range(0, get_size(get_item(lista, idx).getResources())):
+                resource = get_item(lista, idx).getResources().getValue(idx2)
                 metaInformation[qualifierDescription].add(resource)
         return metaInformation
 
@@ -339,7 +344,7 @@ class SBML2BNGL:
         # by compartment
         if logEntries and standardizedName != "0":
             if standardizedName in self.speciesMemory:
-                if len(list(self.model.getListOfCompartments())) == 1:
+                if get_size(self.model.getListOfCompartments()) == 1:
                     standardizedName += "_" + species.getId()
                 else:
                     # we can differentiate by compartment tag, no need to attach it to the name
@@ -648,18 +653,11 @@ class SBML2BNGL:
             raise TranslationException(
                 f"ERROR:SIM211: Math for reaction with ID '{reactionID}' is not defined"
             )
+        l = math.getListOfNodes()
         replace_dict = {}
-
-        def traverse_nodes(n, out_list):
-            if n is not None:
-                out_list.append(n)
-                for c in range(n.getNumChildren()):
-                    traverse_nodes(n.getChild(c), out_list)
-
-        all_nodes = []
-        traverse_nodes(math, all_nodes)
-
-        for node in all_nodes:
+        size = get_size(l)
+        for inode in range(size):
+            node = get_item(l, inode)
             # Sympy doesn't like "def" in our string
             name = node.getName()
             if name == "def":
@@ -1287,9 +1285,9 @@ class SBML2BNGL:
                 for compartment in (self.model.getListOfCompartments()):
                     if compartment.getId() not in compartmentList:
                         if len(rReactant) != 2:
-                            rateL = '{0} * {1}'.format(rateL,compartment.getSize())
+                            rateL = '{0} * {1}'.format(rateL, get_size(compartment))
                         if len(rProduct) != 2:
-                             rateR = '{0} * {1}'.format(rateR,compartment.getSize())
+                             rateR = '{0} * {1}'.format(rateR,get_size(compartment))
             """
         return {
             "reactants": reactant,
@@ -1615,7 +1613,7 @@ class SBML2BNGL:
         """
         idid = compartment.getId()
         name = compartment.getName()
-        size = compartment.getSize()
+        size = get_size(compartment)
         # volume messes up the reactions
         # size = 1.0
         dimensions = compartment.getSpatialDimensions()
@@ -2865,7 +2863,7 @@ class SBML2BNGL:
             self.bngModel.noCompartment = True
             return
         for compartment in self.model.getListOfCompartments():
-            self.compartmentDict[compartment.getId()] = compartment.getSize()
+            self.compartmentDict[compartment.getId()] = get_size(compartment)
         self.noCompartment = False
         self.bngModel.noCompartment = False
         # Get all rawSpecies
@@ -2939,7 +2937,7 @@ class SBML2BNGL:
         speciesAnnotationInfo = default_to_regular(self.getFullAnnotation())
         annotationInfo = {"moleculeTypes": {}, "species": {}}
         for compartment in self.model.getListOfCompartments():
-            compartmentDict[compartment.getId()] = compartment.getSize()
+            compartmentDict[compartment.getId()] = get_size(compartment)
         unitFlag = True
         for species in self.model.getListOfSpecies():
             # making molecule and seed species objs for
@@ -2965,7 +2963,7 @@ class SBML2BNGL:
                 if rawSpecies["returnID"] in rawSpeciesName:
                     rawSpeciesName.remove(rawSpecies["returnID"])
                 if (
-                    translator[rawSpecies["returnID"]].getSize() == 1
+                    get_size(translator[rawSpecies["returnID"]]) == 1
                     and translator[rawSpecies["returnID"]].molecules[0].name
                     not in names
                     and translator[rawSpecies["returnID"]].molecules[0].name
@@ -3080,9 +3078,9 @@ class SBML2BNGL:
                         if self.noCompartment:
                             compartmentSize = 1.0
                         else:
-                            compartmentSize = self.model.getCompartment(
-                                rawSpecies["compartment"]
-                            ).getSize()
+                            compartmentSize = get_size(
+                                self.model.getCompartment(rawSpecies["compartment"])
+                            )
                         newParameter = compartmentSize * newParameter
                         # temp testing AS
                         spec_obj.val = newParameter
@@ -3255,7 +3253,7 @@ class SBML2BNGL:
         sorted(rawSpeciesName, key=len)
         for species in rawSpeciesName:
             if (
-                translator[species].getSize() == 1
+                get_size(translator[species]) == 1
                 and translator[species].molecules[0].name not in names
             ):
                 names.append(translator[species].molecules[0].name)
@@ -3395,10 +3393,10 @@ class SBML2BNGL:
             annotationXML = species.getAnnotation()
             lista = libsbml.CVTermList()
             libsbml.RDFAnnotationParser.parseRDFAnnotation(annotationXML, lista)
-            if lista.getSize() == 0:
+            if get_size(lista) == 0:
                 self.speciesAnnotation[rawSpecies["returnID"]] = []
             else:
-                for idx in range(lista.getSize()):
+                for idx in range(get_size(lista)):
                     self.speciesAnnotation[rawSpecies["returnID"]].append(
                         lista.get(idx).getResources()
                     )
@@ -3415,11 +3413,11 @@ class SBML2BNGL:
             annotationXML = species.getAnnotation()
             lista = libsbml.CVTermList()
             libsbml.RDFAnnotationParser.parseRDFAnnotation(annotationXML, lista)
-            if lista.getSize() == 0:
+            if get_size(lista) == 0:
                 continue
             else:
-                for idx in range(lista.getSize()):
-                    for idx2 in range(0, lista.get(idx).getResources().getLength()):
+                for idx in range(get_size(lista)):
+                    for idx2 in range(0, get_size(get_item(lista, idx).getResources())):
                         resource = lista.get(idx).getResources().getValue(idx2)
                         qualifierType = lista.get(idx).getQualifierType()
                         qualifierDescription = (
@@ -3438,7 +3436,7 @@ class SBML2BNGL:
         annotationXML = self.model.getAnnotation()
         lista = libsbml.CVTermList()
         libsbml.RDFAnnotationParser.parseRDFAnnotation(annotationXML, lista)
-        if lista.getSize() == 0:
+        if get_size(lista) == 0:
             modelAnnotations = []
         else:
             tempDict = {}
