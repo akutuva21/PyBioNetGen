@@ -701,14 +701,14 @@ class RuleBlockXML(XMLObj):
         if "Delete" in list_ops:
             del_op = list_ops["Delete"]
             if not isinstance(del_op, list):
-                del_op = [del_op] # Make sure del_op is list
-            dmvals = [op.get('@DeleteMolecules', "0") for op in del_op]
+                del_op = [del_op]  # Make sure del_op is list
+            dmvals = [op.get("@DeleteMolecules", "0") for op in del_op]
             # All Delete operations in rule must have DeleteMolecules attribute or
             # it does not apply to the whole rule
-            if (all([val == "1" for val in dmvals])):
+            if all([val == "1" for val in dmvals]):
                 rule_mod.type = "DeleteMolecules"
                 # JRF: I don't believe the id of the specific op rule_mod is currently used
-                #rule_mod.id = op["@id"]
+                # rule_mod.id = op["@id"]
         elif "ChangeCompartment" in list_ops:
             move_op = list_ops["ChangeCompartment"]
             if not isinstance(move_op, list):

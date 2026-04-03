@@ -404,7 +404,7 @@ def main():
         help="the output JSON file. Default = <input>.py",
         metavar="FILE",
     )
-    (options, args) = parser.parse_args()
+    options, args = parser.parse_args()
     reader = libsbml.SBMLReader()
     nameStr = options.input
     if options.output == None:
