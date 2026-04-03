@@ -4,7 +4,6 @@ Created on Tue Dec  6 17:42:31 2011
 
 @author: proto
 """
-
 from copy import deepcopy, copy
 from bionetgen.atomizer.writer import bnglWriter as writer
 
@@ -1456,7 +1455,7 @@ class SBML2BNGL:
                 for molecule in translator[element[0]].molecules:
                     for component in molecule.components:
                         molecule.sort()
-                        componentList = Counter([molecule.signature(freactionCenter)])
+                        componentList = Counter([(molecule.signature(freactionCenter))])
                         for _ in range(0, int(element[1])):
                             rcomponent[
                                 (
@@ -1472,7 +1471,7 @@ class SBML2BNGL:
                 for molecule in translator[element[0]].molecules:
                     molecule.sort()
                     for component in molecule.components:
-                        componentList = Counter([molecule.signature(breactionCenter)])
+                        componentList = Counter([(molecule.signature(breactionCenter))])
                         for _ in range(0, int(element[1])):
                             pcomponent[
                                 (
@@ -1968,9 +1967,9 @@ class SBML2BNGL:
                             )
                             fobj_2.local_dict = currParamConv
                             self.bngModel.add_function(fobj_2)
-                    self.reactionDictionary[rawRules["reactionID"]] = (
-                        "({0} - {1})".format(functionName, functionName2)
-                    )
+                    self.reactionDictionary[
+                        rawRules["reactionID"]
+                    ] = "({0} - {1})".format(functionName, functionName2)
                     finalRateStr = "{0},{1}".format(functionName, functionName2)
                     rule_obj.rate_cts = (functionName, functionName2)
                 else:
@@ -2048,9 +2047,9 @@ class SBML2BNGL:
                                 % functionName,
                             )
                         defn = self.bngModel.functions[rule_obj.rate_cts[0]].definition
-                        self.bngModel.functions[rule_obj.rate_cts[0]].definition = (
-                            f"({defn})/({rule_obj.symm_factors[0]})"
-                        )
+                        self.bngModel.functions[
+                            rule_obj.rate_cts[0]
+                        ].definition = f"({defn})/({rule_obj.symm_factors[0]})"
                 if rule_obj.reversible:
                     logMess(
                         "ERROR:SIM205",
@@ -2611,14 +2610,14 @@ class SBML2BNGL:
 
                     if matches:
                         if matches[0]["isBoundary"]:
-                            artificialObservables[rawArule[0] + "_ar"] = (
-                                writer.bnglFunction(
-                                    rawArule[1][0],
-                                    rawArule[0] + "_ar()",
-                                    [],
-                                    compartments=compartmentList,
-                                    reactionDict=self.reactionDictionary,
-                                )
+                            artificialObservables[
+                                rawArule[0] + "_ar"
+                            ] = writer.bnglFunction(
+                                rawArule[1][0],
+                                rawArule[0] + "_ar()",
+                                [],
+                                compartments=compartmentList,
+                                reactionDict=self.reactionDictionary,
                             )
                             self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
                             if rawArule[0] in observablesDict:
@@ -2632,28 +2631,28 @@ class SBML2BNGL:
                                     rawArule[0]
                                 ),
                             )
-                            artificialObservables[rawArule[0] + "_ar"] = (
-                                writer.bnglFunction(
-                                    rawArule[1][0],
-                                    rawArule[0] + "_ar()",
-                                    [],
-                                    compartments=compartmentList,
-                                    reactionDict=self.reactionDictionary,
-                                )
-                            )
-                            self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
-                            if rawArule[0] in observablesDict:
-                                observablesDict[rawArule[0]] = rawArule[0] + "_ar"
-                            continue
-                    elif rawArule[0] in [observablesDict[x] for x in observablesDict]:
-                        artificialObservables[rawArule[0] + "_ar"] = (
-                            writer.bnglFunction(
+                            artificialObservables[
+                                rawArule[0] + "_ar"
+                            ] = writer.bnglFunction(
                                 rawArule[1][0],
                                 rawArule[0] + "_ar()",
                                 [],
                                 compartments=compartmentList,
                                 reactionDict=self.reactionDictionary,
                             )
+                            self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
+                            if rawArule[0] in observablesDict:
+                                observablesDict[rawArule[0]] = rawArule[0] + "_ar"
+                            continue
+                    elif rawArule[0] in [observablesDict[x] for x in observablesDict]:
+                        artificialObservables[
+                            rawArule[0] + "_ar"
+                        ] = writer.bnglFunction(
+                            rawArule[1][0],
+                            rawArule[0] + "_ar()",
+                            [],
+                            compartments=compartmentList,
+                            reactionDict=self.reactionDictionary,
                         )
                         self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
                         if rawArule[0] in observablesDict:
@@ -2709,14 +2708,14 @@ class SBML2BNGL:
                     assigObsFlag = False
                     for idx in candidates:
                         # if re.search('\s{0}\s'.format(rawArule[0]),observables[idx]):
-                        artificialObservables[rawArule[0] + "_ar"] = (
-                            writer.bnglFunction(
-                                rawArule[1][0],
-                                rawArule[0] + "_ar()",
-                                [],
-                                compartments=compartmentList,
-                                reactionDict=self.reactionDictionary,
-                            )
+                        artificialObservables[
+                            rawArule[0] + "_ar"
+                        ] = writer.bnglFunction(
+                            rawArule[1][0],
+                            rawArule[0] + "_ar()",
+                            [],
+                            compartments=compartmentList,
+                            reactionDict=self.reactionDictionary,
                         )
                         self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
                         assigObsFlag = True
@@ -3014,9 +3013,9 @@ class SBML2BNGL:
                 moleculesText.append(mtext)
 
                 if rawSpecies["returnID"] in speciesAnnotationInfo:
-                    annotationInfo["moleculeTypes"][rawSpecies["returnID"]] = (
-                        speciesAnnotationInfo[rawSpecies["returnID"]]
-                    )
+                    annotationInfo["moleculeTypes"][
+                        rawSpecies["returnID"]
+                    ] = speciesAnnotationInfo[rawSpecies["returnID"]]
                     del speciesAnnotationInfo[rawSpecies["returnID"]]
 
             # if rawSpecies['identifier'] == 'glx' and len(translator) > 0:

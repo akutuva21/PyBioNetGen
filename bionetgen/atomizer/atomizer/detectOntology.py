@@ -4,7 +4,6 @@ Created on Sat Oct 19 15:19:35 2013
 
 @author: proto
 """
-
 import pprint
 import difflib
 from collections import Counter

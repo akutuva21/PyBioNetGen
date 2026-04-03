@@ -4,7 +4,6 @@ Created on Mon Sep  2 18:11:35 2013
 
 @author: proto
 """
-
 import bionetgen
 
 

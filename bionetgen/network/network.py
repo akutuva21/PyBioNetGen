@@ -11,6 +11,7 @@ from bionetgen.network.blocks import (
     NetworkPopulationMapBlock,
 )
 
+
 # This allows access to the CLIs config setup
 app = BioNetGen()
 app.setup()
@@ -53,7 +54,7 @@ class Network:
             "parameters",
             "species",
             "reactions",
-            "groups",
+            "groups"
             # "compartments",
             # "molecule_types",
             # "species",

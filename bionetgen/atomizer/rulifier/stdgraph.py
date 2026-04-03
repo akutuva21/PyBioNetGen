@@ -130,13 +130,13 @@ def createBitNode(graph, molecule, nodeList, simplifiedText):
                 if simplifiedText:
                     nodeName += "o"
                 else:
-                    nodeName += "\u25cf "
+                    nodeName += "\u25CF "
                 nodeId.append(bit[0])
             else:
                 if simplifiedText:
                     nodeName += "x"
                 else:
-                    nodeName += "\u25cb "
+                    nodeName += "\u25CB "
                 # nodeName += u"\u00B7 "
             if (idx + 1) % gridDict[len(node)] == 0 and idx + 1 != len(node):
                 nodeName.strip(" ")

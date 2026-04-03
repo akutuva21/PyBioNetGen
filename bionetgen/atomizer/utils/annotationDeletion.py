@@ -190,9 +190,9 @@ def updateFromComplex(complexMolecule, sct, annotationDict, annotationToSpeciesD
             localSpeciesDict[constituentElement] = annotationToSpeciesDict[
                 constituentElement
             ]
-            localSpeciesDict[annotationToSpeciesDict[constituentElement]] = (
-                constituentElement
-            )
+            localSpeciesDict[
+                annotationToSpeciesDict[constituentElement]
+            ] = constituentElement
         else:
             unmatchedReactants.append(constituentElement)
 

@@ -1,6 +1,5 @@
-import os, subprocess
+import os, subprocess, shutil
 from bionetgen.core.exc import BNGPerlError
-from distutils import spawn
 from functools import lru_cache
 
 from bionetgen.core.utils.logging import BNGLogger
@@ -572,7 +571,7 @@ def find_BNG_path(BNGPATH=None):
         if test_bngexec(bngexec):
             # print("BNG2.pl seems to be working")
             # get the source of BNG2.pl
-            BNGPATH = spawn.find_executable("BNG2.pl")
+            BNGPATH = shutil.which("BNG2.pl")
             BNGPATH, _ = os.path.split(BNGPATH)
     else:
         bngexec = os.path.join(BNGPATH, "BNG2.pl")
@@ -594,7 +593,7 @@ def test_perl(app=None, perl_path=None):
     logger.debug("Checking if perl is installed.", loc=f"{__file__} : test_perl()")
     # find path to perl binary
     if perl_path is None:
-        perl_path = spawn.find_executable("perl")
+        perl_path = shutil.which("perl")
     if perl_path is None:
         raise BNGPerlError
     # check if perl is actually working

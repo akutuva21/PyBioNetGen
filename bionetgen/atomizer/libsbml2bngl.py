@@ -438,9 +438,9 @@ def extractCompartmentStatistics(
     for element in compartmentPairs:
         if element[0][0] not in finalCompartmentPairs:
             finalCompartmentPairs[element[0][0]] = {}
-        finalCompartmentPairs[element[0][0]][tuple([element[0][1], element[1][1]])] = (
-            compartmentPairs[element]
-        )
+        finalCompartmentPairs[element[0][0]][
+            tuple([element[0][1], element[1][1]])
+        ] = compartmentPairs[element]
     return finalCompartmentPairs
 
 
@@ -1457,16 +1457,16 @@ def analyzeHelper(
         param = ["__epsilon__ 1e-100"] + param
 
     if atomize:
-        commentDictionary["notes"] = (
-            "'This is an atomized translation of an SBML model created on {0}.".format(
-                time.strftime("%d/%m/%Y")
-            )
+        commentDictionary[
+            "notes"
+        ] = "'This is an atomized translation of an SBML model created on {0}.".format(
+            time.strftime("%d/%m/%Y")
         )
     else:
-        commentDictionary["notes"] = (
-            "'This is a plain translation of an SBML model created on {0}.".format(
-                time.strftime("%d/%m/%Y")
-            )
+        commentDictionary[
+            "notes"
+        ] = "'This is a plain translation of an SBML model created on {0}.".format(
+            time.strftime("%d/%m/%Y")
         )
     commentDictionary[
         "notes"
@@ -1652,7 +1652,7 @@ def main():
         metavar="FILE",
     )
 
-    options, _ = parser.parse_args()
+    (options, _) = parser.parse_args()
     # 144
     rdfArray = []
     # classificationArray = []
