@@ -824,7 +824,8 @@ def createBindingRBM(
             if molecule[0].name != molecule[1].name:
                 try:
                     if newComponent2.name not in [
-                        x.name for x in translator[molecule[1].name].molecules[0].components
+                        x.name
+                        for x in translator[molecule[1].name].molecules[0].components
                     ]:
                         translator[molecule[1].name].molecules[0].components.append(
                             deepcopy(newComponent2)
