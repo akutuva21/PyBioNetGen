@@ -2068,15 +2068,15 @@ class SBMLAnalyzer:
                 return None
 
             fuzzy_upper = fuzzyKey.upper()
-            filtered_mods = tuple(m for m in modificationList if m.upper() in fuzzy_upper)
+            filtered_mods = tuple(
+                m for m in modificationList if m.upper() in fuzzy_upper
+            )
 
             for i in range(1, threshold):
                 combinations = itertools.permutations(filtered_mods, i)
 
                 validKeys = list(
-                    filter(
-                        lambda x: ("".join(x)).upper() == fuzzy_upper, combinations
-                    )
+                    filter(lambda x: ("".join(x)).upper() == fuzzy_upper, combinations)
                 )
 
                 if validKeys:
