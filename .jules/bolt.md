@@ -1,0 +1,3 @@
+## 2025-03-01 - O(1) Membership lookups with Set literals
+**Learning:** Python automatically optimizes set literals `{"A", "B"}` into `frozenset` objects at compile time for constant-time O(1) membership lookups. In contrast, list `["A", "B"]` or tuple `("A", "B")` lookups iterate over elements linearly (O(N)), which is inefficient inside loops. Benchmarking in `bionetgen/atomizer/utils/annotationExtender.py` proved set lookups were 3x faster than lists.
+**Action:** Always prefer set literals `{...}` over list `[...]` or tuple `(...)` literals when performing membership checks (`if x in {...}`) in Python.
