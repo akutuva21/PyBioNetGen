@@ -41,3 +41,15 @@ def test_atomize_atomized():
         assert app.exit_code == 0
         file_list = os.listdir(os.path.join(tfold, "test"))
         assert file_list.sort() == to_match.sort()
+
+def test_propagate_changes_error_path():
+    from bionetgen.atomizer.atomizer.moleculeCreation import propagateChanges
+    from unittest.mock import patch, MagicMock
+
+    translator = MagicMock()
+    dependencyGraph = {"dep": [["mol1"]]}
+
+    with patch('bionetgen.atomizer.atomizer.moleculeCreation.updateSpecies', side_effect=Exception("Test Exception")):
+        with patch('bionetgen.atomizer.atomizer.moleculeCreation.logMess') as mock_log:
+            propagateChanges(translator, dependencyGraph)
+            mock_log.assert_called_with("CRITICAL:Program", "Species is not being properly propagated")
