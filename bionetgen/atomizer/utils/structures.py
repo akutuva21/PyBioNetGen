@@ -415,9 +415,11 @@ class Molecule:
             element.reset()
 
     def update(self, molecule):
+        existing_names = set(x.name for x in self.components)
         for comp in molecule.components:
-            if comp.name not in [x.name for x in self.components]:
+            if comp.name not in existing_names:
                 self.components.append(deepcopy(comp))
+                existing_names.add(comp.name)
 
 
 class Component:
