@@ -1,0 +1,10 @@
+--- bionetgen/atomizer/rulifier/componentGroups.py
++++ bionetgen/atomizer/rulifier/componentGroups.py
+@@ -192,7 +192,6 @@
+                         cDict[molecule].append(pattern)
+             for molecule in pDict:
+                 for componentState in pDict[molecule]:
+-                    # FIXME: This is to account for dimers where or places where there is more than one components with the same name. Truly this should be enother kind of classification
+                     for componentState2 in [
+                         x for x in cDict[molecule] if x != componentState
+                     ]:
