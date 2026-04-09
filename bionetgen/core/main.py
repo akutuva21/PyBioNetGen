@@ -233,7 +233,6 @@ def generate_notebook(app):
     app.log.debug(f"Writing notebook to file: {fname}", f"{__file__} : notebook()")
     notebook.write(fname)
     # open the notebook with nbopen
-    # TODO: deal with stdout/err
     app.log.debug(
         f"Attempting to open notebook {fname} with nbopen",
         f"{__file__} : notebook()",
@@ -242,4 +241,9 @@ def generate_notebook(app):
     stderr = getattr(subprocess, app.config["bionetgen"]["stderr"])
     if args.open:
         command = ["nbopen", fname]
-        rc, _ = run_command(command)
+        process = subprocess.Popen(command, stdout=stdout, stderr=stderr)
+        p_out, p_err = process.communicate()
+        if p_out:
+            app.log.info(p_out.decode("utf-8") if isinstance(p_out, bytes) else p_out)
+        if p_err:
+            app.log.error(p_err.decode("utf-8") if isinstance(p_err, bytes) else p_err)
