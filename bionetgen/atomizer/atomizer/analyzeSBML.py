@@ -2066,12 +2066,16 @@ class SBMLAnalyzer:
         def testAgainstExistingConventionsHelper(fuzzyKey, modificationList, threshold):
             if not fuzzyKey:
                 return None
+
+            fuzzy_upper = fuzzyKey.upper()
+            filtered_mods = tuple(m for m in modificationList if m.upper() in fuzzy_upper)
+
             for i in range(1, threshold):
-                combinations = itertools.permutations(modificationList, i)
+                combinations = itertools.permutations(filtered_mods, i)
 
                 validKeys = list(
                     filter(
-                        lambda x: ("".join(x)).upper() == fuzzyKey.upper(), combinations
+                        lambda x: ("".join(x)).upper() == fuzzy_upper, combinations
                     )
                 )
 
@@ -2080,16 +2084,13 @@ class SBMLAnalyzer:
             return None
 
         return testAgainstExistingConventionsHelper(
-            fuzzyKey, modificationList, threshold
+            fuzzyKey, tuple(modificationList), threshold
         )
 
     def classifyReactions(self, reactions, molecules, externalDependencyGraph={}):
         """
         classifies a group of reaction according to the information in the json
         config file
-
-        FIXME:classifiyReactions function is currently the biggest bottleneck in atomizer, taking up
-        to 80% of the time without counting pathwaycommons querying.
         """
 
         def createArtificialNamingConvention(reaction, fuzzyKey, fuzzyDifference):
