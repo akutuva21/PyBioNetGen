@@ -5,6 +5,7 @@ from bionetgen.core.tools import BNGCLI
 from bionetgen.core.tools import BNGGdiff
 from bionetgen.core.notebook import BNGNotebook
 from bionetgen.core.utils.utils import run_command
+from bionetgen.core.exc import BNGFileError
 
 
 def runCLI(app):
@@ -195,10 +196,14 @@ def generate_notebook(app):
     args = app.pargs
     if args.input is not None:
         # we want to use the template to write a custom notebok
-        # TODO: Transition to BNGErrors and logging
-        assert args.input.endswith(
-            ".bngl"
-        ), f"File {args.input} doesn't have bngl extension!"
+        if not args.input.endswith(".bngl"):
+            app.log.error(
+                f"File {args.input} doesn't have bngl extension!",
+                f"{__file__} : generate_notebook()",
+            )
+            raise BNGFileError(
+                args.input, f"File {args.input} doesn't have bngl extension!"
+            )
         try:
             app.log.debug("Loading model", f"{__file__} : notebook()")
             import bionetgen
