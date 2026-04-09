@@ -543,7 +543,10 @@ class Molecule:
         return [x for x in self.components if x.bonds != []]
 
     def contains(self, componentName):
-        return componentName in [x.name for x in self.components]
+        for x in self.components:
+            if x.name == componentName:
+                return True
+        return False
 
     def __str__(self):
         self.components = sorted(self.components, key=lambda st: st.name)
