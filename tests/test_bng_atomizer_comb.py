@@ -1,11 +1,13 @@
 import pytest
 from bionetgen.atomizer.sbml2json import comb
 
+
 def test_comb_basic():
     """Test basic combinations calculation"""
     assert comb(5, 2) == 10
     assert comb(10, 3) == 120
     assert comb(10, 7) == 120
+
 
 def test_comb_boundary():
     """Test boundary conditions for combinations"""
@@ -14,6 +16,7 @@ def test_comb_boundary():
     assert comb(0, 0) == 1
     assert comb(1, 1) == 1
     assert comb(1, 0) == 1
+
 
 def test_comb_invalid():
     """Test combinations with mathematically invalid inputs based on current implementation"""
