@@ -258,7 +258,9 @@ class SBMLAnalyzer:
             return minimumToken[1], translationKeys, equivalenceTranslator
         return None, None, None
 
-    def analyzeSpeciesModification(self, baseElement, modifiedElement, partialAnalysis, max_modification_distance=4):
+    def analyzeSpeciesModification(
+        self, baseElement, modifiedElement, partialAnalysis, max_modification_distance=4
+    ):
         """
         a method for trying to read modifications within complexes
         This is only possible once we know their internal structure
