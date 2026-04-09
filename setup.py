@@ -27,8 +27,9 @@ def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
             raise Exception("Attempted Path Traversal in Tar File")
 
     import sys
+
     if sys.version_info >= (3, 12):
-        tar.extractall(path, members, numeric_owner=numeric_owner, filter='data')
+        tar.extractall(path, members, numeric_owner=numeric_owner, filter="data")
     else:
         tar.extractall(path, members, numeric_owner=numeric_owner)
 
