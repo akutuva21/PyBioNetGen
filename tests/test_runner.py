@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock
 
 import bionetgen.modelapi.runner as runner
 
+
 def test_runner_run_with_out():
     with patch("bionetgen.modelapi.runner.BNGCLI") as mock_cli_class:
         with patch("os.chdir") as mock_chdir:
@@ -14,10 +15,17 @@ def test_runner_run_with_out():
             cur_dir = os.getcwd()
             res = runner.run("test.bngl", out="out_dir")
 
-            mock_cli_class.assert_called_once_with("test.bngl", "out_dir", runner.conf["bngpath"], suppress=False, timeout=None)
+            mock_cli_class.assert_called_once_with(
+                "test.bngl",
+                "out_dir",
+                runner.conf["bngpath"],
+                suppress=False,
+                timeout=None,
+            )
             mock_cli_inst.run.assert_called_once()
             mock_chdir.assert_called_once_with(cur_dir)
             assert res == "mock_result"
+
 
 def test_runner_run_without_out():
     with patch("bionetgen.modelapi.runner.BNGCLI") as mock_cli_class:
@@ -31,10 +39,17 @@ def test_runner_run_without_out():
                 cur_dir = os.getcwd()
                 res = runner.run("test.bngl")
 
-                mock_cli_class.assert_called_once_with("test.bngl", "temp_dir", runner.conf["bngpath"], suppress=False, timeout=None)
+                mock_cli_class.assert_called_once_with(
+                    "test.bngl",
+                    "temp_dir",
+                    runner.conf["bngpath"],
+                    suppress=False,
+                    timeout=None,
+                )
                 mock_cli_inst.run.assert_called_once()
                 mock_chdir.assert_called_once_with(cur_dir)
                 assert res == "mock_result"
+
 
 def test_runner_run_exception_with_out():
     with patch("bionetgen.modelapi.runner.BNGCLI") as mock_cli_class:
@@ -48,6 +63,7 @@ def test_runner_run_exception_with_out():
                 runner.run("test.bngl", out="out_dir")
 
             mock_chdir.assert_called_once_with(cur_dir)
+
 
 def test_runner_run_exception_without_out():
     with patch("bionetgen.modelapi.runner.BNGCLI") as mock_cli_class:
