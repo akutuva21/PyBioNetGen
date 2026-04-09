@@ -42,6 +42,7 @@ def test_atomize_atomized():
         file_list = os.listdir(os.path.join(tfold, "test"))
         assert file_list.sort() == to_match.sort()
 
+
 def test_get_size():
     from bionetgen.atomizer.utils.util import get_size
 
