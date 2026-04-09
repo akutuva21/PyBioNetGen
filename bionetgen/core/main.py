@@ -5,6 +5,7 @@ from bionetgen.core.tools import BNGCLI
 from bionetgen.core.tools import BNGGdiff
 from bionetgen.core.notebook import BNGNotebook
 from bionetgen.core.utils.utils import run_command
+from bionetgen.core.exc import BNGFileError
 
 
 def runCLI(app):
@@ -60,12 +61,14 @@ def plotDAT(app):
     """
     args = app.pargs
     # we need to have gdat/cdat files
-    # TODO: Transition to BNGErrors and logging
-    assert (
+    if not (
         args.input.endswith(".gdat")
         or args.input.endswith(".cdat")
         or args.input.endswith(".scan")
-    ), "Input file has to be either a gdat or a cdat file"
+    ):
+        msg = "Input file has to be either a gdat or a cdat file"
+        app.log.error(msg, f"{__file__} : plotDAT()")
+        raise BNGFileError(args.input, msg)
     inp = args.input
     out = args.output
     kw = dict(args._get_kwargs())
@@ -195,10 +198,10 @@ def generate_notebook(app):
     args = app.pargs
     if args.input is not None:
         # we want to use the template to write a custom notebok
-        # TODO: Transition to BNGErrors and logging
-        assert args.input.endswith(
-            ".bngl"
-        ), f"File {args.input} doesn't have bngl extension!"
+        if not args.input.endswith(".bngl"):
+            msg = f"File {args.input} doesn't have bngl extension!"
+            app.log.error(msg, f"{__file__} : generate_notebook()")
+            raise BNGFileError(args.input, msg)
         try:
             app.log.debug("Loading model", f"{__file__} : notebook()")
             import bionetgen
