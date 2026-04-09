@@ -120,7 +120,15 @@ def addStateToComponent(species, moleculeName, componentName, state):
 def addComponentToMolecule(species, moleculeName, componentName):
     for molecule in species.molecules:
         if moleculeName == molecule.name:
-            if componentName not in [x.name for x in molecule.components]:
+            # Optimize by replacing list comprehension with an explicit loop
+            # This avoids memory allocation and enables early short-circuiting
+            component_exists = False
+            for x in molecule.components:
+                if x.name == componentName:
+                    component_exists = True
+                    break
+
+            if not component_exists:
                 component = st.Component(componentName)
                 molecule.addComponent(component)
                 return True
