@@ -295,10 +295,10 @@ class Molecule:
         if not overlap:
             self.components.append(component)
         else:
-            if not component.name in [x.name for x in self.components]:
+            compo = self.getComponent(component.name)
+            if compo is None:
                 self.components.append(component)
             else:
-                compo = self.getComponent(component.name)
                 for state in component.states:
                     compo.addState(state)
         self.components = sorted(self.components, key=lambda x: x.name)
