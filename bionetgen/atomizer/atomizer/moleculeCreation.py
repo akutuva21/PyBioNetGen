@@ -822,12 +822,20 @@ def createBindingRBM(
             newComponent2 = st.Component(molecule[0].name.lower())
             molecule[1].components.append(newComponent2)
             if molecule[0].name != molecule[1].name:
-                if newComponent2.name not in [
-                    x.name for x in translator[molecule[1].name].molecules[0].components
-                ]:
-                    translator[molecule[1].name].molecules[0].components.append(
-                        deepcopy(newComponent2)
+                try:
+                    if newComponent2.name not in [
+                        x.name for x in translator[molecule[1].name].molecules[0].components
+                    ]:
+                        translator[molecule[1].name].molecules[0].components.append(
+                            deepcopy(newComponent2)
+                        )
+                except KeyError as e:
+                    print(
+                        "The translator doesn't know the molecule: {}".format(
+                            molecule[1].name
+                        )
                     )
+                    raise e
             molecule[1].components[-1].bonds.append(bondIdx)
 
     # update the translator
