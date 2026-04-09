@@ -116,16 +116,18 @@ def balanceTranslator(reactant, product, translator):
     for rMolecule in rMolecules:
         for pMolecule in pMolecules:
             if rMolecule.name == pMolecule.name:
+                p_names = {y.name for y in pMolecule.components}
+                r_names = {y.name for y in rMolecule.components}
                 overFlowingComponents = [
                     x
                     for x in rMolecule.components
-                    if x.name not in [y.name for y in pMolecule.components]
+                    if x.name not in p_names
                 ]
                 overFlowingComponents.extend(
                     [
                         x
                         for x in pMolecule.components
-                        if x.name not in [y.name for y in rMolecule.components]
+                        if x.name not in r_names
                     ]
                 )
                 rMolecule.removeComponents(overFlowingComponents)
