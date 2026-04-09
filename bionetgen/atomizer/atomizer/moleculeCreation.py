@@ -120,7 +120,7 @@ def addStateToComponent(species, moleculeName, componentName, state):
 def addComponentToMolecule(species, moleculeName, componentName):
     for molecule in species.molecules:
         if moleculeName == molecule.name:
-            if componentName not in [x.name for x in molecule.components]:
+            if not any(x.name == componentName for x in molecule.components):
                 component = st.Component(componentName)
                 molecule.addComponent(component)
                 return True
@@ -730,9 +730,7 @@ def createBindingRBM(
                     if molecule.name == molecule2.name:
                         for component in molecule.components:
                             for bond in component.bonds:
-                                if molecule2.name not in [
-                                    x.name for x in partialBonds[bond]
-                                ]:
+                                if not any(x.name == molecule2.name for x in partialBonds[bond]):
                                     partialBonds[bond].append(molecule2)
                         """
                         for component in molecule.components:
@@ -797,9 +795,7 @@ def createBindingRBM(
             molecule[0].components.append(newComponent1)
 
             try:
-                if newComponent1.name not in [
-                    x.name for x in translator[molecule[0].name].molecules[0].components
-                ]:
+                if not any(x.name == newComponent1.name for x in translator[molecule[0].name].molecules[0].components):
                     translator[molecule[0].name].molecules[0].components.append(
                         deepcopy(newComponent1)
                     )
@@ -822,9 +818,7 @@ def createBindingRBM(
             newComponent2 = st.Component(molecule[0].name.lower())
             molecule[1].components.append(newComponent2)
             if molecule[0].name != molecule[1].name:
-                if newComponent2.name not in [
-                    x.name for x in translator[molecule[1].name].molecules[0].components
-                ]:
+                if not any(x.name == newComponent2.name for x in translator[molecule[1].name].molecules[0].components):
                     translator[molecule[1].name].molecules[0].components.append(
                         deepcopy(newComponent2)
                     )
