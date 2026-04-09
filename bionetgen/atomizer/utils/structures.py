@@ -139,9 +139,11 @@ class Species:
                                 element.addStates(component.states, update)
 
         else:
+            self_molecule_names = {x.name for x in self.molecules}
             for element in species.molecules:
-                if element.name not in [x.name for x in self.molecules]:
+                if element.name not in self_molecule_names:
                     self.addMolecule(deepcopy(element), update)
+                    self_molecule_names.add(element.name)
                 else:
                     bond1 = sum([x.bonds for x in element.components], [])
                     bondList = []

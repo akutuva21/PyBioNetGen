@@ -1,0 +1,3 @@
+## 2025-02-20 - Set for O(1) membership check
+**Learning:** List comprehensions used inside loops for membership tests result in $O(N \times M)$ complexity. They can be effectively optimized by precomputing a `set` before the loop, yielding $O(N + M)$ complexity. It is critical to maintain the state of the set if the underlying structure is modified within the loop.
+**Action:** Always scan for `x in [...]` or `x not in [...]` checks within loops. If the list being checked against is derived from an external collection or another structure, convert it to a precomputed `set` outside the loop, ensuring the set is updated when elements are added to the underlying structure.
