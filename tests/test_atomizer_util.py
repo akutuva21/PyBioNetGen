@@ -1,6 +1,7 @@
 from pytest import raises
 from bionetgen.atomizer.utils.util import get_item
 
+
 def test_get_item():
     # Test dictionary with existing key
     d = {"a": 1, "b": 2}
