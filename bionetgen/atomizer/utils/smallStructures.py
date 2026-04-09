@@ -232,7 +232,9 @@ class Species:
                 else:
                     for molecule in self.molecules:
                         if molecule.name == element.name:
-                            molecule_component_names = {x.name for x in molecule.components}
+                            molecule_component_names = {
+                                x.name for x in molecule.components
+                            }
                             for component in element.components:
                                 if component.name not in molecule_component_names:
                                     molecule.addComponent(deepcopy(component), update)
