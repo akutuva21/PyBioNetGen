@@ -1116,20 +1116,6 @@ class SBMLAnalyzer:
                         [x in moleculeSet for x in validDifferences]
                     ):
                         return [[[[reactant], [product]], None, None]]
-                    # FIXME:here it'd be helpful to come up with a better heuristic
-                    # for infered component names
-                    # componentName =  ''.join([x[0:max(1,int(math.ceil(len(x)/2.0)))] for x in validDifferences])
-
-                    # for namePair,difference in zip(namePairs,differenceList):
-                    #    if len([x for x in difference if '-' in x]) == 0:
-                    #        tag = ''.join([x[-1] for x in difference])
-                    #        if [namePair[0],tag] not in localSpeciesDict[commonRoot][componentName]:
-                    #            localSpeciesDict[namePair[0]][componentName].append([namePair[0],tag,compartmentChangeFlag])
-                    #            localSpeciesDict[namePair[1]][componentName].append([namePair[0],tag,compartmentChangeFlag])
-
-                    # namePairs,differenceList,_ = detectOntology.defineEditDistanceMatrix([commonRoot,product],
-                    #
-                    #                                               similarityThreshold=similarityThreshold)
                     return [
                         [
                             [[namePairs[y][0]], [namePairs[y][1]]],
