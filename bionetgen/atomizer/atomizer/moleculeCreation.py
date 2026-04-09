@@ -730,7 +730,9 @@ def createBindingRBM(
                     if molecule.name == molecule2.name:
                         for component in molecule.components:
                             for bond in component.bonds:
-                                if not any(x.name == molecule2.name for x in partialBonds[bond]):
+                                if not any(
+                                    x.name == molecule2.name for x in partialBonds[bond]
+                                ):
                                     partialBonds[bond].append(molecule2)
                         """
                         for component in molecule.components:
@@ -795,7 +797,10 @@ def createBindingRBM(
             molecule[0].components.append(newComponent1)
 
             try:
-                if not any(x.name == newComponent1.name for x in translator[molecule[0].name].molecules[0].components):
+                if not any(
+                    x.name == newComponent1.name
+                    for x in translator[molecule[0].name].molecules[0].components
+                ):
                     translator[molecule[0].name].molecules[0].components.append(
                         deepcopy(newComponent1)
                     )
@@ -818,7 +823,10 @@ def createBindingRBM(
             newComponent2 = st.Component(molecule[0].name.lower())
             molecule[1].components.append(newComponent2)
             if molecule[0].name != molecule[1].name:
-                if not any(x.name == newComponent2.name for x in translator[molecule[1].name].molecules[0].components):
+                if not any(
+                    x.name == newComponent2.name
+                    for x in translator[molecule[1].name].molecules[0].components
+                ):
                     translator[molecule[1].name].molecules[0].components.append(
                         deepcopy(newComponent2)
                     )
