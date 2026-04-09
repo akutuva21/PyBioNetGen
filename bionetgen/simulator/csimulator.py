@@ -4,13 +4,15 @@ import numpy as np
 from distutils import ccompiler
 from .bngsimulator import BNGSimulator
 from bionetgen.main import BioNetGen
-from bionetgen.core.exc import BNGCompileError
+from bionetgen.core.exc import BNGCompileError, BNGSimulatorError
+from bionetgen.core.utils.logging import BNGLogger
 
 # This allows access to the CLIs config setup
 app = BioNetGen()
 app.setup()
 conf = app.config["bionetgen"]
 def_bng_path = conf["bngpath"]
+logger = BNGLogger()
 
 
 class RESULT(ctypes.Structure):
@@ -55,16 +57,20 @@ class CSimWrapper:
         """
         Set the initial species values array
         """
-        # TODO: Transition to BNGErrors and logging
-        assert len(arr) == self.num_spec_init
+        if len(arr) != self.num_spec_init:
+            err_msg = f"Length of species initial values array ({len(arr)}) does not match expected number of species ({self.num_spec_init})."
+            logger.error(err_msg)
+            raise BNGSimulatorError(err_msg)
         self.species_init = np.array(arr, dtype=np.float64)
 
     def set_parameters(self, arr):
         """
         Set the parameter values array
         """
-        # TODO: Transition to BNGErrors and logging
-        assert len(arr) == self.num_params
+        if len(arr) != self.num_params:
+            err_msg = f"Length of parameter values array ({len(arr)}) does not match expected number of parameters ({self.num_params})."
+            logger.error(err_msg)
+            raise BNGSimulatorError(err_msg)
         self.parameters = np.array(arr, dtype=np.float64)
 
     def simulate(self, t_start=0, t_end=100, n_steps=100):
