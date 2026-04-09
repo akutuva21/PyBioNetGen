@@ -1666,7 +1666,7 @@ class SBMLAnalyzer:
                         differences.append(processedDifference)
 
         else:
-            # TODO: dea with reactions of the kindd a+b ->  c + d
+            # Approximate matching for multi-product reactions (e.g., a+b -> c+d) is currently unsupported.
             return [[], []], [[], []]
         return bdifferences, zippedPartitions
 
