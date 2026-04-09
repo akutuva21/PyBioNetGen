@@ -2,20 +2,21 @@ import pytest
 from unittest.mock import MagicMock, patch
 from bionetgen.atomizer.atomizer.moleculeCreation import createBindingRBM
 
-@patch('bionetgen.atomizer.atomizer.moleculeCreation.getComplexationComponents2')
+
+@patch("bionetgen.atomizer.atomizer.moleculeCreation.getComplexationComponents2")
 def test_create_binding_rbm_keyerror(mock_get_complexation, capsys):
     """
     Test the KeyError error path in createBindingRBM where the translator
     cannot find the molecule name.
     """
     # Create inputs for createBindingRBM
-    element = ('mock_element', )
+    element = ("mock_element",)
 
     # An empty translator will trigger KeyError when accessed with molecule[0].name
     translator = {}
 
     # Needs to match the element
-    dependencyGraph = {'mock_element': [['UnknownMolecule']]}
+    dependencyGraph = {"mock_element": [["UnknownMolecule"]]}
 
     # Create mock molecules that will be returned by getComplexationComponents2
     mol1 = MagicMock()
@@ -51,7 +52,7 @@ def test_create_binding_rbm_keyerror(mock_get_complexation, capsys):
             bioGridFlag=False,
             pathwaycommonsFlag=False,
             parser=None,
-            database=database
+            database=database,
         )
 
     # Also verify the printed output
