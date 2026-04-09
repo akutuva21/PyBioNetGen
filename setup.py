@@ -14,6 +14,25 @@ def get_folder(arch):
     return fname
 
 
+def is_within_directory(directory, target):
+    abs_directory = os.path.abspath(directory)
+    abs_target = os.path.abspath(target)
+    return os.path.commonpath([abs_directory, abs_target]) == abs_directory
+
+
+def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+    for member in tar.getmembers():
+        member_path = os.path.join(path, member.name)
+        if not is_within_directory(path, member_path):
+            raise Exception("Attempted Path Traversal in Tar File")
+
+    import sys
+    if sys.version_info >= (3, 12):
+        tar.extractall(path, members, numeric_owner=numeric_owner, filter='data')
+    else:
+        tar.extractall(path, members, numeric_owner=numeric_owner)
+
+
 subprocess.check_call([sys.executable, "-m", "pip", "install", "numpy"])
 import urllib.request
 import itertools as itt
@@ -94,7 +113,7 @@ for iurl, bng_url in enumerate([linux_url, mac_url, windows_url]):
         # On macs may need to skip first item because
         # filesystem makes shadow files with `._` prepended.
         fold_name = get_folder(bng_arch)
-        bng_arch.extractall()
+        safe_extract(bng_arch)
         # make sure bionetgen/bng exists
         if iurl == 0:
             bng_path_to_move = "bionetgen/bng-linux"
@@ -130,7 +149,7 @@ for iurl, bng_url in enumerate([linux_url, mac_url, windows_url]):
         # bng_arch.extractall()
         bng_arch = tarfile.open(fname)
         fold_name = get_folder(bng_arch)
-        bng_arch.extractall()
+        safe_extract(bng_arch)
         # bng folder
         if iurl == 2:
             bng_path_to_move = "bionetgen/bng-win"
