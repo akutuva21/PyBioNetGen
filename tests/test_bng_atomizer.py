@@ -42,8 +42,10 @@ def test_atomize_atomized():
         file_list = os.listdir(os.path.join(tfold, "test"))
         assert file_list.sort() == to_match.sort()
 
+
 def test_factorial():
     from bionetgen.atomizer.sbml2json import factorial
+
     assert factorial(0) == 1
     assert factorial(1) == 1
     assert factorial(2) == 2
