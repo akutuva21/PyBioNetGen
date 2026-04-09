@@ -258,7 +258,7 @@ class SBMLAnalyzer:
             return minimumToken[1], translationKeys, equivalenceTranslator
         return None, None, None
 
-    def analyzeSpeciesModification(self, baseElement, modifiedElement, partialAnalysis):
+    def analyzeSpeciesModification(self, baseElement, modifiedElement, partialAnalysis, max_modification_distance=4):
         """
         a method for trying to read modifications within complexes
         This is only possible once we know their internal structure
@@ -283,31 +283,23 @@ class SBMLAnalyzer:
                 distance = self.distanceToModification(
                     particle, comparisonElement, translationKeys[0]
                 )
-                score = difflib.ndiff(particle, modifiedElement)
             else:
                 # FIXME: make sure we only do a search on those variables that are viable
                 # candidates. this is once again fuzzy string matchign. there should
                 # be a better way of doing this with difflib
-                permutations = set(
-                    [
-                        "_".join(x)
-                        for x in itertools.permutations(partialAnalysis, 2)
-                        if x[0] == particle
-                    ]
-                )
-                if all([x not in modifiedElement for x in permutations]):
+                permutations = {
+                    "_".join(x)
+                    for x in itertools.permutations(partialAnalysis, 2)
+                    if x[0] == particle
+                }
+                if all(x not in modifiedElement for x in permutations):
                     distance = self.distanceToModification(
                         particle, comparisonElement, translationKeys[0]
                     )
-                    score = difflib.ndiff(particle, modifiedElement)
-                # FIXME:tis is just an ad-hoc parameter in terms of how far a mod is from a species name
-                # use something better
-            if distance < 4:
+            if distance < max_modification_distance:
                 scores.append([particle, distance])
         if len(scores) > 0:
-            winner = scores[[x[1] for x in scores].index(min([x[1] for x in scores]))][
-                0
-            ]
+            winner = min(scores, key=lambda x: x[1])[0]
         else:
             winner = None
         if winner:
