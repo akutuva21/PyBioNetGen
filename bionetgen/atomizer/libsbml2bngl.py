@@ -519,6 +519,7 @@ def reorder_and_replace_arules(functions, parser):
             reverse_deps[dep].append(k)
 
     from collections import deque
+
     queue = deque([k for k, count in dep_count.items() if count == 0])
 
     while queue:
