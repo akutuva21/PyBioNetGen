@@ -85,8 +85,8 @@ for iurl, bng_url in enumerate([linux_url, mac_url, windows_url]):
     # download bng distro
     print(bng_url, fname)
 
-    req = urllib.request.Request(bng_url, headers={'User-Agent': 'Mozilla/5.0'})
-    with urllib.request.urlopen(req) as response, open(fname, 'wb') as out_file:
+    req = urllib.request.Request(bng_url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req) as response, open(fname, "wb") as out_file:
         shutil.copyfileobj(response, out_file)
 
     # file extension dependent actions, tar for
