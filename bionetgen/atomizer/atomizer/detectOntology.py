@@ -80,6 +80,7 @@ def getDifferences(scoreMatrix, speciesName, threshold):
 
 import re
 
+
 def _parse_pattern_key(element):
     """
     Securely parses a string representation of a tuple of strings,
@@ -87,7 +88,7 @@ def _parse_pattern_key(element):
     Example: "('+ _', '+ P')" -> ('+ _', '+ P')
     """
     element = element.strip()
-    if not (element.startswith('(') and element.endswith(')')):
+    if not (element.startswith("(") and element.endswith(")")):
         raise ValueError(f"Invalid pattern key format: {element}")
 
     element = element[1:-1].strip()
