@@ -1,6 +1,5 @@
-import os, subprocess
+import os, subprocess, shutil
 from bionetgen.core.exc import BNGPerlError
-from distutils import spawn
 
 from bionetgen.core.utils.logging import BNGLogger
 
@@ -554,10 +553,6 @@ def find_BNG_path(BNGPATH=None):
     BNGPATH : str
         (optional) path to the folder that contains BNG2.pl
     """
-    # TODO: Figure out how to use the BNG2.pl if it's set
-    # in the PATH variable. Solution: set os.environ BNGPATH
-    # and make everything use that route
-
     def _try_path(candidate_path):
         if candidate_path is None:
             return None
@@ -569,6 +564,7 @@ def find_BNG_path(BNGPATH=None):
             candidate_dir = candidate_path
             candidate_exec = os.path.join(candidate_path, "BNG2.pl")
         if test_bngexec(candidate_exec):
+            os.environ["BNGPATH"] = candidate_dir
             return candidate_dir, candidate_exec
         return None
 
@@ -589,7 +585,7 @@ def find_BNG_path(BNGPATH=None):
             return hit
 
     # 3) On PATH
-    bng_on_path = spawn.find_executable("BNG2.pl")
+    bng_on_path = shutil.which("BNG2.pl")
     if bng_on_path:
         tried.append(bng_on_path)
         hit = _try_path(bng_on_path)
@@ -616,7 +612,7 @@ def test_perl(app=None, perl_path=None):
     logger.debug("Checking if perl is installed.", loc=f"{__file__} : test_perl()")
     # find path to perl binary
     if perl_path is None:
-        perl_path = spawn.find_executable("perl")
+        perl_path = shutil.which("perl")
     if perl_path is None:
         raise BNGPerlError
     # check if perl is actually working
