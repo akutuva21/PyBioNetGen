@@ -1009,12 +1009,12 @@ def analyzeHelper(
 
     compartments = parser.getCompartments()
     functions = []
-    assigmentRuleDefinedParameters = []
+    assignmentRuleDefinedParameters = []
 
     # FIXME: We should determine if an assignment rule
     # if being used along with a reaction and ignore the
     # reaction if it is being modified by both. This will
-    # likely require us to feed something from the assingment
+    # likely require us to feed something from the assignment
     # rule result into the following function
     reactionParameters, rules, rateFunctions = parser.getReactions(
         translator,
@@ -1089,18 +1089,17 @@ def analyzeHelper(
             if init_cond not in initialConditions:
                 initialConditions.append(init_cond)
     ## Comment out those parameters that are defined with assignment rules
-    ## TODO: I think this is correct, but it may need to be checked
     tmpParams = []
     for idx, parameter in enumerate(param):
         for key in artificialObservables:
             if re.search("^{0}\s".format(key), parameter) != None:
-                assigmentRuleDefinedParameters.append(idx)
+                assignmentRuleDefinedParameters.append(idx)
     tmpParams.extend(artificialObservables)
     tmpParams.extend(removeParams)
     tmpParams = set(tmpParams)
     correctRulesWithParenthesis(rules, tmpParams)
 
-    for element in assigmentRuleDefinedParameters:
+    for element in assignmentRuleDefinedParameters:
         param[element] = "#" + param[element]
 
     deleteMolecules = []
