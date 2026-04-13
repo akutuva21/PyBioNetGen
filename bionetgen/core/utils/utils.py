@@ -483,7 +483,9 @@ class ActionList:
         arg_type_expr = pp.Word(
             pp.nums + "." + "+" + "-" + "e" + "E" + "(" + ")" + "/" + "*" + "^"
         )
-        arg_type_list = "[" + pp.Optional(pp.delimitedList((quote_word ^ arg_type_float))) + "]"
+        arg_type_list = (
+            "[" + pp.Optional(pp.delimitedList((quote_word ^ arg_type_float))) + "]"
+        )
         arg_type_string = quote_word
         #
         curly_arg_token = quote_word + "=>" + arg_type_int
