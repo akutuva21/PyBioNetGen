@@ -379,9 +379,10 @@ def getComplexationComponents2(
             y for y in x.components if y.name.lower() in list(speciesDict.keys())
         ]:
             if x.name.lower() in speciesDict:
-                if (x in speciesDict[component.name.lower()]) and component.name in [
-                    y.name.lower() for y in speciesDict[x.name.lower()]
-                ]:
+                if (x in speciesDict[component.name.lower()]) and any(
+                    y.name.lower() == component.name
+                    for y in speciesDict[x.name.lower()]
+                ):
                     for mol in speciesDict[x.name.lower()]:
                         if (
                             mol.name.lower() == component.name
