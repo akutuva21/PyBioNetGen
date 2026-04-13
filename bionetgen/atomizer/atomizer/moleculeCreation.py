@@ -767,6 +767,7 @@ def createBindingRBM(
     # translator[molecule[0].name].molecules[0].components.append(deepcopy(newComponent1))
     # translator[molecule[1].name].molecules[0].components.append(deepcopy(newComponent2))
     moleculeCounter = defaultdict(list)
+    translator_components = {}
     for molecule in moleculePairsList:
         flag = False
 
@@ -797,12 +798,16 @@ def createBindingRBM(
             molecule[0].components.append(newComponent1)
 
             try:
-                if newComponent1.name not in [
-                    x.name for x in translator[molecule[0].name].molecules[0].components
-                ]:
-                    translator[molecule[0].name].molecules[0].components.append(
+                mol0_name = molecule[0].name
+                if mol0_name not in translator_components:
+                    translator_components[mol0_name] = set(
+                        x.name for x in translator[mol0_name].molecules[0].components
+                    )
+                if newComponent1.name not in translator_components[mol0_name]:
+                    translator[mol0_name].molecules[0].components.append(
                         deepcopy(newComponent1)
                     )
+                    translator_components[mol0_name].add(newComponent1.name)
             except KeyError as e:
                 print(
                     "The translator doesn't know the molecule: {}".format(
@@ -822,12 +827,16 @@ def createBindingRBM(
             newComponent2 = st.Component(molecule[0].name.lower())
             molecule[1].components.append(newComponent2)
             if molecule[0].name != molecule[1].name:
-                if newComponent2.name not in [
-                    x.name for x in translator[molecule[1].name].molecules[0].components
-                ]:
-                    translator[molecule[1].name].molecules[0].components.append(
+                mol1_name = molecule[1].name
+                if mol1_name not in translator_components:
+                    translator_components[mol1_name] = set(
+                        x.name for x in translator[mol1_name].molecules[0].components
+                    )
+                if newComponent2.name not in translator_components[mol1_name]:
+                    translator[mol1_name].molecules[0].components.append(
                         deepcopy(newComponent2)
                     )
+                    translator_components[mol1_name].add(newComponent2.name)
             molecule[1].components[-1].bonds.append(bondIdx)
 
     # update the translator
