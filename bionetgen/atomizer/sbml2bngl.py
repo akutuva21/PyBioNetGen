@@ -1246,10 +1246,9 @@ class SBML2BNGL:
             if rateR == "0":
                 reversible = False
 
-            # FIXME: make sure this actually works
-            if symmetryFactors[0] > 1:
+            if symmetryFactors[0] > 1 and rateL != "0":
                 rateL = "({0})*({1})".format(rateL, symmetryFactors[0])
-            if symmetryFactors[1] > 1:
+            if symmetryFactors[1] > 1 and rateR != "0":
                 rateR = "({0})*({1})".format(rateR, symmetryFactors[1])
 
             # we need to resolve observables BEFORE we do this
@@ -1752,7 +1751,10 @@ class SBML2BNGL:
         if len(react_counts) == 0:
             lfact = 1
         else:
-            lfact = max(react_counts.values())
+            lfact = 1
+            for count in react_counts.values():
+                if count == int(count):
+                    lfact *= pymath.factorial(int(count))
 
         prod_counts = {}
         for prod in product:
@@ -1764,7 +1766,10 @@ class SBML2BNGL:
         if len(prod_counts) == 0:
             rfact = 1
         else:
-            rfact = max(prod_counts.values())
+            rfact = 1
+            for count in prod_counts.values():
+                if count == int(count):
+                    rfact *= pymath.factorial(int(count))
 
         return lfact, rfact
 
