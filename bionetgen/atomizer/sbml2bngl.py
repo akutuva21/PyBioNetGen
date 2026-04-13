@@ -161,6 +161,7 @@ class SBML2BNGL:
         self.obs_names = []
         self.obs_map = {}
         self.param_repl = {}
+        self.functionFlag = None
 
         # ASS - I think there should be a check for compartments right here
         # to determine if a) any compartment is actually used and
@@ -1785,8 +1786,8 @@ class SBML2BNGL:
         # iterations of this call. This is because we cannot create a clone of the 'math' object for this
         # reaction and it is being permanently changed every call. It's ugly but it works. Change for something
         # better when we figure out how to clone the math object
-        if not hasattr(self.getReactions, "functionFlag"):
-            self.getReactions.__func__.functionFlag = False or (not atomize)
+        if self.functionFlag is None:
+            self.functionFlag = False or (not atomize)
 
         reactions = []
         reactionStructure = []
@@ -1887,7 +1888,7 @@ class SBML2BNGL:
                         finalString,
                     )
                 functionName = finalString
-            if self.getReactions.functionFlag and "delay" in rule_obj.raw_rates[0]:
+            if self.functionFlag and "delay" in rule_obj.raw_rates[0]:
                 logMess(
                     "ERROR:SIM202",
                     "BNG cannot handle delay functions in function %s" % functionName,
@@ -1902,7 +1903,7 @@ class SBML2BNGL:
                     or rule_obj.raw_rates[0] in translator
                 ):
                     fobj.definition = rule_obj.raw_rates[0]
-                    if self.getReactions.functionFlag:
+                    if self.functionFlag:
                         # local parameter replacement flag
                         if self.replaceLocParams:
                             fstr = writer.bnglFunction(
@@ -1938,7 +1939,7 @@ class SBML2BNGL:
                     fobj_2.rule_ptr = rule_obj
                     fobj_2.definition = rule_obj.raw_rates[1]
                     fobj_2.compartmentList = compartmentList
-                    if self.getReactions.functionFlag:
+                    if self.functionFlag:
                         # local parameter replacement flag
                         if self.replaceLocParams:
                             functions.append(
@@ -1988,7 +1989,7 @@ class SBML2BNGL:
                     or rawRules["rates"][0] in translator
                 ):
                     fobj.definition = rule_obj.raw_rates[0]
-                    if self.getReactions.functionFlag:
+                    if self.functionFlag:
                         # local parameter replacement flag
                         if self.replaceLocParams:
                             functions.append(
@@ -2079,7 +2080,7 @@ class SBML2BNGL:
                             isCompartments
                             or (
                                 (len(reactants) == 0 or len(products) == 0)
-                                and self.getReactions.__func__.functionFlag
+                                and self.functionFlag
                             )
                         ),
                         rawRules["reversible"],
@@ -2120,7 +2121,7 @@ class SBML2BNGL:
                             isCompartments
                             or (
                                 (len(reactants) == 0 or len(products) == 0)
-                                and self.getReactions.__func__.functionFlag
+                                and self.functionFlag
                             )
                         ),
                         rawRules["reversible"],
@@ -2156,7 +2157,7 @@ class SBML2BNGL:
                         isCompartments
                         or (
                             (len(reactants) == 0 or len(products) == 0)
-                            and self.getReactions.__func__.functionFlag
+                            and self.functionFlag
                         )
                     ),
                     rawRules["reversible"],
@@ -2167,7 +2168,7 @@ class SBML2BNGL:
                 reactions.append(rxn_str)
 
         if atomize:
-            self.getReactions.__func__.functionFlag = True
+            self.functionFlag = True
         self.bngModel.tags = self.tags
         return parameters, reactions, functions
 
