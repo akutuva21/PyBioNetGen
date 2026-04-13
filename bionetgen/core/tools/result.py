@@ -166,7 +166,7 @@ class BNGResult:
         if not header.startswith("#"):
             self.logger.error(
                 f"No header line that starts with # in file {path}",
-                loc=f"{__file__} : BNGResult._load_dat()"
+                loc=f"{__file__} : BNGResult._load_dat()",
             )
             raise BNGDataError(path, message="No header line that starts with #")
         # Now turn it into a list of names for our struct array
