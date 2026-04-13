@@ -93,3 +93,11 @@ class BNGCompileError(BNGError):
         self.model = model
         self.message = message
         super().__init__(self.message)
+
+class BNGDataError(BNGError):
+    """Error related to the data file."""
+
+    def __init__(self, dat_path, message="There was an issue with your data file"):
+        self.path = dat_path
+        self.message = message
+        super().__init__(self.message)
