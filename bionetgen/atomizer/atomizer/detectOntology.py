@@ -78,13 +78,52 @@ def getDifferences(scoreMatrix, speciesName, threshold):
     return namePairs, differenceList
 
 
+import re
+
+def _parse_pattern_key(element):
+    """
+    Securely parses a string representation of a tuple of strings,
+    replacing the use of ast.literal_eval.
+    Example: "('+ _', '+ P')" -> ('+ _', '+ P')
+    """
+    element = element.strip()
+    if not (element.startswith('(') and element.endswith(')')):
+        raise ValueError(f"Invalid pattern key format: {element}")
+
+    element = element[1:-1].strip()
+    if not element:
+        return ()
+
+    # Match strings surrounded by single or double quotes, properly handling commas inside
+    pattern = r"""
+        (
+            '(?:[^'\\]|\\.)*'  |  # single-quoted string (with basic escape handling)
+            "(?:[^"\\]|\\.)*"     # double-quoted string (with basic escape handling)
+        )
+    """
+    matches = re.findall(pattern, element, re.VERBOSE)
+
+    result = []
+    for match in matches:
+        # Evaluate the string literal to correctly resolve escapes
+        try:
+            val = ast.literal_eval(match)
+            if not isinstance(val, str):
+                raise ValueError(f"Expected string literal, got {type(val)}: {match}")
+            result.append(val)
+        except (ValueError, SyntaxError) as e:
+            raise ValueError(f"Invalid string literal in pattern: {match}") from e
+
+    return tuple(result)
+
+
 def loadOntology(ontologyFile):
     if os.path.isfile(ontologyFile):
         tmp = {}
         with open(ontologyFile, "r") as fp:
             ontology = json.load(fp)
         for element in ontology["patterns"]:
-            tmp[ast.literal_eval(element)] = ontology["patterns"][element]
+            tmp[_parse_pattern_key(element)] = ontology["patterns"][element]
         ontology["patterns"] = tmp
         return ontology
     else:
@@ -101,7 +140,7 @@ def loadOntology(ontologyFile):
             },
         }
         for element in ontology["patterns"]:
-            tmp[ast.literal_eval(element)] = ontology["patterns"][element]
+            tmp[_parse_pattern_key(element)] = ontology["patterns"][element]
         ontology["patterns"] = tmp
         return ontology
 
