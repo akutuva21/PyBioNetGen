@@ -511,20 +511,30 @@ def reorder_and_replace_arules(functions, parser):
     # Now reorder accordingly
     ordered_funcs = []
     # this ensures we write the independendent functions first
-    stck = sorted(dep_dict.keys(), key=lambda x: len(dep_dict[x]))
-    # FIXME: This algorithm works but likely inefficient
-    while len(stck) > 0:
-        k = stck.pop()
-        deps = dep_dict[k]
-        if len(deps) == 0:
-            if k not in ordered_funcs:
-                ordered_funcs.append(k)
-        else:
-            stck.append(k)
-            for dep in deps:
-                if dep not in ordered_funcs:
-                    stck.append(dep)
-                dep_dict[k].remove(dep)
+    # using Kahn's algorithm for topological sorting
+    dep_count = {k: len(v) for k, v in dep_dict.items()}
+    reverse_deps = defaultdict(list)
+    for k, v in dep_dict.items():
+        for dep in v:
+            reverse_deps[dep].append(k)
+
+    from collections import deque
+
+    queue = deque([k for k, count in dep_count.items() if count == 0])
+
+    while queue:
+        node = queue.popleft()
+        ordered_funcs.append(node)
+        for dependent in reverse_deps.get(node, []):
+            dep_count[dependent] -= 1
+            if dep_count[dependent] == 0:
+                queue.append(dependent)
+
+    # fallback for cyclic dependencies or remaining nodes
+    for k in dep_dict:
+        if k not in ordered_funcs:
+            ordered_funcs.append(k)
+
     # print ordered functions and return
     for fname in ordered_funcs:
         fs = func_dict[fname]
