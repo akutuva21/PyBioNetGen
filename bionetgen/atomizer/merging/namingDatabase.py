@@ -159,57 +159,79 @@ class NamingDatabase:
         for idx in progress(range(len(fileList))):
             fileSpecies.extend(self.getSpeciesFromFileName(fileList[idx]))
 
-        changeFlag = True
-        fileSpeciesCopy = copy(fileSpecies)
         print("finished processing files, obtained {0} groups".format(len(fileSpecies)))
-        # progress = progressbar.ProgressBar(maxval=len((fileSpecies - 1) * (fileSpecies -1))).start()
-        while changeFlag:
-            try:
-                changeFlag = False
-                for idx in range(0, len(fileSpecies) - 1):
-                    for idx2 in range(idx + 1, len(fileSpecies)):
-                        # if (len(fileSpecies[idx]['name']) > 2 and fileSpecies[idx]['name'].intersection(fileSpecies[idx2]['name'])) \
-                        if fileSpecies[idx]["annotation"].intersection(
-                            fileSpecies[idx2]["annotation"]
-                        ) or fileSpecies[idx]["annotationName"].intersection(
-                            fileSpecies[idx2]["annotationName"]
-                        ):
-                            # print 'hello',fileSpecies[idx]['annotationName'],fileSpecies[idx2]['annotationName']
-                            fileSpeciesCopy[idx]["name"] = fileSpeciesCopy[idx][
-                                "name"
-                            ].union(fileSpeciesCopy[idx2]["name"])
-                            fileSpeciesCopy[idx]["annotation"] = fileSpeciesCopy[idx][
-                                "annotation"
-                            ].union(fileSpeciesCopy[idx2]["annotation"])
-                            fileSpeciesCopy[idx]["annotationName"] = fileSpeciesCopy[
-                                idx
-                            ]["annotationName"].union(
-                                fileSpeciesCopy[idx2]["annotationName"]
-                            )
-                            fileSpeciesCopy[idx]["fileName"] = fileSpeciesCopy[idx][
-                                "fileName"
-                            ].union(fileSpeciesCopy[idx2]["fileName"])
-                            fileSpeciesCopy[idx]["qualifier"] = fileSpeciesCopy[idx][
-                                "qualifier"
-                            ].union(fileSpeciesCopy[idx2]["qualifier"])
-                            fileSpeciesCopy[idx]["otherAnnotation"].extend(
-                                fileSpeciesCopy[idx2]["otherAnnotation"]
-                            )
-                            del fileSpeciesCopy[idx2]
-                            fileSpecies = fileSpeciesCopy
-                            raise IOError
-            except IOError:
-                changeFlag = True
-                continue
-        # fileSpecies = [[x['name'], len(x['fileName'])] for x in fileSpecies]
-        fileSpecies.sort(key=lambda x: len(x["fileName"]), reverse=True)
+
+        class UnionFind:
+            def __init__(self, n):
+                self.parent = list(range(n))
+
+            def find(self, i):
+                if self.parent[i] == i:
+                    return i
+                self.parent[i] = self.find(self.parent[i])
+                return self.parent[i]
+
+            def union(self, i, j):
+                root_i = self.find(i)
+                root_j = self.find(j)
+                if root_i != root_j:
+                    self.parent[root_i] = root_j
+                    return True
+                return False
+
+        n = len(fileSpecies)
+        uf = UnionFind(n)
+
+        annotation_map = {}
+        annotationName_map = {}
+
+        for i, item in enumerate(fileSpecies):
+            for ann in item["annotation"]:
+                if ann in annotation_map:
+                    uf.union(i, annotation_map[ann])
+                else:
+                    annotation_map[ann] = i
+
+            for ann_name in item["annotationName"]:
+                if ann_name in annotationName_map:
+                    uf.union(i, annotationName_map[ann_name])
+                else:
+                    annotationName_map[ann_name] = i
+
+        from collections import defaultdict
+
+        components = defaultdict(list)
+        for i in range(n):
+            components[uf.find(i)].append(i)
+
+        merged_species = []
+        for comp in components.values():
+            merged = {
+                "name": set(),
+                "annotation": set(),
+                "annotationName": set(),
+                "fileName": set(),
+                "qualifier": set(),
+                "otherAnnotation": [],
+            }
+            for idx in comp:
+                item = fileSpecies[idx]
+                merged["name"].update(item["name"])
+                merged["annotation"].update(item["annotation"])
+                merged["annotationName"].update(item["annotationName"])
+                merged["fileName"].update(item["fileName"])
+                merged["qualifier"].update(item["qualifier"])
+                merged["otherAnnotation"].extend(item["otherAnnotation"])
+            merged_species.append(merged)
+
+        merged_species.sort(key=lambda x: len(x["fileName"]), reverse=True)
 
         # import pickle
 
         # with open('results.dump','wb') as f:
-        #    pickle.dump(fileSpecies,f)
+        #    pickle.dump(merged_species,f)
 
-        return fileSpecies
+        return merged_species
 
     def isFileInDatabase(self, fileName):
         return isFileInDatabase(self.databaseName, fileName)
