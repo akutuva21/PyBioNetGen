@@ -90,15 +90,18 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
         synonymName1 = [x.lower() for x in synonymName1]
         synonymName2 = results[result]["SYNONYMS_B"].split("|")
         synonymName2 = [x.lower() for x in synonymName2]
-        # FIXME: This should correctly warn the user where the interaction is coming
-        # from exactly
+
+        sourceDB = results[result].get("SOURCEDB", "Unknown Source")
+        pubmedID = results[result].get("PUBMED_ID", "Unknown")
+        interaction_source = f"{sourceDB} (PubMed: {pubmedID})"
+
         # FIXME: Let the user select individual interactions to include. Maybe an
         # interactive mode
         if truename1 != None and truename2 != None and resultName1 != resultName2:
             logMess(
                 "WARNING:ATO005",
                 "BioGrid result only matched a synonym. "
-                + f"{resultName1} to {resultName2}",
+                + f"{resultName1} to {resultName2} from {interaction_source}",
             )
             return True
         elif (
@@ -111,7 +114,7 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
                 "WARNING:ATO005",
                 "BioGrid result only matched a synonym. "
                 + f"{truename1} to {truename2} or "
-                + f"{resultName1} to {resultName2}",
+                + f"{resultName1} to {resultName2} from {interaction_source}",
             )
             return True
         if (referenceName1 == resultName1 or referenceName1 in synonymName1) and (
@@ -121,9 +124,9 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
                 "WARNING:ATO005",
                 "BioGrid result only matched a synonym. "
                 + f"{referenceName1} to {resultName1} or "
-                + f"{referenceName1} to {synonymName1} or "
+                + f"{referenceName1} in {synonymName1} or "
                 + f"{referenceName2} to {resultName2} or "
-                + f"{referenceName2} to {synonymName2}",
+                + f"{referenceName2} in {synonymName2} from {interaction_source}",
             )
             return True
         if (referenceName2 == resultName1 or referenceName2 in synonymName1) and (
@@ -133,9 +136,9 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
                 "WARNING:ATO005",
                 "BioGrid result only matched a synonym. "
                 + f"{referenceName2} to {resultName1} or "
-                + f"{referenceName2} to {synonymName1} or "
+                + f"{referenceName2} in {synonymName1} or "
                 + f"{referenceName1} to {resultName2} or "
-                + f"{referenceName1} to {synonymName2}",
+                + f"{referenceName1} in {synonymName2} from {interaction_source}",
             )
             return True
 
