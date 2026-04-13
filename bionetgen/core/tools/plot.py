@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from bionetgen.core.exc import BNGError, BNGFileError
 from bionetgen.core.tools import BNGResult
 from bionetgen.core.utils.logging import BNGLogger
 
@@ -87,10 +88,15 @@ class BNGPlotter:
                 continue
             ax = sbrn.lineplot(x=self.data[x_name], y=self.data[name], label=name)
             ctr += 1
-        # TODO: Transition to BNGErrors and logging
-        assert ax is not None, "No data columns are found in file {}".format(
-            self.result.direct_path
-        )
+        if ax is None:
+            self.logger.error(
+                "No data columns are found in file {}".format(self.result.direct_path),
+                loc=f"{__file__} : BNGPlotter._datplot()",
+            )
+            raise BNGFileError(
+                self.result.direct_path,
+                "No data columns are found in file {}".format(self.result.direct_path),
+            )
 
         fax = ax.get_figure().gca()
         if not self.kwargs.get("legend", False):
@@ -102,9 +108,18 @@ class BNGPlotter:
         xmax = self.kwargs.get("xmax", False) or oxmax
         ymin = self.kwargs.get("ymin", False) or oymin
         ymax = self.kwargs.get("ymax", False) or oymax
-        # TODO: Transition to BNGErrors and logging
-        assert xmax > xmin, "--xmin is bigger than --xmax!"
-        assert ymax > ymin, "--ymin is bigger than --ymax!"
+        if not xmax > xmin:
+            self.logger.error(
+                "--xmin is bigger than --xmax!",
+                loc=f"{__file__} : BNGPlotter._datplot()",
+            )
+            raise BNGError("--xmin is bigger than --xmax!")
+        if not ymax > ymin:
+            self.logger.error(
+                "--ymin is bigger than --ymax!",
+                loc=f"{__file__} : BNGPlotter._datplot()",
+            )
+            raise BNGError("--ymin is bigger than --ymax!")
 
         fax.set_xlim(left=xmin, right=xmax)
         fax.set_ylim(bottom=ymin, top=ymax)
