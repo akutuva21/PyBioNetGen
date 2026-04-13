@@ -4,7 +4,8 @@ import numpy as np
 from distutils import ccompiler
 from .bngsimulator import BNGSimulator
 from bionetgen.main import BioNetGen
-from bionetgen.core.exc import BNGCompileError
+from bionetgen.core.exc import BNGCompileError, BNGSimulatorError
+from bionetgen.core.utils.logging import BNGLogger
 
 # This allows access to the CLIs config setup
 app = BioNetGen()
@@ -39,6 +40,7 @@ class CSimWrapper:
     """
 
     def __init__(self, lib_path, num_params=None, num_spec_init=None):
+        self.logger = BNGLogger()
         # we need the result struct to reconstruct the object
         self.return_struct = RESULT
         # load the shared library
@@ -55,16 +57,24 @@ class CSimWrapper:
         """
         Set the initial species values array
         """
-        # TODO: Transition to BNGErrors and logging
-        assert len(arr) == self.num_spec_init
+        if len(arr) != self.num_spec_init:
+            self.logger.error(
+                f"Length of species initialization array ({len(arr)}) does not match expected length ({self.num_spec_init})",
+                loc=f"{__file__} : CSimWrapper.set_species_init()"
+            )
+            raise BNGSimulatorError(f"Expected {self.num_spec_init} initial species, but got {len(arr)}")
         self.species_init = np.array(arr, dtype=np.float64)
 
     def set_parameters(self, arr):
         """
         Set the parameter values array
         """
-        # TODO: Transition to BNGErrors and logging
-        assert len(arr) == self.num_params
+        if len(arr) != self.num_params:
+            self.logger.error(
+                f"Length of parameter array ({len(arr)}) does not match expected length ({self.num_params})",
+                loc=f"{__file__} : CSimWrapper.set_parameters()"
+            )
+            raise BNGSimulatorError(f"Expected {self.num_params} parameters, but got {len(arr)}")
         self.parameters = np.array(arr, dtype=np.float64)
 
     def simulate(self, t_start=0, t_end=100, n_steps=100):
