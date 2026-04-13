@@ -154,7 +154,11 @@ class BNGCLI:
             self.logger.debug("Setting up log file", loc=f"{__file__} : BNGCLI.run()")
 
             # Check if the intended log path is a directory (either it exists as a dir, or ends with a separator)
-            is_dir = os.path.isdir(self.log_file) or self.log_file.endswith(os.sep) or (os.altsep and self.log_file.endswith(os.altsep))
+            is_dir = (
+                os.path.isdir(self.log_file)
+                or self.log_file.endswith(os.sep)
+                or (os.altsep and self.log_file.endswith(os.altsep))
+            )
 
             # Resolve absolute/relative paths properly
             full_log_path = os.path.abspath(self.log_file)
