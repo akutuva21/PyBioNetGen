@@ -152,7 +152,9 @@ class CSimulator(BNGSimulator):
     def __init__(self, model_file, generate_network=False):
         # check cvode library paths
         if (conf.get("cvode_include") is None) or (conf.get("cvode_lib") is None):
-            logger.warning("CVODE include and library paths are not set, compilation won't work")
+            logger.warning(
+                "CVODE include and library paths are not set, compilation won't work"
+            )
         # let's load the model first
         if isinstance(model_file, str):
             # load model file
