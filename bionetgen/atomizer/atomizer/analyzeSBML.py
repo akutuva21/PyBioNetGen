@@ -1434,20 +1434,45 @@ class SBMLAnalyzer:
                                 strippedMolecules,
                                 continuityFlag=False,
                             )
-                            # FIXME: this comparison is pretty nonsensical. treactant and tproduct are not
-                            # guaranteed to be in teh right order. why are we comparing them both at the same time
-                            if (
-                                len(treactant) > 1
-                                and "_".join(treactant) in strippedMolecules
-                            ) or (
-                                len(tproduct) > 1
-                                and "_".join(tproduct) in strippedMolecules
-                            ):
+
+                            def get_match(components):
+                                # Helper to match order-independent components to strippedMolecules
+                                joined = "_".join(components)
+                                if len(components) > 1 and joined in strippedMolecules:
+                                    return joined
+
+                                sorted_comps = sorted(c for c in components if c)
+                                for mol in strippedMolecules:
+                                    if (
+                                        sorted([y for y in mol.split("_") if y])
+                                        == sorted_comps
+                                    ):
+                                        return mol
+
+                                close_matches = get_close_matches(
+                                    joined, strippedMolecules
+                                )
+                                if close_matches:
+                                    close_splits = [
+                                        "_".join([y for y in x.split("_") if y])
+                                        for x in close_matches
+                                    ]
+                                    target = "_".join(c for c in components if c)
+                                    try:
+                                        return close_matches[close_splits.index(target)]
+                                    except ValueError:
+                                        pass
+                                return None
+
+                            trueReactant = get_match(treactant)
+                            trueProduct = get_match(tproduct)
+
+                            if trueReactant and trueProduct:
                                 pairedMolecules[stoch2].append(
-                                    ("_".join(treactant), "_".join(tproduct))
+                                    (trueReactant, trueProduct)
                                 )
                                 pairedMolecules2[stoch].append(
-                                    ("_".join(tproduct), "_".join(treactant))
+                                    (trueProduct, trueReactant)
                                 )
                                 for x in treactant:
                                     reactant.remove(x)
@@ -1455,45 +1480,6 @@ class SBMLAnalyzer:
                                     product.remove(x)
                                 idx = -1
                                 break
-                            else:
-                                rclose = get_close_matches(
-                                    "_".join(treactant), strippedMolecules
-                                )
-                                pclose = get_close_matches(
-                                    "_".join(tproduct), strippedMolecules
-                                )
-                                rclose2 = [x.split("_") for x in rclose]
-                                rclose2 = [
-                                    "_".join([y for y in x if y != ""]) for x in rclose2
-                                ]
-                                pclose2 = [x.split("_") for x in pclose]
-                                pclose2 = [
-                                    "_".join([y for y in x if y != ""]) for x in pclose2
-                                ]
-                                trueReactant = None
-                                trueProduct = None
-                                try:
-                                    trueReactant = rclose[
-                                        rclose2.index("_".join(treactant))
-                                    ]
-                                    trueProduct = pclose[
-                                        pclose2.index("_".join(tproduct))
-                                    ]
-                                except:
-                                    pass
-                                if trueReactant and trueProduct:
-                                    pairedMolecules[stoch2].append(
-                                        (trueReactant, trueProduct)
-                                    )
-                                    pairedMolecules2[stoch].append(
-                                        (trueProduct, trueReactant)
-                                    )
-                                    for x in treactant:
-                                        reactant.remove(x)
-                                    for x in tproduct:
-                                        product.remove(x)
-                                    idx = -1
-                                    break
 
         if (
             sum(len(x) for x in reactantString + productString) > 0
