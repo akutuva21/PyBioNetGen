@@ -814,7 +814,7 @@ class Rule:
                 if abs(stoich - int_stoich) > 1e-4:
                     logMess(
                         "WARNING:ATOMIZATION",
-                        f"Non-integer stoichiometry {stoich} found for {react[0]}. BNGL only supports integer stoichiometry. Rounding to {int_stoich}."
+                        f"Non-integer stoichiometry {stoich} found for {react[0]}. BNGL only supports integer stoichiometry. Rounding to {int_stoich}.",
                     )
                 for i in range(int_stoich):
                     if i > 0:
@@ -866,7 +866,7 @@ class Rule:
                 if abs(stoich - int_stoich) > 1e-4:
                     logMess(
                         "WARNING:ATOMIZATION",
-                        f"Non-integer stoichiometry {stoich} found for {prod[0]}. BNGL only supports integer stoichiometry. Rounding to {int_stoich}."
+                        f"Non-integer stoichiometry {stoich} found for {prod[0]}. BNGL only supports integer stoichiometry. Rounding to {int_stoich}.",
                     )
                 for i in range(int_stoich):
                     if i > 0:
