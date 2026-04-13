@@ -149,15 +149,67 @@ class NamingDatabase:
         ]
         return tmp
 
+    def getSpeciesFromFileList(self, fileList):
+        connection = sqlite3.connect(self.databaseName)
+        cursor = connection.cursor()
+
+        batch_size = 900
+        all_species = []
+        for i in range(0, len(fileList), batch_size):
+            batch = fileList[i : i + batch_size]
+            placeholders = ",".join("?" for _ in batch)
+            queryStatement = f"""SELECT B.file, name, A.annotationURI, A.annotationName, qualifier
+                                FROM moleculeNames as M
+                                JOIN identifier as I ON M.ROWID == I.speciesID
+                                JOIN annotation as A ON A.ROWID == I.annotationID
+                                JOIN biomodels as B ON B.ROWID == M.fileID
+                                WHERE B.file IN ({placeholders})"""
+            results = cursor.execute(queryStatement, batch).fetchall()
+
+            # Group by file
+            results_by_file = {}
+            for row in results:
+                file_name = row[0]
+                if file_name not in results_by_file:
+                    results_by_file[file_name] = []
+                results_by_file[file_name].append(row[1:])
+
+            for file_name, speciesList in results_by_file.items():
+                tmp = {x[0]: set([]) for x in speciesList}
+                tmp2 = {x[0]: set([]) for x in speciesList}
+                tmp3 = {x[0]: set([]) for x in speciesList}
+                tmp4 = {x[0]: set([]) for x in speciesList}
+                for x in speciesList:
+                    if x[3] in ["BQB_IS", "BQM_IS", "BQB_IS_VERSION_OF"]:
+                        tmp[x[0]].add(x[1])
+                        if x[2] != "":
+                            tmp2[x[0]].add(x[2])
+                        tmp3[x[0]].add(x[3])
+                    else:
+                        tmp4[x[0]].add((x[1], x[3]))
+
+                tmp_res = [
+                    {
+                        "name": set([x]),
+                        "annotation": set(tmp[x]),
+                        "annotationName": set(tmp2[x]),
+                        "fileName": set([file_name]),
+                        "qualifier": tmp3[x],
+                        "otherAnnotation": [tmp4[x]] if tmp4[x] else [],
+                    }
+                    for x in tmp
+                ]
+                all_species.extend(tmp_res)
+
+        connection.close()
+        return all_species
+
     def findOverlappingNamespace(self, fileList):
         fileSpecies = []
         if len(fileList) == 0:
             fileList = self.getFilesInDatabase()
 
-        progress = progressbar.ProgressBar(maxval=len(fileList)).start()
-
-        for idx in progress(range(len(fileList))):
-            fileSpecies.extend(self.getSpeciesFromFileName(fileList[idx]))
+        fileSpecies = self.getSpeciesFromFileList(fileList)
 
         changeFlag = True
         fileSpeciesCopy = copy(fileSpecies)
