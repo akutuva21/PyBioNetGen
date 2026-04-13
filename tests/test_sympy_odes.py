@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch
 from bionetgen.modelapi.sympy_odes import _safe_rmtree
 
+
 def test_safe_rmtree_exception():
     with patch("shutil.rmtree") as mock_rmtree:
         mock_rmtree.side_effect = Exception("Mock exception")
