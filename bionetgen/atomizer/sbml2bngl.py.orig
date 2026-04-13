@@ -312,12 +312,17 @@ class SBML2BNGL:
         isConstant = species.getConstant()
         isBoundary = species.getBoundaryCondition()
         if isBoundary and not isConstant:
-            # Code Reviewer: The substitution logic required by the FIXME
-            # ("all references to this observable have to be changed")
-            # is actually implemented downstream in getAssignmentRules
-            # and applied in libsbml2bngl.py via only_assignment_dict.
-            # We enforce isConstant = True here so BNG processes it with the $ prefix.
-            isConstant = True
+            if logEntries:
+                logMess(
+                    "WARNING:SIM107",
+                    "Species {0} is a boundary condition and not constant. "
+                    "This means it can be changed by rules and/or events. "
+                    "BioNetGen currently does not fully support this, "
+                    "but atomizer will attempt to track it as an assignment.".format(
+                        identifier
+                    ),
+                )
+            # isConstant = True
             if (
                 not species.isSetInitialConcentration()
                 and not species.isSetInitialAmount()
@@ -1504,12 +1509,12 @@ class SBML2BNGL:
         rStack = []
         pStack = []
         """
-        if a reaction can take place in several ways account for it in the reaction 
+        if a reaction can take place in several ways account for it in the reaction
         rate (this is specially important in dimer and trimer binding)
         pcomponent[element] < rcomponent[element] asks if an specific instance
         of a component decreases in number from a reactant to a product
         for example if there are 3 A(b)'s and one binds, we will have 2 A(b)'s
-        in the product  
+        in the product
         """
         rcomponentTemp = deepcopy(rcomponent)
         pcomponentTemp = deepcopy(pcomponent)
