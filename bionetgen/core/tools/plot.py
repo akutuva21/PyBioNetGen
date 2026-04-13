@@ -2,6 +2,7 @@ import os
 import numpy as np
 from bionetgen.core.tools import BNGResult
 from bionetgen.core.utils.logging import BNGLogger
+from bionetgen.core.exc import BNGError
 
 
 class BNGPlotter:
@@ -87,10 +88,10 @@ class BNGPlotter:
                 continue
             ax = sbrn.lineplot(x=self.data[x_name], y=self.data[name], label=name)
             ctr += 1
-        # TODO: Transition to BNGErrors and logging
-        assert ax is not None, "No data columns are found in file {}".format(
-            self.result.direct_path
-        )
+        if ax is None:
+            msg = "No data columns are found in file {}".format(self.result.direct_path)
+            self.logger.error(msg, loc=f"{__file__} : BNGPlotter._datplot()")
+            raise BNGError(msg)
 
         fax = ax.get_figure().gca()
         if not self.kwargs.get("legend", False):
