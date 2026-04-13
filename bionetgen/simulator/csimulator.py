@@ -4,13 +4,16 @@ import numpy as np
 from distutils import ccompiler
 from .bngsimulator import BNGSimulator
 from bionetgen.main import BioNetGen
-from bionetgen.core.exc import BNGCompileError
+from bionetgen.core.exc import BNGCompileError, BNGSimulatorError
+from bionetgen.core.utils.logging import BNGLogger
 
 # This allows access to the CLIs config setup
 app = BioNetGen()
 app.setup()
 conf = app.config["bionetgen"]
 def_bng_path = conf["bngpath"]
+
+logger = BNGLogger()
 
 
 class RESULT(ctypes.Structure):
@@ -55,16 +58,24 @@ class CSimWrapper:
         """
         Set the initial species values array
         """
-        # TODO: Transition to BNGErrors and logging
-        assert len(arr) == self.num_spec_init
+        if len(arr) != self.num_spec_init:
+            logger.error(
+                f"Expected {self.num_spec_init} initial species values, got {len(arr)}"
+            )
+            raise BNGSimulatorError(
+                f"Expected {self.num_spec_init} initial species values, got {len(arr)}"
+            )
         self.species_init = np.array(arr, dtype=np.float64)
 
     def set_parameters(self, arr):
         """
         Set the parameter values array
         """
-        # TODO: Transition to BNGErrors and logging
-        assert len(arr) == self.num_params
+        if len(arr) != self.num_params:
+            logger.error(f"Expected {self.num_params} parameters, got {len(arr)}")
+            raise BNGSimulatorError(
+                f"Expected {self.num_params} parameters, got {len(arr)}"
+            )
         self.parameters = np.array(arr, dtype=np.float64)
 
     def simulate(self, t_start=0, t_end=100, n_steps=100):
@@ -141,7 +152,7 @@ class CSimulator(BNGSimulator):
     def __init__(self, model_file, generate_network=False):
         # check cvode library paths
         if (conf.get("cvode_include") is None) or (conf.get("cvode_lib") is None):
-            print("CVODE include and library paths are not set, compilation won't work")
+            logger.warning("CVODE include and library paths are not set, compilation won't work")
         # let's load the model first
         if isinstance(model_file, str):
             # load model file
@@ -162,7 +173,8 @@ class CSimulator(BNGSimulator):
                 )
             os.chdir(cd)
         else:
-            print(f"model format not recognized: {model_file}")
+            logger.error(f"model format not recognized: {model_file}")
+            raise BNGSimulatorError(f"model format not recognized: {model_file}")
         # set compiler
         self.compiler = ccompiler.new_compiler()
         self.compiler.add_include_dir(conf.get("cvode_include"))
