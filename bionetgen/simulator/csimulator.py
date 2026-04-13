@@ -1,7 +1,10 @@
 import ctypes, os, tempfile, bionetgen
 import numpy as np
 
-from distutils import ccompiler
+try:
+    from distutils import ccompiler
+except ImportError:
+    pass
 from .bngsimulator import BNGSimulator
 from bionetgen.main import BioNetGen
 from bionetgen.core.exc import BNGCompileError
