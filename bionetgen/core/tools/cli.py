@@ -51,7 +51,7 @@ class BNGCLI:
             self.inp_path = os.path.abspath(self.inp_file)
         # pull other arugments out
         if log_file is not None:
-            self.log_file = os.path.abspath(log_file)
+            self.log_file = log_file
         else:
             self.log_file = None
         self._set_output(output)
@@ -152,26 +152,20 @@ class BNGCLI:
         )
         if self.log_file is not None:
             self.logger.debug("Setting up log file", loc=f"{__file__} : BNGCLI.run()")
-            # test if we were given a path
-            # TODO: This is a simple hack, might need to adjust it
-            # trying to check if given file is an absolute/relative
-            # path and if so, use that one. Otherwise, divine the
-            # current path.
-            if os.path.exists(self.log_file):
-                # file or folder exists, check if folder
-                if os.path.isdir(self.log_file):
-                    fname = os.path.basename(self.inp_path)
-                    fname = fname.replace(".bngl", "")
-                    full_log_path = os.path.join(self.log_file, fname + ".log")
-                else:
-                    # it's intended to be file, so we keep it as is
-                    full_log_path = self.log_file
-            else:
-                # doesn't exist, so we assume it's a file
-                # and we keep it as is
-                full_log_path = self.log_file
+
+            # Check if the intended log path is a directory (either it exists as a dir, or ends with a separator)
+            is_dir = os.path.isdir(self.log_file) or self.log_file.endswith(os.sep) or (os.altsep and self.log_file.endswith(os.altsep))
+
+            # Resolve absolute/relative paths properly
+            full_log_path = os.path.abspath(self.log_file)
+
+            if is_dir:
+                fname = os.path.basename(self.inp_path)
+                fname = fname.replace(".bngl", "")
+                full_log_path = os.path.join(full_log_path, fname + ".log")
+
             self.logger.debug("Writing log file", loc=f"{__file__} : BNGCLI.run()")
-            log_parent = os.path.dirname(os.path.abspath(full_log_path))
+            log_parent = os.path.dirname(full_log_path)
             if not os.path.exists(log_parent):
                 os.makedirs(log_parent, exist_ok=True)
             with open(full_log_path, "w") as f:
