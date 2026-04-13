@@ -2199,18 +2199,8 @@ class SBML2BNGL:
                     neg.append(elem)
                 else:
                     pos.append(elem)
-        # FIXME: Return None correctly
-        l, r = None, None
-        if len(pos) > 0:
-            l = pos.pop(0)
-        if len(pos) > 0:
-            for e in pos:
-                l += e
-        if len(neg) > 0:
-            r = -1 * neg.pop(0)
-        if len(neg) > 0:
-            for e in neg:
-                r += -1 * e
+        l = sum(pos) if pos else None
+        r = sum(-1 * e for e in neg) if neg else None
         return l, r
 
     def __getRawAssignmentRules(self, arule):
