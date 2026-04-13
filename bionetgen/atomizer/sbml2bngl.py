@@ -311,12 +311,16 @@ class SBML2BNGL:
             initialValue = species.getInitialAmount()
         isConstant = species.getConstant()
         isBoundary = species.getBoundaryCondition()
-        # FIXME: this condition means that a variable/species can be changed
-        # by rules and/or events. this means that we effectively need a variable
-        # changed by a function that tracks this value, and all references
-        # to this observable have to be changed to the referrencing variable.
-        # http://sbml.org/Software/libSBML/docs/java-api/org/sbml/libsbml/Species.html
         if isBoundary and not isConstant:
+            logMess(
+                "WARNING:SIM107",
+                "Species {0} has a boundary condition but is not constant. "
+                "This means that it can be changed by rules and/or events. "
+                "We effectively need a variable changed by a function that tracks this value, "
+                "and all references to this observable have to be changed to the referencing variable.".format(
+                    name
+                ),
+            )
             # isConstant = True
             if (
                 not species.isSetInitialConcentration()
