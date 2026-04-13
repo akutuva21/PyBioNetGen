@@ -11,6 +11,7 @@ from collections import Counter
 import json
 import ast
 import pickle
+import re
 import os
 from os import listdir
 from os.path import isfile, join
@@ -78,13 +79,21 @@ def getDifferences(scoreMatrix, speciesName, threshold):
     return namePairs, differenceList
 
 
+def _parse_tuple_string(s):
+    """
+    Safely parse a string representation of a tuple of strings
+    (e.g., "('+ _', '+ P')") without using eval.
+    """
+    return tuple(re.findall(r"['\"](.*?)['\"]", s))
+
+
 def loadOntology(ontologyFile):
     if os.path.isfile(ontologyFile):
         tmp = {}
         with open(ontologyFile, "r") as fp:
             ontology = json.load(fp)
         for element in ontology["patterns"]:
-            tmp[ast.literal_eval(element)] = ontology["patterns"][element]
+            tmp[_parse_tuple_string(element)] = ontology["patterns"][element]
         ontology["patterns"] = tmp
         return ontology
     else:
@@ -101,7 +110,7 @@ def loadOntology(ontologyFile):
             },
         }
         for element in ontology["patterns"]:
-            tmp[ast.literal_eval(element)] = ontology["patterns"][element]
+            tmp[_parse_tuple_string(element)] = ontology["patterns"][element]
         ontology["patterns"] = tmp
         return ontology
 
