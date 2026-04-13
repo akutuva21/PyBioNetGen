@@ -296,14 +296,11 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
     )
 
     connection.commit()
-    annotationID = [
-        x
-        for x in cursor.execute(
-            'select ROWID from annotation WHERE annotationURI == "{0}"'.format(
-                annotationNames[-1][0]
-            )
+    annotationID = cursor.execute(
+        'select ROWID from annotation WHERE annotationURI == "{0}"'.format(
+            annotationNames[-1][0]
         )
-    ][0][0]
+    ).fetchone()[0]
     annotationNames = []
     cursor.executemany(
         "INSERT into biomodels(file,organismID) values (?,?)",
@@ -311,12 +308,9 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
     )
     connection.commit()
 
-    modelID = [
-        x
-        for x in cursor.execute(
-            'select ROWID from biomodels WHERE file == "{0}"'.format(fileName2)
-        )
-    ][0][0]
+    modelID = cursor.execute(
+        'select ROWID from biomodels WHERE file == "{0}"'.format(fileName2)
+    ).fetchone()[0]
 
     # insert moleculeNames
     for molecule in basicModelAnnotations:
