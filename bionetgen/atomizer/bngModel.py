@@ -1721,22 +1721,26 @@ class bngModel:
                 frates.append(fkey)
         # Now reorder accordingly
         ordered_funcs = []
-        # this ensures we write the independendent functions first
-        stck = sorted(dep_dict.keys(), key=lambda x: len(dep_dict[x]))
-        # FIXME: This algorithm works but likely inefficient
-        while len(stck) > 0:
-            k = stck.pop()
-            deps = dep_dict[k]
-            if len(deps) == 0:
-                if k not in ordered_funcs:
-                    ordered_funcs.append(k)
-            else:
-                stck.append(k)
-                for dep in deps:
-                    if dep not in ordered_funcs:
-                        stck.append(dep)
-                    dep_dict[k].remove(dep)
-        # print ordered functions and return
+        visited = set()
+        visiting = set()
+
+        def dfs(node):
+            if node in visited:
+                return
+            if node in visiting:
+                return  # Handle cycles gracefully if any exist
+            visiting.add(node)
+            for dep in dep_dict.get(node, []):
+                dfs(dep)
+            visiting.remove(node)
+            visited.add(node)
+            ordered_funcs.append(node)
+
+        # Process nodes with the most dependencies first to mimic original logic
+        for k in sorted(dep_dict.keys(), key=lambda x: len(dep_dict[x]), reverse=True):
+            dfs(k)
+
+        # append function rates and return
         ordered_funcs += frates
         self.function_order = ordered_funcs
 
