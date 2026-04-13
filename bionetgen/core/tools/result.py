@@ -1,6 +1,7 @@
 import os
 import numpy as np
 
+from bionetgen.core.exc import BNGFileError
 from bionetgen.core.utils.logging import BNGLogger
 
 
@@ -162,8 +163,12 @@ class BNGResult:
         with open(path, "r") as f:
             header = f.readline()
         # Ensure the header info is actually there
-        # TODO: Transition to BNGErrors and logging
-        assert header.startswith("#"), "No header line that starts with #"
+        if not header.startswith("#"):
+            self.logger.error(
+                "No header line that starts with # in file {}".format(path),
+                loc=f"{__file__} : BNGResult._load_dat()",
+            )
+            raise BNGFileError(path, "No header line that starts with #")
         # Now turn it into a list of names for our struct array
         header = header.replace("#", "")
         headers = header.split()
