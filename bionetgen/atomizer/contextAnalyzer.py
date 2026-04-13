@@ -228,18 +228,6 @@ def obtainDifferences(redundantDict, transformationContext):
     return redundantListDict
 
 
-# XXX: How was this supposed to work. pgv is never imported.
-#
-# def reactionCenterGraph(species, reactionCenter):
-#     total = sum(x[1] for x in reactionCenter)
-#     graph = pgv.AGraph(directed=False,concentrate=True)
-#     print reactionCenter,
-#     for element in species:
-#         graph.add_node(element.name, shape='diamond', style='filled')
-#         for component in element.components:
-#             pass
-
-
 def extractStatistics():
     number = 151
     console.bngl2xml("complex/output{0}.bngl".format(number))
@@ -281,7 +269,6 @@ def extractStatistics():
         len({x: centerDict[x] for x in centerDict if len(centerDict[x]) == 1}),
     )
     tmp = [[tuple(set(x)), len(centerDict[x])] for x in centerDict]
-    # reactionCenterGraph(species, tmp)
     # tmp.sort(key=lambda x:x[1], reverse=True)
     print("number of reaction centers", len(centerDict.keys()))
     print("number of rules", len(rules))
