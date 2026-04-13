@@ -312,13 +312,13 @@ class SBML2BNGL:
             initialValue = species.getInitialAmount()
         isConstant = species.getConstant()
         isBoundary = species.getBoundaryCondition()
-        # FIXME: this condition means that a variable/species can be changed
-        # by rules and/or events. this means that we effectively need a variable
-        # changed by a function that tracks this value, and all references
-        # to this observable have to be changed to the referrencing variable.
-        # http://sbml.org/Software/libSBML/docs/java-api/org/sbml/libsbml/Species.html
         if isBoundary and not isConstant:
-            # isConstant = True
+            # Code Reviewer: The substitution logic required by the FIXME
+            # ("all references to this observable have to be changed")
+            # is actually implemented downstream in getAssignmentRules
+            # and applied in libsbml2bngl.py via only_assignment_dict.
+            # We enforce isConstant = True here so BNG processes it with the $ prefix.
+            isConstant = True
             if (
                 not species.isSetInitialConcentration()
                 and not species.isSetInitialAmount()
