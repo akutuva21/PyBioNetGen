@@ -110,10 +110,16 @@ class BNGPlotter:
         ymax = self.kwargs.get("ymax", False) or oymax
         # TODO: Transition to BNGErrors and logging
         if xmin >= xmax:
-            self.logger.error("--xmin is bigger than --xmax!", loc=f"{__file__} : BNGPlotter._datplot()")
+            self.logger.error(
+                "--xmin is bigger than --xmax!",
+                loc=f"{__file__} : BNGPlotter._datplot()",
+            )
             raise BNGError("--xmin is bigger than --xmax!")
         if ymin >= ymax:
-            self.logger.error("--ymin is bigger than --ymax!", loc=f"{__file__} : BNGPlotter._datplot()")
+            self.logger.error(
+                "--ymin is bigger than --ymax!",
+                loc=f"{__file__} : BNGPlotter._datplot()",
+            )
             raise BNGError("--ymin is bigger than --ymax!")
 
         fax.set_xlim(left=xmin, right=xmax)
