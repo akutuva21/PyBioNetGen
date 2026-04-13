@@ -792,9 +792,16 @@ class SBML2BNGL:
         # let's pull all names
         all_names = [i[0] for i in react] + [i[0] for i in prod]
         # SymPy is wonderful, _clash1 avoids built-ins like E, I etc
-        # FIXME:can we adjust the assignment rule stuff here?
         try:
             sym = sympy.sympify(form, locals=self.all_syms)
+
+            # Adjust assignment rules here to ensure that variables
+            # that have been turned into assignment rules are properly
+            # replaced in the sympy expression
+            for oname, nname in self.only_assignment_dict.items():
+                osym, ns = sympy.symbols(oname + "," + nname)
+                sym = sym.subs(osym, ns)
+
         except SympifyError as e:
             logMess(
                 "ERROR:SYMP001",
