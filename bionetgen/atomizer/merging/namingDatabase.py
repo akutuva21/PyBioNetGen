@@ -156,8 +156,59 @@ class NamingDatabase:
 
         progress = progressbar.ProgressBar(maxval=len(fileList)).start()
 
+        # Batch querying for all files to fix N+1 query issue
+        connection = sqlite3.connect(self.databaseName)
+        cursor = connection.cursor()
+
+        resultsByFile = {file: [] for file in fileList}
+
+        # SQLite IN clause limits parameters to typically 999
+        chunk_size = 500
+        for i in range(0, len(fileList), chunk_size):
+            chunk = fileList[i : i + chunk_size]
+            placeholders = ",".join(["?"] * len(chunk))
+            queryStatement = (
+                "SELECT B.file,name,A.annotationURI,A.annotationName,qualifier from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID "
+                "join annotation as A on A.ROWID == I.annotationID join biomodels as B on B.ROWID == M.fileID and B.file IN ({0})".format(
+                    placeholders
+                )
+            )
+
+            speciesList = cursor.execute(queryStatement, chunk).fetchall()
+            for row in speciesList:
+                resultsByFile[row[0]].append(row[1:])
+
         for idx in progress(range(len(fileList))):
-            fileSpecies.extend(self.getSpeciesFromFileName(fileList[idx]))
+            fileName = fileList[idx]
+            speciesListForFile = resultsByFile.get(fileName, [])
+
+            tmp = {x[0]: set([]) for x in speciesListForFile}
+            tmp2 = {x[0]: set([]) for x in speciesListForFile}
+            tmp3 = {x[0]: set([]) for x in speciesListForFile}
+            tmp4 = {x[0]: set([]) for x in speciesListForFile}
+            for x in speciesListForFile:
+                if x[3] in ["BQB_IS", "BQM_IS", "BQB_IS_VERSION_OF"]:
+                    tmp[x[0]].add(x[1])
+                    if x[2] != "":
+                        tmp2[x[0]].add(x[2])
+                    tmp3[x[0]].add(x[3])
+                else:
+                    tmp4[x[0]].add((x[1], x[3]))
+
+            tmp_res = [
+                {
+                    "name": set([x]),
+                    "annotation": set(tmp[x]),
+                    "annotationName": set(tmp2[x]),
+                    "fileName": set([fileName]),
+                    "qualifier": tmp3[x],
+                    "otherAnnotation": [tmp4[x]] if tmp4[x] else [],
+                }
+                for x in tmp
+            ]
+            fileSpecies.extend(tmp_res)
+
+        connection.close()
 
         changeFlag = True
         fileSpeciesCopy = copy(fileSpecies)
