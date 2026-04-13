@@ -256,21 +256,12 @@ class BNGGdiff:
             # if we have graphs in there, add the nodes to the stack
             if "graph" in curr_node.keys():
                 # there is a graph in the node, add the nodes to stack
-                if isinstance(curr_node["graph"]["node"], list):
-                    for inode, node in enumerate(curr_node["graph"]["node"]):
-                        ckey = curr_keys + [node["@id"]]
-                        node_stack.append(
-                            (ckey, curr_names + [self._get_node_name(node)], node)
-                        )
-                else:
-                    ckey = curr_keys + [curr_node["graph"]["node"]["@id"]]
+                nodes = curr_node["graph"]["node"]
+                nodes_list = nodes if isinstance(nodes, list) else [nodes]
+                for node in nodes_list:
+                    ckey = curr_keys + [node["@id"]]
                     node_stack.append(
-                        (
-                            ckey,
-                            curr_names
-                            + [self._get_node_name(curr_node["graph"]["node"])],
-                            curr_node["graph"]["node"],
-                        )
+                        (ckey, curr_names + [self._get_node_name(node)], node)
                     )
 
         # now we add edges, gotta deal with node renaming
@@ -318,7 +309,6 @@ class BNGGdiff:
         # keep track of naming
         rename_map = {}
         # first find differences in nodes
-        # FIXME: Check for single nodes before looping
         node_stack = [(["graphml"], [], g1["graphml"])]
         dnode_stack = [(["graphml"], [], dg["graphml"])]
         while len(node_stack) > 0:
@@ -357,36 +347,22 @@ class BNGGdiff:
             # if we have graphs in there, add the nodes to the stack
             if "graph" in curr_node.keys():
                 # there is a graph in the node, add the nodes to stack
-                if isinstance(curr_node["graph"]["node"], list):
-                    for inode, node in enumerate(curr_node["graph"]["node"]):
-                        ckey = curr_keys + [node["@id"]]
-                        node_stack.append(
-                            (ckey, curr_names + [self._get_node_name(node)], node)
-                        )
-                        dnode = curr_dnode["graph"]["node"][inode]
-                        dnode_stack.append(
-                            (
-                                curr_dkeys + [dnode["@id"]],
-                                curr_dnames + [self._get_node_name(dnode)],
-                                dnode,
-                            )
-                        )
-                else:
-                    ckey = curr_keys + [curr_node["graph"]["node"]["@id"]]
+                nodes = curr_node["graph"]["node"]
+                dnodes = curr_dnode["graph"]["node"]
+                nodes_list = nodes if isinstance(nodes, list) else [nodes]
+                dnodes_list = dnodes if isinstance(dnodes, list) else [dnodes]
+
+                for inode, node in enumerate(nodes_list):
+                    ckey = curr_keys + [node["@id"]]
                     node_stack.append(
-                        (
-                            ckey,
-                            curr_names
-                            + [self._get_node_name(curr_node["graph"]["node"])],
-                            curr_node["graph"]["node"],
-                        )
+                        (ckey, curr_names + [self._get_node_name(node)], node)
                     )
+                    dnode = dnodes_list[inode]
                     dnode_stack.append(
                         (
-                            ckey,
-                            curr_dnames
-                            + [self._get_node_name(curr_dnode["graph"]["node"])],
-                            curr_dnode["graph"]["node"],
+                            curr_dkeys + [dnode["@id"]],
+                            curr_dnames + [self._get_node_name(dnode)],
+                            dnode,
                         )
                     )
         # let's recolor both graphs
@@ -411,21 +387,12 @@ class BNGGdiff:
             # if we have graphs in there, add the nodes to the stack
             if "graph" in curr_node.keys():
                 # there is a graph in the node, add the nodes to stack
-                if isinstance(curr_node["graph"]["node"], list):
-                    for inode, node in enumerate(curr_node["graph"]["node"]):
-                        ckey = curr_keys + [node["@id"]]
-                        node_stack.append(
-                            (ckey, curr_names + [self._get_node_name(node)], node)
-                        )
-                else:
-                    ckey = curr_keys + [curr_node["graph"]["node"]["@id"]]
+                nodes = curr_node["graph"]["node"]
+                nodes_list = nodes if isinstance(nodes, list) else [nodes]
+                for node in nodes_list:
+                    ckey = curr_keys + [node["@id"]]
                     node_stack.append(
-                        (
-                            ckey,
-                            curr_names
-                            + [self._get_node_name(curr_node["graph"]["node"])],
-                            curr_node["graph"]["node"],
-                        )
+                        (ckey, curr_names + [self._get_node_name(node)], node)
                     )
         return recol_g
 
@@ -441,21 +408,12 @@ class BNGGdiff:
             # if we have graphs in there, add the nodes to the stack
             if "graph" in curr_node.keys():
                 # there is a graph in the node, add the nodes to stack
-                if isinstance(curr_node["graph"]["node"], list):
-                    for inode, node in enumerate(curr_node["graph"]["node"]):
-                        ckey = curr_keys + [node["@id"]]
-                        node_stack.append(
-                            (ckey, curr_names + [self._get_node_name(node)], node)
-                        )
-                else:
-                    ckey = curr_keys + [curr_node["graph"]["node"]["@id"]]
+                nodes = curr_node["graph"]["node"]
+                nodes_list = nodes if isinstance(nodes, list) else [nodes]
+                for node in nodes_list:
+                    ckey = curr_keys + [node["@id"]]
                     node_stack.append(
-                        (
-                            ckey,
-                            curr_names
-                            + [self._get_node_name(curr_node["graph"]["node"])],
-                            curr_node["graph"]["node"],
-                        )
+                        (ckey, curr_names + [self._get_node_name(node)], node)
                     )
 
     def _get_node_from_names(self, g, names):
@@ -471,56 +429,34 @@ class BNGGdiff:
         while len(copy_names) > 0:
             found = False
             key = copy_names.pop(0)
-            if isinstance(nodes, list):
-                for cnode in nodes:
-                    cname = self._get_node_name(cnode)
-                    if cname == key:
-                        found = True
-                        node = cnode
-                        if "graph" in node.keys():
-                            nodes = node["graph"]["node"]
-                    if found:
-                        break
-            else:
-                cname = self._get_node_name(nodes)
+            nodes_list = nodes if isinstance(nodes, list) else [nodes]
+            for cnode in nodes_list:
+                cname = self._get_node_name(cnode)
                 if cname == key:
                     found = True
-                    node = nodes
-                if "graph" in node.keys():
-                    nodes = node["graph"]["node"]
+                    node = cnode
+                    if "graph" in node.keys():
+                        nodes = node["graph"]["node"]
+                if found:
+                    break
         if not found:
             return None
         return node
 
     def _get_node_properties(self, node):
-        if isinstance(node["data"], list):
-            found = False
-            for datum in node["data"]:
-                if "y:ProxyAutoBoundsNode" in datum.keys():
-                    gnode = datum["y:ProxyAutoBoundsNode"]["y:Realizers"]["y:GroupNode"]
-                    if isinstance(gnode, list):
-                        properties = gnode[0]
-                    else:
-                        properties = gnode
-                    found = True
-                elif "y:ShapeNode" in datum.keys():
-                    snode = datum["y:ShapeNode"]
-                    if isinstance(snode, list):
-                        properties = snode[0]
-                    else:
-                        properties = snode
-                    found = True
-            if not found:
-                raise RuntimeError("Can't find properties for nodes")
-        else:
-            if "y:ProxyAutoBoundsNode" in node["data"].keys():
-                properties = node["data"]["y:ProxyAutoBoundsNode"]["y:Realizers"][
-                    "y:GroupNode"
-                ]
-            elif "y:ShapeNode" in node["data"].keys():
-                properties = node["data"]["y:ShapeNode"]
-            else:
-                raise RuntimeError("Can't find properties for nodes")
+        data_list = node["data"] if isinstance(node["data"], list) else [node["data"]]
+        found = False
+        for datum in data_list:
+            if "y:ProxyAutoBoundsNode" in datum.keys():
+                gnode = datum["y:ProxyAutoBoundsNode"]["y:Realizers"]["y:GroupNode"]
+                properties = gnode[0] if isinstance(gnode, list) else gnode
+                found = True
+            elif "y:ShapeNode" in datum.keys():
+                snode = datum["y:ShapeNode"]
+                properties = snode[0] if isinstance(snode, list) else snode
+                found = True
+        if not found:
+            raise RuntimeError("Can't find properties for nodes")
         return properties
 
     def _get_node_name(self, node):
@@ -577,19 +513,16 @@ class BNGGdiff:
         while len(copy_keylist) > 0:
             key = copy_keylist.pop(0)
             found = False
-            if isinstance(nodes, list):
-                for cnode in nodes:
-                    if cnode["@id"] == key:
-                        found = True
-                        node = cnode
-                        try:
-                            nodes = node["graph"]["node"]
-                        except:
-                            break
-            else:
+            nodes_list = nodes if isinstance(nodes, list) else [nodes]
+            for cnode in nodes_list:
                 if cnode["@id"] == key:
                     found = True
                     node = cnode
+                    try:
+                        nodes = node["graph"]["node"]
+                    except:
+                        break
+                    break
             if not found:
                 return None
         return node
@@ -649,30 +582,21 @@ class BNGGdiff:
         if colors is not None:
             self._color_node(copied_node, colors["g2"][self._get_color_id(copied_node)])
         if "graph" in node_to_add_to.keys():
-            if isinstance(node_to_add_to["graph"]["node"], list):
-                # first do renaming
-                node_ids = [
-                    self._get_node_id(node) for node in node_to_add_to["graph"]["node"]
-                ]
-                node_lists = [self._get_id_list(idstr) for idstr in node_ids]
-                new_id = node_lists[-1]
-                new_id[-1] += 1
-                new_id = self._get_id_str(new_id)
-                self._set_node_id(copied_node, new_id)
-                # now we can add
-                node_to_add_to["graph"]["node"].append(copied_node)
-            else:
-                # TODO: check if this is done correctly
-                # it's a single node and we need to turn
-                # it into a list instead
-                copied_original_node = copy.deepcopy(node_to_add_to["graph"]["node"])
-                og_node_id = self._get_node_id(copied_original_node)
-                new_id = self._get_id_list(og_node_id)
-                new_id[-1] += 1
-                new_id = self._get_id_str(new_id)
-                self._set_node_id(copied_node, new_id)
-                nodes_to_add = [copied_original_node, copied_node]
-                node_to_add_to["graph"]["node"] = nodes_to_add
+            nodes = node_to_add_to["graph"]["node"]
+            if not isinstance(nodes, list):
+                # turn it into a list first
+                nodes = [nodes]
+                node_to_add_to["graph"]["node"] = nodes
+
+            # first do renaming
+            node_ids = [self._get_node_id(n) for n in nodes]
+            node_lists = [self._get_id_list(idstr) for idstr in node_ids]
+            new_id = node_lists[-1]
+            new_id[-1] += 1
+            new_id = self._get_id_str(new_id)
+            self._set_node_id(copied_node, new_id)
+            # now we can add
+            nodes.append(copied_node)
             # add to rename map
             rmap[self._get_node_id(node)] = self._get_node_id(copied_node)
             # TODO: Need to get in there and rename and recolor each
@@ -704,24 +628,15 @@ class BNGGdiff:
                     # if we have graphs in there, add the nodes to the stack
                     if "graph" in curr_node.keys():
                         # there is a graph in the node, add the nodes to stack
-                        if isinstance(curr_node["graph"]["node"], list):
-                            for inode, node in enumerate(curr_node["graph"]["node"]):
-                                ckey = curr_keys + [node["@id"]]
-                                node_stack.append(
-                                    (
-                                        ckey,
-                                        curr_names + [self._get_node_name(node)],
-                                        node,
-                                    )
-                                )
-                        else:
-                            ckey = curr_keys + [curr_node["graph"]["node"]["@id"]]
+                        nodes = curr_node["graph"]["node"]
+                        nodes_list = nodes if isinstance(nodes, list) else [nodes]
+                        for node in nodes_list:
+                            ckey = curr_keys + [node["@id"]]
                             node_stack.append(
                                 (
                                     ckey,
-                                    curr_names
-                                    + [self._get_node_name(curr_node["graph"]["node"])],
-                                    curr_node["graph"]["node"],
+                                    curr_names + [self._get_node_name(node)],
+                                    node,
                                 )
                             )
         return copied_node
