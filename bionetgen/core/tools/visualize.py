@@ -178,32 +178,13 @@ class BNGVisualize:
             loc=f"{__file__} : BNGVisualize._normal_mode()",
         )
 
-        if self.output is None:
-            with TemporaryDirectory() as out:
-                # instantiate a CLI object with the info
-                cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
-                try:
-                    cli.run()
-                    # load vis
-                    vis_res = VisResult(
-                        os.path.abspath(os.getcwd()),
-                        name=model.model_name,
-                        vtype=self.vtype,
-                    )
-                    # go back
-                    os.chdir(cur_dir)
-                    # dump files
-                    vis_res._dump_files(cur_dir)
-                    return vis_res
-                except Exception as e:
-                    os.chdir(cur_dir)
-                    print("Couldn't run the simulation, see error.")
-                    raise e
-        else:
+        with TemporaryDirectory() as out:
             # instantiate a CLI object with the info
-            cli = BNGCLI(model, self.output, self.bngpath, suppress=self.suppress)
+            cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
             try:
                 cli.run()
+                # go to the temp folder to load the files
+                os.chdir(out)
                 # load vis
                 vis_res = VisResult(
                     os.path.abspath(os.getcwd()),
@@ -211,6 +192,17 @@ class BNGVisualize:
                     vtype=self.vtype,
                 )
                 # go back
+                os.chdir(cur_dir)
+
+                # dump files
+                if self.output is None:
+                    vis_res._dump_files(cur_dir)
+                else:
+                    if not os.path.isdir(self.output):
+                        os.makedirs(self.output, exist_ok=True)
+                    vis_res._dump_files(os.path.abspath(self.output))
+
+                # _dump_files changes the current directory, so we must go back
                 os.chdir(cur_dir)
                 return vis_res
             except Exception as e:
