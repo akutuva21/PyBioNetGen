@@ -809,8 +809,14 @@ class Rule:
                     else:
                         react_str = str(react[0]) + "()"
                 # Apply stoichiometry
-                # FIXME: What to do if stoichiometry is not an integer
-                for i in range(int(react[1])):
+                stoich = float(react[1])
+                int_stoich = int(round(stoich))
+                if abs(stoich - int_stoich) > 1e-4:
+                    logMess(
+                        "WARNING:ATOMIZATION",
+                        f"Non-integer stoichiometry {stoich} found for {react[0]}. BNGL only supports integer stoichiometry. Rounding to {int_stoich}."
+                    )
+                for i in range(int_stoich):
                     if i > 0:
                         txt += " + "
                     txt += react_str
@@ -855,8 +861,14 @@ class Rule:
                     else:
                         prod_str = str(prod[0]) + "()"
                 # Apply stoichiometry
-                # FIXME: What to do if stoichiometry is not an integer
-                for i in range(int(prod[1])):
+                stoich = float(prod[1])
+                int_stoich = int(round(stoich))
+                if abs(stoich - int_stoich) > 1e-4:
+                    logMess(
+                        "WARNING:ATOMIZATION",
+                        f"Non-integer stoichiometry {stoich} found for {prod[0]}. BNGL only supports integer stoichiometry. Rounding to {int_stoich}."
+                    )
+                for i in range(int_stoich):
                     if i > 0:
                         txt += " + "
                     txt += prod_str
