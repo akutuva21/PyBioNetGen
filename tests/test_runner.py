@@ -23,10 +23,16 @@ class TestRunner(unittest.TestCase):
         # Verify
         mock_temp_dir.assert_called_once()
         mock_bngcli.assert_called_once_with(
-            "mock_input.bngl", "/tmp/mocked", unittest.mock.ANY, suppress=False, timeout=None
+            "mock_input.bngl",
+            "/tmp/mocked",
+            unittest.mock.ANY,
+            suppress=False,
+            timeout=None,
         )
         mock_cli_instance.run.assert_called_once()
-        self.assertEqual(mock_chdir.call_count, 1)  # should return to original directory
+        self.assertEqual(
+            mock_chdir.call_count, 1
+        )  # should return to original directory
         self.assertEqual(result, "mocked_result")
 
     @patch("bionetgen.modelapi.runner.BNGCLI")
@@ -42,7 +48,11 @@ class TestRunner(unittest.TestCase):
 
         # Verify
         mock_bngcli.assert_called_once_with(
-            "mock_input.bngl", "/custom/out", unittest.mock.ANY, suppress=False, timeout=None
+            "mock_input.bngl",
+            "/custom/out",
+            unittest.mock.ANY,
+            suppress=False,
+            timeout=None,
         )
         mock_cli_instance.run.assert_called_once()
         self.assertEqual(mock_chdir.call_count, 1)
@@ -65,10 +75,16 @@ class TestRunner(unittest.TestCase):
         self.assertTrue("Test exception" in str(context.exception))
         mock_temp_dir.assert_called_once()
         mock_bngcli.assert_called_once_with(
-            "mock_input.bngl", "/tmp/mocked", unittest.mock.ANY, suppress=False, timeout=None
+            "mock_input.bngl",
+            "/tmp/mocked",
+            unittest.mock.ANY,
+            suppress=False,
+            timeout=None,
         )
         mock_cli_instance.run.assert_called_once()
-        self.assertEqual(mock_chdir.call_count, 1) # Exception handling restores directory
+        self.assertEqual(
+            mock_chdir.call_count, 1
+        )  # Exception handling restores directory
 
     @patch("bionetgen.modelapi.runner.BNGCLI")
     @patch("bionetgen.modelapi.runner.os.chdir")
@@ -84,10 +100,17 @@ class TestRunner(unittest.TestCase):
 
         self.assertTrue("Test exception" in str(context.exception))
         mock_bngcli.assert_called_once_with(
-            "mock_input.bngl", "/custom/out", unittest.mock.ANY, suppress=False, timeout=None
+            "mock_input.bngl",
+            "/custom/out",
+            unittest.mock.ANY,
+            suppress=False,
+            timeout=None,
         )
         mock_cli_instance.run.assert_called_once()
-        self.assertEqual(mock_chdir.call_count, 1) # Exception handling restores directory
+        self.assertEqual(
+            mock_chdir.call_count, 1
+        )  # Exception handling restores directory
+
 
 if __name__ == "__main__":
     unittest.main()
