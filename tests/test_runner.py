@@ -3,6 +3,7 @@ import pytest
 from unittest.mock import patch, MagicMock, ANY
 from bionetgen.modelapi.runner import run
 
+
 @patch("bionetgen.modelapi.runner.BNGCLI")
 def test_runner_with_out(mock_bngcli):
     mock_cli_instance = MagicMock()
@@ -17,6 +18,7 @@ def test_runner_with_out(mock_bngcli):
     mock_bngcli.assert_called_once_with(inp, out, ANY, suppress=True, timeout=10)
     mock_cli_instance.run.assert_called_once()
     assert result == "mock_result"
+
 
 @patch("bionetgen.modelapi.runner.BNGCLI")
 @patch("bionetgen.modelapi.runner.TemporaryDirectory")
@@ -33,9 +35,12 @@ def test_runner_without_out(mock_tempdir, mock_bngcli):
     result = run(inp, suppress=False, timeout=None)
 
     mock_tempdir.assert_called_once()
-    mock_bngcli.assert_called_once_with(inp, "temp_out", ANY, suppress=False, timeout=None)
+    mock_bngcli.assert_called_once_with(
+        inp, "temp_out", ANY, suppress=False, timeout=None
+    )
     mock_cli_instance.run.assert_called_once()
     assert result == "mock_result"
+
 
 @patch("bionetgen.modelapi.runner.BNGCLI")
 def test_runner_exception(mock_bngcli):
