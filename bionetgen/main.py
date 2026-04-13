@@ -631,24 +631,22 @@ def main():
             app.run()
 
         except AssertionError as e:
-            print("AssertionError > %s" % e.args[0])
-            app.exit_code = 1
-            # TODO: figure out if this is what we want,
-            # rn it prints stuff twice
-            # if app.debug is True:
-            #     import traceback
+            if app.debug is True:
+                import traceback
 
-            #     traceback.print_exc()
+                traceback.print_exc()
+            else:
+                print("AssertionError > %s" % e.args[0])
+            app.exit_code = 1
 
         except BNGError as e:
-            print("BNGError > %s" % e.args[0])
-            app.exit_code = 1
-            # TODO: figure out if this is what we want,
-            # rn it prints stuff twice
-            # if app.debug is True:
-            #     import traceback
+            if app.debug is True:
+                import traceback
 
-            #     traceback.print_exc()
+                traceback.print_exc()
+            else:
+                print("BNGError > %s" % e.args[0])
+            app.exit_code = 1
 
         except CaughtSignal as e:
             # Default Cement signals are SIGINT and SIGTERM, exit 0 (non-error)
