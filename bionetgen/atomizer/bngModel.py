@@ -1536,21 +1536,29 @@ class bngModel:
                     if rule.rate_cts[0] in self.parameters:
                         # first pass test to see if this is a single constant
                         # now we need the compartment volume
-                        # FIXME: what do we do if we have more than one compartment?
                         react_names = [react[0] for react in rule.reactants]
-                        correction = False
+                        comp_names = []
                         for react_name in react_names:
-                            if correction:
-                                break
-                            if react_name in rule.tags:
-                                if "@" in rule.tags[react_name]:
-                                    comp_name = rule.tags[react_name].replace("@", "")
-                                    if comp_name in self.compartments:
-                                        comp = self.compartments[comp_name]
-                                        vol = comp.size
-                                        rule.rate_cts = (f"({rule.rate_cts[0]})*{vol}",)
-                                        correction = True
-                                        break
+                            if react_name in rule.tags and "@" in rule.tags[react_name]:
+                                comp_name = rule.tags[react_name].replace("@", "")
+                                if (
+                                    comp_name in self.compartments
+                                    and comp_name not in comp_names
+                                ):
+                                    comp_names.append(comp_name)
+
+                        if len(comp_names) > 1:
+                            logMess(
+                                "WARNING:ATOMIZATION",
+                                f"Reaction {rule.Id} has reactants in multiple compartments ({', '.join(comp_names)}). "
+                                "Volume correction using the first compartment's volume may be inaccurate.",
+                            )
+
+                        if comp_names:
+                            comp = self.compartments[comp_names[0]]
+                            vol = comp.size
+                            rule.rate_cts = (f"({rule.rate_cts[0]})*{vol}",)
+
             elif rule.reversible and (len(rule.reactants) > 1):
                 # we don't know what's going on with reversible reactions right now
                 pass
