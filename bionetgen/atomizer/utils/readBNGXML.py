@@ -9,6 +9,9 @@ from lxml import etree
 from . import smallStructures as st
 from io import StringIO
 
+# Secure parser configuration to prevent XXE vulnerabilities
+secure_parser = etree.XMLParser(resolve_entities=False, no_network=True)
+
 # http://igraph.sourceforge.net/documentation.html
 # ----------------------------------------------------------------------
 
@@ -209,7 +212,7 @@ def parseFunctions(functions):
 
 
 def parseFullXML(xmlFile):
-    doc = etree.parse(xmlFile)
+    doc = etree.parse(xmlFile, parser=secure_parser)
     molecules = doc.findall(".//{http://www.sbml.org/sbml/level3}MoleculeType")
     seedspecies = doc.findall(".//{http://www.sbml.org/sbml/level3}Species")
     rules = doc.findall(".//{http://www.sbml.org/sbml/level3}ReactionRule")
@@ -298,22 +301,22 @@ def parseXMLStruct(doc):
 
 
 def parseXMLFromString(xmlString):
-    doc = etree.fromstring(xmlString)
+    doc = etree.fromstring(xmlString, parser=secure_parser)
     return parseXMLStruct(doc)
 
 
 def parseFullXMLFromString(xmlString):
-    doc = etree.fromstring(xmlString)
+    doc = etree.fromstring(xmlString, parser=secure_parser)
     return parseFullXML(doc)
 
 
 def parseXML(xmlFile):
-    doc = etree.parse(xmlFile)
+    doc = etree.parse(xmlFile, parser=secure_parser)
     return parseXMLStruct(doc)
 
 
 def getNumObservablesXML(xmlFile):
-    doc = etree.parse(xmlFile)
+    doc = etree.parse(xmlFile, parser=secure_parser)
     observables = doc.findall(".//{http://www.sbml.org/sbml/level3}Observable")
     return len(observables)
 
