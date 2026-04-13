@@ -244,13 +244,24 @@ def generate_notebook(app):
     app.log.debug(f"Writing notebook to file: {fname}", f"{__file__} : notebook()")
     notebook.write(fname)
     # open the notebook with nbopen
-    # TODO: deal with stdout/err
     app.log.debug(
         f"Attempting to open notebook {fname} with nbopen",
         f"{__file__} : notebook()",
     )
-    stdout = getattr(subprocess, app.config["bionetgen"]["stdout"])
-    stderr = getattr(subprocess, app.config["bionetgen"]["stderr"])
+    try:
+        stdout_loc = getattr(subprocess, app.config["bionetgen"]["stdout"])
+    except (AttributeError, KeyError):
+        stdout_loc = subprocess.PIPE
+    try:
+        stderr_loc = getattr(subprocess, app.config["bionetgen"]["stderr"])
+    except (AttributeError, KeyError):
+        stderr_loc = subprocess.STDOUT
+
     if args.open:
         command = ["nbopen", fname]
-        rc, _ = run_command(command)
+        process = subprocess.Popen(
+            command,
+            stdout=stdout_loc,
+            stderr=stderr_loc,
+        )
+        rc = process.wait()
