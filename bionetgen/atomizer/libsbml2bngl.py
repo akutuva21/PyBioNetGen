@@ -1271,13 +1271,6 @@ def analyzeHelper(
             else:
                 new_f = prnter.doprint(smpl)
             new_f = new_f.replace("**", "^")
-            # We want to do this if it makes the rate constant
-            # more readable
-            # FIXME: This doesn't mesh well with AR replacement
-            # if len(new_f) < len(func):
-            #    new_funcs.append(splt[0] + " = " + new_f)
-            # else:
-            #    new_funcs.append(func)
             new_funcs.append(splt[0] + " = " + new_f)
         functions = new_funcs
     except:
