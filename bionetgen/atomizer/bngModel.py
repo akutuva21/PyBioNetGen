@@ -809,11 +809,13 @@ class Rule:
                     else:
                         react_str = str(react[0]) + "()"
                 # Apply stoichiometry
-                # FIXME: What to do if stoichiometry is not an integer
-                for i in range(int(react[1])):
-                    if i > 0:
-                        txt += " + "
-                    txt += react_str
+                if float(react[1]).is_integer():
+                    for i in range(int(react[1])):
+                        if i > 0:
+                            txt += " + "
+                        txt += react_str
+                else:
+                    txt += str(react[1]) + " " + react_str
         # correct rxn arrow
         if self.reversible and len(self.rate_cts) == 2:
             txt += " <-> "
@@ -855,11 +857,13 @@ class Rule:
                     else:
                         prod_str = str(prod[0]) + "()"
                 # Apply stoichiometry
-                # FIXME: What to do if stoichiometry is not an integer
-                for i in range(int(prod[1])):
-                    if i > 0:
-                        txt += " + "
-                    txt += prod_str
+                if float(prod[1]).is_integer():
+                    for i in range(int(prod[1])):
+                        if i > 0:
+                            txt += " + "
+                        txt += prod_str
+                else:
+                    txt += str(prod[1]) + " " + prod_str
         if self.reversible and len(self.rate_cts) == 2:
             if self.model is not None:
                 if len(self.model.param_repl) > 0:
