@@ -27,7 +27,7 @@ def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
         if not is_within_directory(path, member_path):
             raise Exception("Attempted Path Traversal in Tar File")
     if sys.version_info >= (3, 12):
-        tar.extractall(path, members, numeric_owner=numeric_owner, filter='data')
+        tar.extractall(path, members, numeric_owner=numeric_owner, filter="data")
     else:
         tar.extractall(path, members, numeric_owner=numeric_owner)
 
