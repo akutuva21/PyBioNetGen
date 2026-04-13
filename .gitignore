@@ -10,5 +10,3 @@ temp_testing/*
 build
 dist
 Issues/rule_keywords/test_DeleteMolecules_changed.bngl
-.jules/
-__pycache__/
