@@ -1,6 +1,7 @@
 import pytest
 from bionetgen.atomizer.sbml2json import factorial
 
+
 def test_factorial():
     assert factorial(0) == 1
     assert factorial(1) == 1
