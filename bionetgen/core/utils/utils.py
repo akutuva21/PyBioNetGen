@@ -475,8 +475,7 @@ class ActionList:
         squote_word = pp.sglQuotedString
         quote_word = dquote_word ^ squote_word
         # all action argument types
-        # TODO: deal w/ zero argument list
-        list_arg = "[" + pp.delimitedList(quote_word) + "]"
+        list_arg = "[" + pp.Optional(pp.delimitedList(quote_word)) + "]"
         #
         arg_type_bool = pp.Word("0") ^ pp.Word("1")
         arg_type_int = pp.Word(pp.nums)
@@ -484,12 +483,11 @@ class ActionList:
         arg_type_expr = pp.Word(
             pp.nums + "." + "+" + "-" + "e" + "E" + "(" + ")" + "/" + "*" + "^"
         )
-        arg_type_list = "[" + pp.delimitedList((quote_word ^ arg_type_float)) + "]"
+        arg_type_list = "[" + pp.Optional(pp.delimitedList((quote_word ^ arg_type_float))) + "]"
         arg_type_string = quote_word
         #
         curly_arg_token = quote_word + "=>" + arg_type_int
-        # TODO: handle 0 case
-        arg_type_curly = "{" + pp.delimitedList(curly_arg_token) + "}"
+        arg_type_curly = "{" + pp.Optional(pp.delimitedList(curly_arg_token)) + "}"
         arg_types = (
             arg_type_bool
             ^ arg_type_int
