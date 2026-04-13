@@ -7,6 +7,7 @@ import io
 import os
 import runpy
 
+
 class TestGetVersionJson(unittest.TestCase):
     @patch("time.sleep")
     @patch("builtins.open", new_callable=mock_open)
@@ -17,7 +18,7 @@ class TestGetVersionJson(unittest.TestCase):
             code=403,
             msg="Forbidden",
             hdrs={},
-            fp=io.BytesIO(b"")
+            fp=io.BytesIO(b""),
         )
 
         mock_resp = MagicMock()
@@ -27,7 +28,9 @@ class TestGetVersionJson(unittest.TestCase):
 
         # Determine the absolute path to get_version_json.py relative to the root dir
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        target_path = os.path.abspath(os.path.join(script_dir, "..", "bionetgen", "assets", "get_version_json.py"))
+        target_path = os.path.abspath(
+            os.path.join(script_dir, "..", "bionetgen", "assets", "get_version_json.py")
+        )
 
         with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout:
             runpy.run_path(target_path)
@@ -50,5 +53,6 @@ class TestGetVersionJson(unittest.TestCase):
         self.assertIn("failed: 2", stdout_val)
         self.assertIn("success: 3", stdout_val)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
