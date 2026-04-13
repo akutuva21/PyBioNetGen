@@ -553,6 +553,7 @@ def find_BNG_path(BNGPATH=None):
     BNGPATH : str
         (optional) path to the folder that contains BNG2.pl
     """
+
     def _try_path(candidate_path):
         if candidate_path is None:
             return None
