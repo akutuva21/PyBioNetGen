@@ -160,9 +160,11 @@ class NamingDatabase:
 
         chunk_size = 900
         for i in range(0, len(fileList), chunk_size):
-            chunk = fileList[i:i+chunk_size]
-            placeholders = ','.join(['?'] * len(chunk))
-            queryStatement = 'SELECT B.file, name, A.annotationURI, A.annotationName, qualifier FROM moleculeNames as M JOIN identifier as I ON M.ROWID == I.speciesID JOIN annotation as A on A.ROWID == I.annotationID JOIN biomodels as B on B.ROWID == M.fileID WHERE B.file IN ({0})'.format(placeholders)
+            chunk = fileList[i : i + chunk_size]
+            placeholders = ",".join(["?"] * len(chunk))
+            queryStatement = "SELECT B.file, name, A.annotationURI, A.annotationName, qualifier FROM moleculeNames as M JOIN identifier as I ON M.ROWID == I.speciesID JOIN annotation as A on A.ROWID == I.annotationID JOIN biomodels as B on B.ROWID == M.fileID WHERE B.file IN ({0})".format(
+                placeholders
+            )
 
             results = [x for x in cursor.execute(queryStatement, chunk)]
             all_results.extend(results)
@@ -170,6 +172,7 @@ class NamingDatabase:
         connection.close()
 
         from collections import defaultdict
+
         file_groups = defaultdict(list)
         for row in all_results:
             file_groups[row[0]].append(row[1:])
