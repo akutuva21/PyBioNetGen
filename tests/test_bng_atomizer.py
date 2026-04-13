@@ -2,8 +2,16 @@ import os, glob
 from pytest import raises
 import bionetgen as bng
 from bionetgen.main import BioNetGenTest
+from bionetgen.atomizer.sbml2json import factorial
 
 tfold = os.path.dirname(__file__)
+
+
+def test_factorial():
+    assert factorial(5) == 120
+    assert factorial(1) == 1
+    assert factorial(0) == 1
+    assert factorial(-1) == 1
 
 
 def test_atomize_flat():
