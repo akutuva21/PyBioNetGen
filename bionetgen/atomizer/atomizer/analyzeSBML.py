@@ -1660,7 +1660,10 @@ class SBMLAnalyzer:
                         differences.append(processedDifference)
 
         else:
-            # TODO: dea with reactions of the kindd a+b ->  c + d
+            logMess(
+                "WARNING:ATOMIZATION",
+                "Approximate matching for reactions with multiple products (a+b -> c+d) is not currently supported",
+            )
             return [[], []], [[], []]
         return bdifferences, zippedPartitions
 
