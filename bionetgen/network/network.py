@@ -1,4 +1,6 @@
 from bionetgen.main import BioNetGen
+from bionetgen.core.exc import BNGModelError
+from bionetgen.core.utils.logging import BNGLogger
 from bionetgen.network.networkparser import BNGNetworkParser
 from bionetgen.network.blocks import (
     NetworkGroupBlock,
@@ -47,6 +49,7 @@ class Network:
     """
 
     def __init__(self, bngl_model, BNGPATH=def_bng_path):
+        self.logger = BNGLogger()
         self.active_blocks = []
         # We want blocks to be printed in the same order every time
         self.block_order = [
@@ -122,8 +125,12 @@ class Network:
 
     def add_parameters_block(self, block=None):
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, NetworkParameterBlock)
+            if not isinstance(block, NetworkParameterBlock):
+                msg = f"Block is not a NetworkParameterBlock, it is {type(block)}"
+                self.logger.error(
+                    msg, loc=f"{__file__} : Network.add_parameters_block()"
+                )
+                raise BNGModelError(self, message=msg)
             self.parameters = block
             if "parameters" not in self.active_blocks:
                 self.active_blocks.append("parameters")
@@ -141,8 +148,10 @@ class Network:
 
     def add_species_block(self, block=None):
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, NetworkSpeciesBlock)
+            if not isinstance(block, NetworkSpeciesBlock):
+                msg = f"Block is not a NetworkSpeciesBlock, it is {type(block)}"
+                self.logger.error(msg, loc=f"{__file__} : Network.add_species_block()")
+                raise BNGModelError(self, message=msg)
             self.species = block
             if "species" not in self.active_blocks:
                 self.active_blocks.append("species")
@@ -151,8 +160,10 @@ class Network:
 
     def add_groups_block(self, block=None):
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, NetworkGroupBlock)
+            if not isinstance(block, NetworkGroupBlock):
+                msg = f"Block is not a NetworkGroupBlock, it is {type(block)}"
+                self.logger.error(msg, loc=f"{__file__} : Network.add_groups_block()")
+                raise BNGModelError(self, message=msg)
             self.groups = block
             if "groups" not in self.active_blocks:
                 self.active_blocks.append("groups")
@@ -161,8 +172,12 @@ class Network:
 
     def add_reactions_block(self, block=None):
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, NetworkReactionBlock)
+            if not isinstance(block, NetworkReactionBlock):
+                msg = f"Block is not a NetworkReactionBlock, it is {type(block)}"
+                self.logger.error(
+                    msg, loc=f"{__file__} : Network.add_reactions_block()"
+                )
+                raise BNGModelError(self, message=msg)
             self.reactions = block
             if "reactions" not in self.active_blocks:
                 self.active_blocks.append("reactions")
