@@ -34,8 +34,12 @@ def run(inp, out=None, suppress=False, timeout=None):
                 os.chdir(cur_dir)
             except Exception as e:
                 os.chdir(cur_dir)
-                # TODO: Better error reporting
-                print("Couldn't run the simulation, see error")
+                app.log.error("Couldn't run the simulation, see error")
+                app.log.error(e)
+                if hasattr(e, "stdout") and e.stdout is not None:
+                    app.log.error(f"stdout: {e.stdout}")
+                if hasattr(e, "stderr") and e.stderr is not None:
+                    app.log.error(f"stderr: {e.stderr}")
                 raise e
     else:
         # instantiate a CLI object with the info
@@ -45,7 +49,11 @@ def run(inp, out=None, suppress=False, timeout=None):
             os.chdir(cur_dir)
         except Exception as e:
             os.chdir(cur_dir)
-            # TODO: Better error reporting
-            print("Couldn't run the simulation, see error")
+            app.log.error("Couldn't run the simulation, see error")
+            app.log.error(e)
+            if hasattr(e, "stdout") and e.stdout is not None:
+                app.log.error(f"stdout: {e.stdout}")
+            if hasattr(e, "stderr") and e.stderr is not None:
+                app.log.error(f"stderr: {e.stderr}")
             raise e
     return cli.result
