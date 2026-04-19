@@ -5,6 +5,7 @@ except ImportError:
 from .structs import NetworkParameter, NetworkCompartment, NetworkGroup
 from .structs import NetworkSpecies, NetworkFunction, NetworkReaction
 from .structs import NetworkEnergyPattern, NetworkPopulationMap
+import keyword
 
 # this import fails on some python versions
 try:
@@ -126,10 +127,14 @@ class NetworkBlock:
         # set the line
         self.items[name] = value
         # if the name is a string, try adding as an attribute
-        if isinstance(name, str):
+        if (
+            isinstance(name, str)
+            and name.isidentifier()
+            and not keyword.iskeyword(name)
+        ):
             try:
                 setattr(self, name, value)
-            except:
+            except Exception:
                 # print("can't set {} to {}".format(name, value))
                 pass
         # we just added an item to a block, let's assume we need
