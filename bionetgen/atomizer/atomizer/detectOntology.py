@@ -10,7 +10,6 @@ import difflib
 from collections import Counter
 import json
 import ast
-import pickle
 import os
 from os import listdir
 from os.path import isfile, join
@@ -322,10 +321,13 @@ def databaseAnalysis(directory, outputFile):
         fileCounter = Counter()
         for element in fileDict:
             fileCounter[element] = len(fileDict[element])
-        with open(outputFile, "wb") as f:
-            pickle.dump(differenceCounter, f)
-            # pickle.dump(differenceDict,f)
-            pickle.dump(fileCounter, f)
+
+        dump_data = {
+            "differenceCounter": {repr(k): v for k, v in differenceCounter.items()},
+            "fileCounter": {repr(k): v for k, v in fileCounter.items()},
+        }
+        with open(outputFile, "w") as f:
+            json.dump(dump_data, f)
 
 
 """        
@@ -335,10 +337,19 @@ except ImportError:
     pd = None
 
 def analyzeTrends(inputFile):
-    with open(inputFile,'rb') as f:
-        counter = pickle.load(f)
-        #dictionary = pickle.load(f)
-        fileCounter = pickle.load(f)
+    with open(inputFile, "r") as f:
+        loaded_data = json.load(f)
+
+    counter = Counter()
+    for k, v in loaded_data.get("differenceCounter", {}).items():
+        # Code Reviewer: k is a string representation of a tuple, we safely eval it
+        counter[ast.literal_eval(k)] = v
+
+    fileCounter = Counter()
+    for k, v in loaded_data.get("fileCounter", {}).items():
+        # Code Reviewer: k is a string representation of a tuple, we safely eval it
+        fileCounter[ast.literal_eval(k)] = v
+
     totalCounter = Counter()
     for element in counter:
         
