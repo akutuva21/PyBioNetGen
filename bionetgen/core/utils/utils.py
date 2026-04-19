@@ -554,9 +554,6 @@ def find_BNG_path(BNGPATH=None):
     BNGPATH : str
         (optional) path to the folder that contains BNG2.pl
     """
-    # TODO: Figure out how to use the BNG2.pl if it's set
-    # in the PATH variable. Solution: set os.environ BNGPATH
-    # and make everything use that route
 
     def _try_path(candidate_path):
         if candidate_path is None:
@@ -594,6 +591,7 @@ def find_BNG_path(BNGPATH=None):
         tried.append(bng_on_path)
         hit = _try_path(bng_on_path)
         if hit is not None:
+            os.environ["BNGPATH"] = hit[0]
             return hit
 
     # If we get here, BNG2.pl is not available. Some users may only need
