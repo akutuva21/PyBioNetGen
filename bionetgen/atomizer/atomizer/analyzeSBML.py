@@ -1602,13 +1602,16 @@ class SBMLAnalyzer:
                     return [[], []], [[], []]
 
                 productPartitions = []
-                for idx, match in enumerate(matches):
-                    if matches[idx][2] != 0:
-                        productPartitions.append(
-                            tmpRuleList[1][0][
-                                matches[idx][1] : matches[idx][1] + matches[idx][2]
-                            ]
-                        )
+                # matches contains a list of Match(a_start, b_start, size)
+                # the last element is a dummy match (len(a), len(b), 0)
+                # we want to partition the product string (tmpRuleList[1][0])
+                # according to the matches with the reactant string
+                for idx in range(len(matches) - 1):
+                    start = matches[idx][1]
+                    if idx == 0:
+                        start = 0
+                    end = matches[idx + 1][1]
+                    productPartitions.append(tmpRuleList[1][0][start:end])
                 reactantPartitions = tmpRuleList[0]
 
                 # Don't count trailing underscores as part of the species name
@@ -1616,20 +1619,6 @@ class SBMLAnalyzer:
                     reactantPartitions[idx] = reactantPartitions[idx].strip("_")
                 for idx, _ in enumerate(productPartitions):
                     productPartitions[idx] = productPartitions[idx].strip("_")
-
-                # greedymatching
-
-                acc = 0
-                # FIXME:its not properly copying all the string
-                for idx in range(0, len(matches) - 1):
-                    while (
-                        matches[idx][2] + acc < len(tmpRuleList[1][0])
-                        and tmpRuleList[1][0][matches[idx][2] + acc] in sym
-                    ):
-                        productPartitions[idx] += tmpRuleList[1][0][
-                            matches[idx][2] + acc
-                        ]
-                        acc += 1
 
                 # idx = 0
                 # while(tmpString[matches[0][2]+ idx]  in sym):
