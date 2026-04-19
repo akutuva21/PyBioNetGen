@@ -1,3 +1,6 @@
+import re
+
+
 class NetworkObj:
     """
     The base class for all items in a network object (parameter, groups etc.).
@@ -47,13 +50,9 @@ class NetworkObj:
 
     @comment.setter
     def comment(self, val) -> None:
-        # TODO: regex handling of # instead
         if val is not None:
             if len(val) > 0:
-                if val.startswith("#"):
-                    self._comment = val[1:]
-                else:
-                    self._comment = val
+                self._comment = re.sub(r"^#+", "", val)
             else:
                 self._comment = None
         else:
