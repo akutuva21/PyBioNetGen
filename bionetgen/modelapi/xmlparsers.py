@@ -146,8 +146,7 @@ class PatternXML(XMLObj):
     def parse_xml(self, xml) -> Pattern:
         # initialize
         pattern = Pattern()
-        if "ListOfBonds" in xml:
-            # TODO: FIX THIS
+        if "ListOfBonds" in xml and xml["ListOfBonds"] is not None:
             bonds = BondsXML(xml["ListOfBonds"]["Bond"])
             pattern._bonds = bonds
             self._bonds = bonds
