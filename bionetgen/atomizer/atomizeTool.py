@@ -18,6 +18,12 @@ class AtomizeTool:
         )
         # we generate our defaults first and override it with
         # the dictionary first and then the namespace
+
+        bng_path = d.bng_path
+        if self.app is not None and hasattr(self.app, "config"):
+            if "bionetgen" in self.app.config:
+                bng_path = self.app.config.get("bionetgen", "bngpath")
+
         config = {
             "input": None,  # we need this, check at the end and fail if we don't have it
             "annotation": False,
@@ -29,9 +35,7 @@ class AtomizeTool:
             "convert_units": False,  # currently not supported
             "atomize": False,  # default is flat translation
             "pathwaycommons": True,  # requires connection so default is false
-            "bionetgen_analysis": os.path.join(
-                d.bng_path, "BNG2.pl"
-            ),  # TODO: get it from app config
+            "bionetgen_analysis": os.path.join(bng_path, "BNG2.pl"),
             "isomorphism_check": False,  # wtf do we do here?
             "ignore": False,  # wtf do we do here?
             "memoized_resolver": False,
