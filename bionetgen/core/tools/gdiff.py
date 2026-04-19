@@ -637,7 +637,7 @@ class BNGGdiff:
                 node_to_add_to["graph"]["node"] = nodes_to_add
             # add to rename map
             rmap[self._get_node_id(node)] = self._get_node_id(copied_node)
-            # TODO: Need to get in there and rename and recolor each
+            # we need to recolor, re-ID each node and add to rename map
             # node under the one we just copied
             if "graph" in copied_node:
                 # let's rename the graph
@@ -647,7 +647,6 @@ class BNGGdiff:
                 while len(node_stack) > 0:
                     curr_keys, curr_names, curr_node = node_stack.pop(-1)
                     # Do stuff here
-                    # we need to recolor, re-ID each node and add to rename map
                     if len(curr_names) > 0:
                         parent_node = self._get_node_from_names(
                             copied_node, curr_names[:-1]
@@ -663,6 +662,10 @@ class BNGGdiff:
                         new_id = self._get_id_str(new_id)
                         self._set_node_id(curr_node, new_id)
                         rmap[self._get_id_str(curr_id)] = new_id
+
+                        if "graph" in curr_node and "@id" in curr_node["graph"]:
+                            curr_node["graph"]["@id"] = new_id + ":"
+
                     # if we have graphs in there, add the nodes to the stack
                     if "graph" in curr_node.keys():
                         # there is a graph in the node, add the nodes to stack
