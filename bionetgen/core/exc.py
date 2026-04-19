@@ -94,7 +94,6 @@ class BNGCompileError(BNGError):
         self.message = message
         super().__init__(self.message)
 
-
 class BNGSimulatorError(BNGError):
     """Error related to BNG simulators."""
 
