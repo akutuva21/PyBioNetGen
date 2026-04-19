@@ -4,7 +4,8 @@ import numpy as np
 from distutils import ccompiler
 from .bngsimulator import BNGSimulator
 from bionetgen.main import BioNetGen
-from bionetgen.core.exc import BNGCompileError
+from bionetgen.core.exc import BNGCompileError, BNGSimulatorError
+from bionetgen.core.utils.logging import BNGLogger
 
 # This allows access to the CLIs config setup
 app = BioNetGen()
@@ -38,7 +39,7 @@ class CSimWrapper:
     results as numpy named arrays.
     """
 
-    def __init__(self, lib_path, num_params=None, num_spec_init=None):
+    def __init__(self, lib_path, num_params=None, num_spec_init=None, app=None):
         # we need the result struct to reconstruct the object
         self.return_struct = RESULT
         # load the shared library
@@ -50,21 +51,39 @@ class CSimWrapper:
         self.num_params = num_params
         # set number of initial species values
         self.num_spec_init = num_spec_init
+        # setup logging
+        self.app = app
+        self.logger = BNGLogger(app=self.app)
+        self.logger.debug(
+            "Setting up CSimWrapper object", loc=f"{__file__} : CSimWrapper.__init__()"
+        )
 
     def set_species_init(self, arr):
         """
         Set the initial species values array
         """
-        # TODO: Transition to BNGErrors and logging
-        assert len(arr) == self.num_spec_init
+        if len(arr) != self.num_spec_init:
+            self.logger.error(
+                f"Array length {len(arr)} does not match expected length {self.num_spec_init}",
+                loc=f"{__file__} : CSimWrapper.set_species_init()",
+            )
+            raise BNGSimulatorError(
+                f"Array length {len(arr)} does not match expected length {self.num_spec_init}"
+            )
         self.species_init = np.array(arr, dtype=np.float64)
 
     def set_parameters(self, arr):
         """
         Set the parameter values array
         """
-        # TODO: Transition to BNGErrors and logging
-        assert len(arr) == self.num_params
+        if len(arr) != self.num_params:
+            self.logger.error(
+                f"Array length {len(arr)} does not match expected length {self.num_params}",
+                loc=f"{__file__} : CSimWrapper.set_parameters()",
+            )
+            raise BNGSimulatorError(
+                f"Array length {len(arr)} does not match expected length {self.num_params}"
+            )
         self.parameters = np.array(arr, dtype=np.float64)
 
     def simulate(self, t_start=0, t_end=100, n_steps=100):
@@ -138,10 +157,15 @@ class CSimulator(BNGSimulator):
     and pass the correct parameter and initial species values to the wrapper object.
     """
 
-    def __init__(self, model_file, generate_network=False):
+    def __init__(self, model_file, generate_network=False, app=None):
+        self.app = app
+        self.logger = BNGLogger(app=self.app)
         # check cvode library paths
         if (conf.get("cvode_include") is None) or (conf.get("cvode_lib") is None):
-            print("CVODE include and library paths are not set, compilation won't work")
+            self.logger.warning(
+                "CVODE include and library paths are not set, compilation won't work",
+                loc=f"{__file__} : CSimulator.__init__()",
+            )
         # let's load the model first
         if isinstance(model_file, str):
             # load model file
@@ -162,7 +186,10 @@ class CSimulator(BNGSimulator):
                 )
             os.chdir(cd)
         else:
-            print(f"model format not recognized: {model_file}")
+            self.logger.error(
+                f"model format not recognized: {model_file}",
+                loc=f"{__file__} : CSimulator.__init__()",
+            )
         # set compiler
         self.compiler = ccompiler.new_compiler()
         self.compiler.add_include_dir(conf.get("cvode_include"))
@@ -232,6 +259,7 @@ class CSimulator(BNGSimulator):
                 os.path.abspath(lib_file),
                 num_params=n_param,
                 num_spec_init=len(self.model.species),
+                app=self.app,
             )
         except:
             raise BNGCompileError(self.model)

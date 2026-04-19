@@ -93,3 +93,11 @@ class BNGCompileError(BNGError):
         self.model = model
         self.message = message
         super().__init__(self.message)
+
+
+class BNGSimulatorError(BNGError):
+    """Error related to simulator."""
+
+    def __init__(self, message="There was an issue with the simulator"):
+        self.message = message
+        super().__init__(self.message)
