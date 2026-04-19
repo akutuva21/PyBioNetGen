@@ -79,7 +79,7 @@ class Network:
         """
         write the model to str
         """
-        model_str = ""
+        model_str_list = []
         for block in self.block_order:
             # ensure we didn't get new items into a
             # previously inactive block, if we did
@@ -96,8 +96,8 @@ class Network:
             # print only the active blocks
             if block in self.active_blocks:
                 if block != "actions" and len(getattr(self, block)) > 0:
-                    model_str += str(getattr(self, block))
-        return model_str
+                    model_str_list.append(str(getattr(self, block)))
+        return "".join(model_str_list)
 
     def __repr__(self):
         return self.network_name
@@ -200,8 +200,6 @@ class Network:
         """
         write the model to file
         """
-        model_str = ""
-        for block in self.active_blocks:
-            model_str += str(getattr(self, block))
+        model_str = "".join([str(getattr(self, block)) for block in self.active_blocks])
         with open(file_name, "w") as f:
             f.write(model_str)
