@@ -1161,236 +1161,205 @@ class SCTSolver:
                     return [tmpCandidates[0]], unevenElements, candidates
 
                 else:
-                    fuzzyCandidateMatch = None
-                    """
-                    if nothing else works and we know the result is a bimolecular
-                    complex and we know which are the basic reactants then try to
-                    do fuzzy string matching between the two.
-                    TODO: extend this to more than 2 molecule complexes.
-                    """
-                    if len(tmpCandidates[0]) == 2:
-                        tmpmolecules = []
-                        tmpmolecules.extend(originalTmpCandidates[0])
-                        tmpmolecules.extend(tmpCandidates[0])
-                        # FIXME: Fuzzy artificial reaction is using old methods. Try to fix this
-                        # or maybe not, no one was using it and when it was used it was wrong
-                        # fuzzyCandidateMatch = sbmlAnalyzer.fuzzyArtificialReaction(originalTmpCandidates[0],[reactant],tmpmolecules)
-                        fuzzyCandidateMatch = None
-                    if fuzzyCandidateMatch is not None:
-                        # logMess('INFO:Atomization', 'Used fuzzy string matching from {0} to {1}'.format(reactant, fuzzyCandidateMatch))
-                        return [fuzzyCandidateMatch], unevenElements, candidates
-                    else:
-                        # map based on greedy matching
-                        greedyMatch = sbmlAnalyzer.greedyModificationMatching(
-                            reactant, dependencyGraph.keys()
+
+                    # map based on greedy matching
+                    greedyMatch = sbmlAnalyzer.greedyModificationMatching(
+                        reactant, dependencyGraph.keys()
+                    )
+                    if greedyMatch not in [-1, -2]:
+                        return (
+                            selectBestCandidate(
+                                reactant,
+                                [greedyMatch],
+                                dependencyGraph,
+                                sbmlAnalyzer,
+                            )[0],
+                            unevenElements,
+                            candidates,
                         )
-                        if greedyMatch not in [-1, -2]:
+
+                    # last ditch attempt using straighforward lexical analysis
+                    (
+                        tmpDependency,
+                        tmpEquivalence,
+                    ) = sbmlAnalyzer.findClosestModification(
+                        [reactant],
+                        dependencyGraph.keys(),
+                        self.database.annotationDict,
+                        self.database.dependencyGraph,
+                    )
+                    if (
+                        reactant in tmpDependency
+                        and tmpDependency[reactant] in tmpCandidates[0]
+                    ):
+                        for element in tmpDependency:
+                            if element not in dependencyGraph:
+                                dependencyGraph[element] = tmpDependency[element]
+                        for element in tmpEquivalence:
+                            if element not in equivalenceDictionary:
+                                equivalenceDictionary[element] = []
+                            for equivalence in tmpEquivalence[element]:
+                                if equivalence[0] not in equivalenceDictionary[element]:
+                                    equivalenceDictionary[element].append(
+                                        equivalence[0]
+                                    )
+                        if len(tmpDependency.keys()) > 0:
                             return (
-                                selectBestCandidate(
-                                    reactant,
-                                    [greedyMatch],
-                                    dependencyGraph,
-                                    sbmlAnalyzer,
-                                )[0],
+                                tmpDependency[reactant],
                                 unevenElements,
                                 candidates,
                             )
+                    # XXX: be careful of this change. This basically forces changes to happen
+                    # the ive no idea whats going on branch
+                    # modificationCandidates = {}
+                    # if modificationCandidates == {}:
 
-                        # last ditch attempt using straighforward lexical analysis
-                        (
-                            tmpDependency,
-                            tmpEquivalence,
-                        ) = sbmlAnalyzer.findClosestModification(
-                            [reactant],
-                            dependencyGraph.keys(),
-                            self.database.annotationDict,
-                            self.database.dependencyGraph,
-                        )
-                        if (
-                            reactant in tmpDependency
-                            and tmpDependency[reactant] in tmpCandidates[0]
-                        ):
-                            for element in tmpDependency:
-                                if element not in dependencyGraph:
-                                    dependencyGraph[element] = tmpDependency[element]
-                            for element in tmpEquivalence:
-                                if element not in equivalenceDictionary:
-                                    equivalenceDictionary[element] = []
-                                for equivalence in tmpEquivalence[element]:
-                                    if (
-                                        equivalence[0]
-                                        not in equivalenceDictionary[element]
-                                    ):
-                                        equivalenceDictionary[element].append(
-                                            equivalence[0]
-                                        )
-                            if len(tmpDependency.keys()) > 0:
-                                return (
-                                    tmpDependency[reactant],
-                                    unevenElements,
-                                    candidates,
-                                )
-                        # XXX: be careful of this change. This basically forces changes to happen
-                        # the ive no idea whats going on branch
-                        # modificationCandidates = {}
-                        # if modificationCandidates == {}:
-
-                        activeCandidates = []
-                        for individualCandidate in tmpCandidates:
-                            for tmpCandidate in individualCandidate:
-                                activeQuery = None
-                                uniprotkey = atoAux.getURIFromSBML(
-                                    tmpCandidate, self.database.parser, ["uniprot"]
-                                )
-                                if len(uniprotkey) > 0:
-                                    uniprotkey = uniprotkey[0].split("/")[-1]
-                                    activeQuery = pwcm.queryActiveSite(uniprotkey, None)
+                    activeCandidates = []
+                    for individualCandidate in tmpCandidates:
+                        for tmpCandidate in individualCandidate:
+                            activeQuery = None
+                            uniprotkey = atoAux.getURIFromSBML(
+                                tmpCandidate, self.database.parser, ["uniprot"]
+                            )
+                            if len(uniprotkey) > 0:
+                                uniprotkey = uniprotkey[0].split("/")[-1]
+                                activeQuery = pwcm.queryActiveSite(uniprotkey, None)
+                            if activeQuery and len(activeQuery) > 0:
+                                activeCandidates.append(tmpCandidate)
+                                # enter modification information to self.database
+                                # logMess('INFO:SCT051', '{0}:Determined that {0} has an active site for modication'.format(reactant, tmpCandidate))
+                                # return [individualCandidate], unevenElements, candidates
+                            # we want relevant biological names, its useless if they are too short
+                            elif len(tmpCandidate) >= 3:
+                                # else:
+                                individualMajorCandidates = [
+                                    y for x in candidates for y in x
+                                ]
+                                activeQuery = pwcm.queryActiveSite(tmpCandidate, None)
                                 if activeQuery and len(activeQuery) > 0:
-                                    activeCandidates.append(tmpCandidate)
-                                    # enter modification information to self.database
-                                    # logMess('INFO:SCT051', '{0}:Determined that {0} has an active site for modication'.format(reactant, tmpCandidate))
-                                    # return [individualCandidate], unevenElements, candidates
-                                # we want relevant biological names, its useless if they are too short
-                                elif len(tmpCandidate) >= 3:
-                                    # else:
-                                    individualMajorCandidates = [
-                                        y for x in candidates for y in x
+                                    otherMatches = [
+                                        x for x in tmpCandidates[0] if x in activeQuery
                                     ]
-                                    activeQuery = pwcm.queryActiveSite(
-                                        tmpCandidate, None
-                                    )
-                                    if activeQuery and len(activeQuery) > 0:
-                                        otherMatches = [
+                                    if any(
+                                        [
                                             x
-                                            for x in tmpCandidates[0]
-                                            if x in activeQuery
+                                            for x in otherMatches
+                                            if len(x) > len(tmpCandidate)
                                         ]
-                                        if any(
-                                            [
-                                                x
-                                                for x in otherMatches
-                                                if len(x) > len(tmpCandidate)
-                                            ]
-                                        ):
-                                            continue
-                                        activeCandidates.append(tmpCandidate)
-                                    # enter modification information to self.database
-                                    # logMess('INFO:SCT051', '{0}:Determined that {1} has an active site for modication'.format(reactant, tmpCandidate))
-                                    # return [individualCandidate], unevenElements, candidates
-                        if len(activeCandidates) > 0:
-                            if len(activeCandidates) == 1:
-                                logMess(
-                                    "INFO:SCT051",
-                                    "{0}:Determined through uniprot active site query that {1} has an active site for modication".format(
-                                        reactant, activeCandidates[0]
-                                    ),
-                                )
-                            if len(activeCandidates) > 1:
-                                logMess(
-                                    "WARNING:SCT151",
-                                    "{0}:Determined through uniprot active site query that {1} have active site for modication. Defaulting to {2}".format(
-                                        reactant, activeCandidates, activeCandidates[0]
-                                    ),
-                                )
-
-                            for tmpCandidate, candidate in zip(
-                                tmpCandidates, candidates
-                            ):
-                                fuzzyList = sbmlAnalyzer.processAdHocNamingConventions(
-                                    reactant,
-                                    candidate[0],
-                                    {},
-                                    False,
-                                    dependencyGraph.keys(),
-                                )
-                                if len(fuzzyList) > 0 and fuzzyList[0][1]:
-                                    if sbmlAnalyzer.testAgainstExistingConventions(
-                                        fuzzyList[0][1],
-                                        sbmlAnalyzer.namingConventions[
-                                            "modificationList"
-                                        ],
                                     ):
-                                        self.database.eequivalenceTranslator2[
-                                            fuzzyList[0][1]
-                                        ].append(
-                                            (
-                                                activeCandidates[0],
-                                                "{0}{1}".format(
-                                                    activeCandidates, fuzzyList[0][1]
-                                                ),
-                                            )
-                                        )
-                                    else:
-                                        self.database.eequivalenceTranslator2[
-                                            fuzzyList[0][1]
-                                        ] = [
-                                            (
-                                                activeCandidates[0],
-                                                "{0}{1}".format(
-                                                    activeCandidates[0], fuzzyList[0][1]
-                                                ),
-                                            )
-                                        ]
+                                        continue
+                                    activeCandidates.append(tmpCandidate)
+                                # enter modification information to self.database
+                                # logMess('INFO:SCT051', '{0}:Determined that {1} has an active site for modication'.format(reactant, tmpCandidate))
+                                # return [individualCandidate], unevenElements, candidates
+                    if len(activeCandidates) > 0:
+                        if len(activeCandidates) == 1:
+                            logMess(
+                                "INFO:SCT051",
+                                "{0}:Determined through uniprot active site query that {1} has an active site for modication".format(
+                                    reactant, activeCandidates[0]
+                                ),
+                            )
+                        if len(activeCandidates) > 1:
+                            logMess(
+                                "WARNING:SCT151",
+                                "{0}:Determined through uniprot active site query that {1} have active site for modication. Defaulting to {2}".format(
+                                    reactant, activeCandidates, activeCandidates[0]
+                                ),
+                            )
 
-                                    if (
+                        for tmpCandidate, candidate in zip(tmpCandidates, candidates):
+                            fuzzyList = sbmlAnalyzer.processAdHocNamingConventions(
+                                reactant,
+                                candidate[0],
+                                {},
+                                False,
+                                dependencyGraph.keys(),
+                            )
+                            if len(fuzzyList) > 0 and fuzzyList[0][1]:
+                                if sbmlAnalyzer.testAgainstExistingConventions(
+                                    fuzzyList[0][1],
+                                    sbmlAnalyzer.namingConventions["modificationList"],
+                                ):
+                                    self.database.eequivalenceTranslator2[
+                                        fuzzyList[0][1]
+                                    ].append(
+                                        (
+                                            activeCandidates[0],
+                                            "{0}{1}".format(
+                                                activeCandidates, fuzzyList[0][1]
+                                            ),
+                                        )
+                                    )
+                                else:
+                                    self.database.eequivalenceTranslator2[
+                                        fuzzyList[0][1]
+                                    ] = [
+                                        (
+                                            activeCandidates[0],
+                                            "{0}{1}".format(
+                                                activeCandidates[0], fuzzyList[0][1]
+                                            ),
+                                        )
+                                    ]
+
+                                if (
+                                    "{0}{1}".format(
+                                        activeCandidates[0], fuzzyList[0][1]
+                                    )
+                                    not in dependencyGraph
+                                ):
+                                    dependencyGraph[
                                         "{0}{1}".format(
                                             activeCandidates[0], fuzzyList[0][1]
                                         )
-                                        not in dependencyGraph
-                                    ):
-                                        dependencyGraph[
-                                            "{0}{1}".format(
-                                                activeCandidates[0], fuzzyList[0][1]
-                                            )
-                                        ] = [[activeCandidates[0]]]
+                                    ] = [[activeCandidates[0]]]
 
-                                    for idx, element in enumerate(tmpCandidate):
-                                        if element == activeCandidates[0]:
-                                            tmpCandidates[0][idx] = "{0}{1}".format(
-                                                activeCandidates[0], fuzzyList[0][1]
-                                            )
-                                            break
-                                    return (
-                                        [tmpCandidates[0]],
-                                        unevenElements,
-                                        candidates,
-                                    )
-
-                        if len(tmpCandidates) != 1:
-                            if not self.database.softConstraints:
-                                if loginformation:
-                                    logMess(
-                                        "ERROR:SCT213",
-                                        "{0}:Atomizer needs user information to determine which element is being modified among components {1}={2}.".format(
-                                            reactant, candidates, tmpCandidates
-                                        ),
-                                    )
-                                # print self.database.userLabelDictionary
-                                return None, None, None
-                        else:
-                            if not self.database.softConstraints:
-                                if loginformation:
-                                    modification = (
-                                        sbmlAnalyzer.findMatchingModification(
-                                            reactant, candidates[0][0]
+                                for idx, element in enumerate(tmpCandidate):
+                                    if element == activeCandidates[0]:
+                                        tmpCandidates[0][idx] = "{0}{1}".format(
+                                            activeCandidates[0], fuzzyList[0][1]
                                         )
-                                    )
-                                    modification = (
-                                        modification[0] if modification else "mod"
-                                    )
-                                    logMess(
-                                        "ERROR:SCT212",
-                                        "{1}:{0}:Atomizer needs user information to determine which element is being modified among component species:{2}:{3}".format(
-                                            reactant,
-                                            candidates[0],
-                                            tmpCandidates[0],
-                                            modification,
-                                        ),
-                                    )
+                                        break
+                                return (
+                                    [tmpCandidates[0]],
+                                    unevenElements,
+                                    candidates,
+                                )
 
-                                return None, None, None
+                    if len(tmpCandidates) != 1:
+                        if not self.database.softConstraints:
+                            if loginformation:
+                                logMess(
+                                    "ERROR:SCT213",
+                                    "{0}:Atomizer needs user information to determine which element is being modified among components {1}={2}.".format(
+                                        reactant, candidates, tmpCandidates
+                                    ),
+                                )
+                            # print self.database.userLabelDictionary
+                            return None, None, None
+                    else:
+                        if not self.database.softConstraints:
+                            if loginformation:
+                                modification = sbmlAnalyzer.findMatchingModification(
+                                    reactant, candidates[0][0]
+                                )
+                                modification = (
+                                    modification[0] if modification else "mod"
+                                )
+                                logMess(
+                                    "ERROR:SCT212",
+                                    "{1}:{0}:Atomizer needs user information to determine which element is being modified among component species:{2}:{3}".format(
+                                        reactant,
+                                        candidates[0],
+                                        tmpCandidates[0],
+                                        modification,
+                                    ),
+                                )
 
-                        # return [tmpCandidates[0]], unevenElements
+                            return None, None, None
+
+                    # return [tmpCandidates[0]], unevenElements
 
             elif len(tmpCandidates) > 1:
                 # all candidates are equal/consistent
