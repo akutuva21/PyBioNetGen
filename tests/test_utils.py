@@ -1,6 +1,5 @@
-import pytest
-from unittest.mock import patch, MagicMock
 import subprocess
+from unittest.mock import MagicMock, patch
 
 
 def test_bngexec_success():
