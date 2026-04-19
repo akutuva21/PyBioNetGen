@@ -637,8 +637,6 @@ class BNGGdiff:
                 node_to_add_to["graph"]["node"] = nodes_to_add
             # add to rename map
             rmap[self._get_node_id(node)] = self._get_node_id(copied_node)
-            # TODO: Need to get in there and rename and recolor each
-            # node under the one we just copied
             if "graph" in copied_node:
                 # let's rename the graph
                 if "@id" in copied_node["graph"]:
@@ -646,16 +644,16 @@ class BNGGdiff:
                 node_stack = [([], [], copied_node)]
                 while len(node_stack) > 0:
                     curr_keys, curr_names, curr_node = node_stack.pop(-1)
-                    # Do stuff here
-                    # we need to recolor, re-ID each node and add to rename map
+                    if colors is not None:
+                        try:
+                            cid = self._get_color_id(curr_node)
+                            self._color_node(curr_node, colors["g2"][cid])
+                        except Exception:
+                            pass
                     if len(curr_names) > 0:
                         parent_node = self._get_node_from_names(
                             copied_node, curr_names[:-1]
                         )
-                        if colors is not None:
-                            self._color_node(
-                                curr_node, colors["g2"][self._get_color_id(curr_node)]
-                            )
                         parent_node_id = self._get_node_id(parent_node)
                         new_id = self._get_id_list(parent_node_id)
                         curr_id = self._get_id_list(self._get_node_id(curr_node))
@@ -665,6 +663,11 @@ class BNGGdiff:
                         rmap[self._get_id_str(curr_id)] = new_id
                     # if we have graphs in there, add the nodes to the stack
                     if "graph" in curr_node.keys():
+                        # let's rename the graph
+                        if "@id" in curr_node["graph"]:
+                            curr_node["graph"]["@id"] = (
+                                self._get_node_id(curr_node) + ":"
+                            )
                         # there is a graph in the node, add the nodes to stack
                         nodes = curr_node["graph"].get("node", [])
                         if not isinstance(nodes, list):
