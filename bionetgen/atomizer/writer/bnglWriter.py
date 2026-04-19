@@ -41,41 +41,36 @@ def bnglReaction(
     comment="",
     reactionName=None,
 ):
-    finalString = ""
-    # if translator != []:
-    #    translator = balanceTranslator(reactant,product,translator)
     if len(reactant) == 0 or (len(reactant) == 1 and reactant[0][1] == 0):
-        finalString += "0 "
-    for index in range(0, len(reactant)):
-        tag = ""
-        if reactant[index][2] in tags and isCompartments:
-            tag = tags[reactant[index][2]]
-        translated = printTranslate(reactant[index], tag, translator)
-        finalString += translated
-        if index < len(reactant) - 1:
-            finalString += " + "
-
-    if reversible:
-        finalString += " <-> "
+        reactant_str = "0 "
     else:
-        finalString += " -> "
+        reactant_strs = []
+        for r in reactant:
+            tag = ""
+            if r[2] in tags and isCompartments:
+                tag = tags[r[2]]
+            reactant_strs.append(printTranslate(r, tag, translator))
+        reactant_str = " + ".join(reactant_strs)
+
+    arrow = " <-> " if reversible else " -> "
+
     if len(product) == 0:
-        finalString += "0 "
-
-    for index in range(0, len(product)):
-        tag = ""
+        product_str = "0 "
+    else:
+        product_strs = []
         if isCompartments:
-            if len(product[index]) > 2 and product[index][2] in tags:
-                tag = tags[product[index][2]]
-        translated = printTranslate(product[index], tag, translator)
+            for p in product:
+                tag = tags[p[2]] if len(p) > 2 and p[2] in tags else ""
+                product_strs.append(printTranslate(p, tag, translator))
+        else:
+            for p in product:
+                product_strs.append(printTranslate(p, "", translator))
+        product_str = " + ".join(product_strs)
 
-        finalString += translated
-        if index < len(product) - 1:
-            finalString += " + "
-    finalString += " " + rate + " " + comment
+    finalString = f"{reactant_str}{arrow}{product_str} {rate} {comment}"
     finalString = re.sub(r"(\W|^)0\(\)", "0", finalString)
     if reactionName:
-        finalString = "{0}: {1}".format(reactionName, finalString)
+        finalString = f"{reactionName}: {finalString}"
     return finalString
 
 
