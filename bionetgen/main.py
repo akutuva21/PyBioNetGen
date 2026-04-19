@@ -16,15 +16,63 @@ from .core.utils.utils import test_perl
 CONF = bng.defaults
 VERSION_BANNER = bng.defaults.banner
 
+
 # require version argparse action
-import argparse, sys
+import argparse, sys, os
 from packaging import version as packaging_version
+
+
+class versionAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+
+        kwargs.setdefault("help", "show program's version number and exit")
+        super().__init__(option_strings, dest, nargs=0, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        import os
+        import bionetgen as bng
+        from cement.utils.version import get_version_banner
+        from bionetgen.core.defaults import get_latest_bng_version
+
+        bngpath = os.environ.get("BNGPATH")
+        if bngpath is None:
+            config = bng.defaults.config.get("bionetgen", {})
+            if isinstance(config, dict):
+                bngpath = config.get("bngpath")
+            else:
+                bngpath = bng.defaults.config.get("bionetgen", "bngpath")
+
+        bng_version = None
+        if bngpath is not None:
+            if isinstance(bngpath, dict):
+                pass
+            elif (
+                os.path.isfile(bngpath)
+                and os.path.basename(bngpath).lower() == "bng2.pl"
+            ):
+                bngpath = os.path.dirname(bngpath)
+
+            if isinstance(bngpath, str):
+                vpath = os.path.join(bngpath, "VERSION")
+                if os.path.isfile(vpath):
+                    with open(vpath) as f:
+                        bng_version = f.read().strip()
+
+        if bng_version is None:
+            bng_version = get_latest_bng_version()
+
+        banner = "BioNetGen simple command line interface {}\nBioNetGen version: {}\n{}\n".format(
+            bng.core.version.get_version(), bng_version, get_version_banner()
+        )
+        print(banner)
+        parser.exit()
 
 
 class requireAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
             raise ValueError("nargs not allowed")
+
         super().__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
@@ -68,7 +116,7 @@ class BNGBase(cement.Controller):
         help = "bionetgen"
         arguments = [
             # TODO: Auto-load in BioNetGen version here
-            (["-v", "--version"], dict(action="version", version=VERSION_BANNER)),
+            (["-v", "--version"], dict(action=versionAction, nargs=0)),
             # (['-s','--sedml'],dict(type=str,
             #                        default=CONF.config['bionetgen']['bngpath'],
             #                        help="Optional path to SED-ML file, if available the simulation \
