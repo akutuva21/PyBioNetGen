@@ -63,9 +63,11 @@ class CSimWrapper:
         if len(arr) != self.num_spec_init:
             self.logger.error(
                 f"Length of species initialization array ({len(arr)}) does not match expected length ({self.num_spec_init})",
-                loc=f"{__file__} : CSimWrapper.set_species_init()"
+                loc=f"{__file__} : CSimWrapper.set_species_init()",
             )
-            raise BNGSimulatorError(f"Expected {self.num_spec_init} initial species, but got {len(arr)}")
+            raise BNGSimulatorError(
+                f"Expected {self.num_spec_init} initial species, but got {len(arr)}"
+            )
         self.species_init = np.array(arr, dtype=np.float64)
 
     def set_parameters(self, arr):
@@ -75,9 +77,11 @@ class CSimWrapper:
         if len(arr) != self.num_params:
             self.logger.error(
                 f"Length of parameter array ({len(arr)}) does not match expected length ({self.num_params})",
-                loc=f"{__file__} : CSimWrapper.set_parameters()"
+                loc=f"{__file__} : CSimWrapper.set_parameters()",
             )
-            raise BNGSimulatorError(f"Expected {self.num_params} parameters, but got {len(arr)}")
+            raise BNGSimulatorError(
+                f"Expected {self.num_params} parameters, but got {len(arr)}"
+            )
         self.parameters = np.array(arr, dtype=np.float64)
 
     def simulate(self, t_start=0, t_end=100, n_steps=100):
