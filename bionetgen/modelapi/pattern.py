@@ -256,7 +256,11 @@ class Pattern:
         return canon_label
 
     def __contains__(self, val):
-        return val in self.molecules
+        if isinstance(val, Molecule):
+            return val in self.molecules
+        elif isinstance(val, str):
+            return val in [m.name for m in self.molecules]
+        return False
 
     def __eq__(self, other):
         loc = f"{__file__} : Pattern.__eq__()"
@@ -371,10 +375,11 @@ class Pattern:
     def __getitem__(self, key):
         return self.molecules[key]
 
+    def __setitem__(self, key, value):
+        self.molecules[key] = value
+
     def __iter__(self):
         return self.molecules.__iter__()
-
-    # TODO: Implement __contains__
 
 
 class Molecule:
@@ -412,7 +417,11 @@ class Molecule:
         self.parent_pattern = None
 
     def __contains__(self, val):
-        return val in self.components
+        if isinstance(val, Component):
+            return val in self.components
+        elif isinstance(val, str):
+            return val in [c.name for c in self.components]
+        return False
 
     def __eq__(self, other):
         loc = f"{__file__} : Molecule.__eq__()"
@@ -449,10 +458,11 @@ class Molecule:
         if isinstance(key, int):
             return self.components[key]
 
+    def __setitem__(self, key, value):
+        self.components[key] = value
+
     def __iter__(self):
         return self.components.__iter__()
-
-    # TODO: implement __setitem__,  __contains__
 
     def __str__(self):
         mol_str = self.name
