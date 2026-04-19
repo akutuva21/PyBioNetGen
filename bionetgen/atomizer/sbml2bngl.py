@@ -29,84 +29,24 @@ from sympy.printing.str import StrPrinter
 from sympy.core.sympify import SympifyError
 
 
-# Define 2 and 3 argument functions
-# for sympy parsing
-class sympyPiece(Function):
-    nargs = (3, 4, 5)
-
-
-class sympyIF(Function):
-    nargs = 3
-
-
-class sympyGT(Function):
-    nargs = 2
-
-
-class sympyLT(Function):
-    nargs = 2
-
-
-class sympyGEQ(Function):
-    nargs = 2
-
-
-class sympyLEQ(Function):
-    nargs = 2
-
-
-class sympyAnd(Function):
-    nargs = (2, 3, 4, 5)
-
-
-class sympyOr(Function):
-    nargs = (2, 3, 4, 5)
-
-
-class sympyNot(Function):
-    nargs = 1
-
-
-def factorial(x):
-    temp = x
-    acc = 1
-    while temp > 0:
-        acc *= temp
-        temp -= 1
-    return acc
-
-
-def comb(x, y, exact=True):
-    return factorial(x) / (factorial(y) * factorial(x - y))
-
-
-bioqual = [
-    "BQB_IS",
-    "BQB_HAS_PART",
-    "BQB_IS_PART_OF",
-    "BQB_IS_VERSION_OF",
-    "BQB_HAS_VERSION",
-    "BQB_IS_HOMOLOG_TO",
-    "BQB_IS_DESCRIBED_BY",
-    "BQB_IS_ENCODED_BY",
-    "BQB_ENCODES",
-    "BQB_OCCURS_IN",
-    "BQB_HAS_PROPERTY",
-    "BQB_IS_PROPERTY_OF",
-    "BQB_HAS_TAXON",
-    "BQB_UNKNOWN",
-]
-
-modqual = [
-    "BQM_IS",
-    "BQM_IS_DESCRIBED_BY",
-    "BQM_IS_DERIVED_FROM",
-    "BQM_IS_INSTANCE_OF",
-    "BQM_HAS_INSTANCE",
-    "BQM_UNKNOWN",
-]
-
-annotationHeader = {"BQB": "bqbiol", "BQM": "bmbiol"}
+from bionetgen.atomizer.utils.sbml_math import (
+    sympyPiece,
+    sympyIF,
+    sympyGT,
+    sympyLT,
+    sympyGEQ,
+    sympyLEQ,
+    sympyAnd,
+    sympyOr,
+    sympyNot,
+)
+from bionetgen.atomizer.utils.math_utils import factorial, comb
+from bionetgen.atomizer.utils.bngl_utils import (
+    bioqual,
+    modqual,
+    annotationHeader,
+    standardizeName,
+)
 
 
 def unrollSBMLFunction(function, sbmlFunctions):
@@ -3520,45 +3460,3 @@ class SBML2BNGL:
         if name in self.speciesDictionary:
             return self.speciesDictionary[name]
         return name
-
-
-def standardizeName(name):
-    """
-    Remove stuff not used by bngl
-    """
-    name2 = name
-
-    sbml2BnglTranslationDict = {
-        "^": "",
-        "'": "",
-        "*": "m",
-        " ": "_",
-        "#": "sh",
-        ":": "_",
-        "α": "a",
-        "β": "b",
-        "γ": "g",
-        " ": "",
-        "+": "pl",
-        "/": "_",
-        ":": "_",
-        "-": "_",
-        ".": "_",
-        "?": "unkn",
-        ",": "_",
-        "(": "",
-        ")": "",
-        "[": "",
-        "]": "",
-        # "(": "__",
-        # ")": "__",
-        # "[": "__",
-        # "]": "__",
-        ">": "_",
-        "<": "_",
-    }
-
-    for element in sbml2BnglTranslationDict:
-        name = name.replace(element, sbml2BnglTranslationDict[element])
-    name = re.sub("[\W]", "", name)
-    return name
