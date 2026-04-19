@@ -10,7 +10,6 @@ import difflib
 from collections import Counter
 import json
 import ast
-import pickle
 import os
 from os import listdir
 from os.path import isfile, join
@@ -322,10 +321,13 @@ def databaseAnalysis(directory, outputFile):
         fileCounter = Counter()
         for element in fileDict:
             fileCounter[element] = len(fileDict[element])
-        with open(outputFile, "wb") as f:
-            pickle.dump(differenceCounter, f)
-            # pickle.dump(differenceDict,f)
-            pickle.dump(fileCounter, f)
+
+        data_to_dump = {
+            "differenceCounter": [[list(k), v] for k, v in differenceCounter.items()],
+            "fileCounter": [[list(k), v] for k, v in fileCounter.items()],
+        }
+        with open(outputFile, "w") as f:
+            json.dump(data_to_dump, f)
 
 
 """        
@@ -335,10 +337,10 @@ except ImportError:
     pd = None
 
 def analyzeTrends(inputFile):
-    with open(inputFile,'rb') as f:
-        counter = pickle.load(f)
-        #dictionary = pickle.load(f)
-        fileCounter = pickle.load(f)
+    with open(inputFile, "r") as f:
+        data = json.load(f)
+    counter = Counter({tuple(k): v for k, v in data["differenceCounter"]})
+    fileCounter = Counter({tuple(k): v for k, v in data["fileCounter"]})
     totalCounter = Counter()
     for element in counter:
         
