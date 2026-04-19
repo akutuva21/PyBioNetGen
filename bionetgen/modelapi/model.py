@@ -174,10 +174,11 @@ class bngmodel:
         name of the block object to determine what block it is
         """
         bname = block.name.replace(" ", "_")
-        # TODO: fix this exception
         if bname == "reaction_rules":
             bname = "rules"
-        block_adder = getattr(self, "add_{}_block".format(bname))
+        block_adder = getattr(self, "add_{}_block".format(bname), None)
+        if block_adder is None:
+            raise BNGModelError(self, message=f"Block {bname} is not supported.")
         block_adder(block)
 
     def add_empty_block(self, block_name):
@@ -186,10 +187,11 @@ class bngmodel:
         adds it to the model object.
         """
         bname = block_name.replace(" ", "_")
-        # TODO: fix this exception
         if bname == "reaction_rules":
             bname = "rules"
-        block_adder = getattr(self, "add_{}_block".format(bname))
+        block_adder = getattr(self, "add_{}_block".format(bname), None)
+        if block_adder is None:
+            raise BNGModelError(self, message=f"Block {bname} is not supported.")
         block_adder()
 
     def add_parameters_block(self, block=None):
