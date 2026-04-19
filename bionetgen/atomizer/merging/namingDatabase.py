@@ -266,10 +266,10 @@ class NamingDatabase:
         # fileSpecies = [[x['name'], len(x['fileName'])] for x in fileSpecies]
         fileSpecies.sort(key=lambda x: len(x["fileName"]), reverse=True)
 
-        # import pickle
+        # import json
 
         # with open('results.dump','wb') as f:
-        #    pickle.dump(fileSpecies,f)
+        #    json.dump(fileSpecies,f)
 
         return fileSpecies
 
@@ -511,10 +511,10 @@ def query(database, queryType, queryOptions):
         elif Query[queryType] == Query.all:
             result = db.findOverlappingNamespace([])
         # pprint.pprint([[x['name'], len(x['fileName'])] for x in result])
-        import pickle
+        import json
 
-        with open("results2.dump", "wb") as f:
-            pickle.dump(result, f)
+        with open("results2.dump", "w") as f:
+            json.dump(result, f)
     except KeyError:
         print("Query operation not supported")
 

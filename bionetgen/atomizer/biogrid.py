@@ -81,7 +81,7 @@ if __name__ == "__main__":
     db = loadBioGrid()
     # print len(db)
     # f = open('bioGridDict.dump', 'wb')
-    # pickle.dump(db, f)
+    # json.dump(db, f)
     # pass
     # db2 = loadBioGridDict()
     # print len(db2)

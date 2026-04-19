@@ -246,7 +246,7 @@ class Species:
         return self.__str__()
 
 
-import pickle
+import json
 
 
 class Molecule:

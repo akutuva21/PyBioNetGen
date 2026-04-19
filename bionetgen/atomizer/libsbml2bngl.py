@@ -15,7 +15,7 @@ import bionetgen.atomizer.atomizer.moleculeCreation as mc
 import sys
 from os import listdir
 import re
-import pickle
+import json
 import copy
 
 log = {"species": [], "reactions": []}
@@ -127,7 +127,7 @@ def selectReactionDefinitions(bioNumber):
     best reactionDefinitions definition available
     """
     # with open('stats4.npy') as f:
-    #    db = pickle.load(f)
+    #    db = json.load(f)
     fileName = resource_path("config/reactionDefinitions.json")
     useID = True
     naming = resource_path("config/namingConventions.json")
@@ -807,8 +807,8 @@ def analyzeFile(
 
     with open(outputFile, "w", encoding="UTF-8") as f:
         f.write(returnArray.finalString)
-    # with open('{0}.dict'.format(outputFile), 'wb') as f:
-    #    pickle.dump(returnArray[-1], f)
+    # with open('{0}.dict'.format(outputFile), 'w') as f:
+    #    json.dump(returnArray[-1], f)
     model = returnArray.model
     if atomize and onlySynDec:
         returnArray = list(returnArray)
@@ -1732,12 +1732,12 @@ def main():
     # print(evaluation2)
     # sortedCurated = [i for i in enumerate(evaluation), key=lambda x:x[1]]
     print([(idx + 1, x) for idx, x in enumerate(rulesLength) if x > 50])
-    with open("sortedD.dump", "wb") as f:
-        pickle.dump(rulesLength, f)
-    with open("annotations.dump", "wb") as f:
-        pickle.dump(rdfArray, f)
+    with open("sortedD.dump", "w") as f:
+        json.dump(rulesLength, f)
+    with open("annotations.dump", "w") as f:
+        json.dump(rdfArray, f)
     # with open('classificationDict.dump', 'wb') as f:
-    #    pickle.dump(classificationArray, f)
+    #    json.dump(classificationArray, f)
     """
     plt.hist(rulesLength, bins=[10, 30, 50, 70, 90, 110, 140, 180, 250, 400])
     plt.xlabel('Number of reactions', fontsize=18)
@@ -1883,7 +1883,7 @@ def statFiles():
         box.append(xorBoxDict)
         #box.append(orBoxDict)
         with open('orBox{0}.dump'.format(bioNumber), 'wb') as f:
-            pickle.dump(box, f)
+            json.dump(box, f)
 """
 
 
@@ -1941,8 +1941,8 @@ def processDir(directory, atomize=True):
                 ]
             except:
                 resultDir[xml] = [-1, 0, 0]
-    with open("evalResults.dump", "wb") as f:
-        pickle.dump(resultDir, f)
+    with open("evalResults.dump", "w") as f:
+        json.dump(resultDir, f)
         # except:
         # continue'
 
