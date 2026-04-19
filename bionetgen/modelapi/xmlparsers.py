@@ -143,9 +143,7 @@ class PatternXML(XMLObj):
     def __init__(self, xml) -> None:
         super().__init__(xml)
 
-    def parse_xml(self, xml) -> Pattern:
-        # initialize
-        pattern = Pattern()
+    def _parse_bonds(self, pattern: Pattern, xml: dict) -> None:
         if "ListOfBonds" in xml:
             # TODO: FIX THIS
             bonds = BondsXML(xml["ListOfBonds"]["Bond"])
@@ -155,6 +153,8 @@ class PatternXML(XMLObj):
             bonds = BondsXML()
             pattern._bonds = bonds
             self._bonds = bonds
+
+    def _parse_attributes(self, pattern: Pattern, xml: dict) -> None:
         # check for compartment and add if exists
         if "@compartment" in xml:
             pattern.compartment = xml["@compartment"]
@@ -181,6 +181,8 @@ class PatternXML(XMLObj):
                     pattern.quantity = quantity
             except ValueError as e:
                 print("Quantity needs to be an integer")
+
+    def _parse_molecules(self, pattern: Pattern, xml: dict) -> None:
         # check for either list of molecules or single molecule, add if exist
         mols = xml["ListOfMolecules"]["Molecule"]
         molecules = []
@@ -194,6 +196,16 @@ class PatternXML(XMLObj):
             mol_obj = self._process_mol(mols)
             molecules.append(mol_obj)
         pattern.molecules = molecules
+
+    def parse_xml(self, xml) -> Pattern:
+        # initialize
+        pattern = Pattern()
+
+        # parse components
+        self._parse_bonds(pattern, xml)
+        self._parse_attributes(pattern, xml)
+        self._parse_molecules(pattern, xml)
+
         # return a complete pattern object
         return pattern
 
