@@ -39,8 +39,11 @@ def test_find_BNG_path_explicit_dir(mock_test_bngexec):
     dir_path = "/path/to/bng/dir"
     result = find_BNG_path(dir_path)
 
-    assert result == (dir_path, f"{dir_path}/BNG2.pl")
-    mock_test_bngexec.assert_called_once_with(f"{dir_path}/BNG2.pl")
+    import os
+
+    expected_exec = os.path.join(dir_path, "BNG2.pl")
+    assert result == (dir_path, expected_exec)
+    mock_test_bngexec.assert_called_once_with(expected_exec)
 
 
 @patch("bionetgen.core.utils.utils.test_bngexec")
@@ -71,9 +74,12 @@ def test_find_BNG_path_env_var(mock_env_get, mock_test_bngexec):
 
     result = find_BNG_path()
 
-    assert result == (env_dir, f"{env_dir}/BNG2.pl")
+    import os
+
+    expected_exec = os.path.join(env_dir, "BNG2.pl")
+    assert result == (env_dir, expected_exec)
     mock_env_get.assert_called_once_with("BNGPATH")
-    mock_test_bngexec.assert_called_once_with(f"{env_dir}/BNG2.pl")
+    mock_test_bngexec.assert_called_once_with(expected_exec)
 
 
 @patch("bionetgen.core.utils.utils.test_bngexec")
