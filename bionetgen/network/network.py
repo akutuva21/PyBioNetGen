@@ -113,15 +113,19 @@ class Network:
 
     def add_block(self, block):
         bname = block.name.replace(" ", "_")
-        # TODO: fix this exception
-        block_adder = getattr(self, "add_{}_block".format(bname))
-        block_adder(block)
+        try:
+            block_adder = getattr(self, "add_{}_block".format(bname))
+            block_adder(block)
+        except AttributeError:
+            raise BNGModelError(self, message=f"Block type {bname} is not supported.")
 
     def add_empty_block(self, block_name):
         bname = block_name.replace(" ", "_")
-        # TODO: fix this exception
-        block_adder = getattr(self, "add_{}_block".format(bname))
-        block_adder()
+        try:
+            block_adder = getattr(self, "add_{}_block".format(bname))
+            block_adder()
+        except AttributeError:
+            raise BNGModelError(self, message=f"Block type {bname} is not supported.")
 
     def add_parameters_block(self, block=None):
         if block is not None:
