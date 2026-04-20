@@ -132,14 +132,14 @@ class bngmodel:
         """
         write the model to str
         """
-        model_str = ""
+        model_lines = []
         # gotta check for "before model" type actions
         if hasattr(self, "actions"):
             ablock = getattr(self, "actions")
             if len(ablock.before_model) > 0:
                 for baction in ablock.before_model:
-                    model_str += str(baction) + "\n"
-        model_str += "begin model\n"
+                    model_lines.append(str(baction) + "\n")
+        model_lines.append("begin model\n")
         for block in self._block_order:
             # ensure we didn't get new items into a
             # previously inactive block, if we did
@@ -156,11 +156,11 @@ class bngmodel:
             # print only the active blocks
             if block in self.active_blocks:
                 if block != "actions" and len(getattr(self, block)) > 0:
-                    model_str += str(getattr(self, block))
-        model_str += "\nend model\n\n"
+                    model_lines.append(str(getattr(self, block)))
+        model_lines.append("\nend model\n\n")
         if "actions" in self.active_blocks:
-            model_str += str(self.actions)
-        return model_str
+            model_lines.append(str(self.actions))
+        return "".join(model_lines)
 
     def __repr__(self):
         return self.model_name
