@@ -212,9 +212,9 @@ def generate_notebook(app):
             )
         try:
             app.log.debug("Loading model", f"{__file__} : notebook()")
-            import bionetgen
+            from bionetgen import bngmodel
 
-            m = bionetgen.bngmodel(args.input)
+            m = bngmodel(args.input)
             str(m)
         except:
             app.log.error("Failed to load model", f"{__file__} : notebook()")
