@@ -31,15 +31,14 @@ def test_bngexec_failure():
 @patch("bionetgen.core.utils.utils.test_bngexec")
 def test_find_BNG_path_explicit_dir(mock_test_bngexec):
     from bionetgen.core.utils.utils import find_BNG_path
+    import os
 
     # Mock successful execution
     mock_test_bngexec.return_value = True
 
     # Test passing a directory explicitly
-    dir_path = "/path/to/bng/dir"
+    dir_path = os.path.join("path", "to", "bng", "dir")
     result = find_BNG_path(dir_path)
-
-    import os
 
     expected_exec = os.path.join(dir_path, "BNG2.pl")
     assert result == (dir_path, expected_exec)
@@ -49,13 +48,15 @@ def test_find_BNG_path_explicit_dir(mock_test_bngexec):
 @patch("bionetgen.core.utils.utils.test_bngexec")
 def test_find_BNG_path_explicit_file(mock_test_bngexec):
     from bionetgen.core.utils.utils import find_BNG_path
+    import os
 
     # Mock successful execution
     mock_test_bngexec.return_value = True
 
     # Test passing a file directly
-    file_path = "/path/to/bng/dir/BNG2.pl"
-    dir_path = "/path/to/bng/dir"
+    dir_path = os.path.join("path", "to", "bng", "dir")
+    file_path = os.path.join(dir_path, "BNG2.pl")
+
     result = find_BNG_path(file_path)
 
     assert result == (dir_path, file_path)
@@ -66,15 +67,14 @@ def test_find_BNG_path_explicit_file(mock_test_bngexec):
 @patch("os.environ.get")
 def test_find_BNG_path_env_var(mock_env_get, mock_test_bngexec):
     from bionetgen.core.utils.utils import find_BNG_path
+    import os
 
     # Setup mocks
-    env_dir = "/env/path/to/bng"
+    env_dir = os.path.join("env", "path", "to", "bng")
     mock_env_get.return_value = env_dir
     mock_test_bngexec.return_value = True
 
     result = find_BNG_path()
-
-    import os
 
     expected_exec = os.path.join(env_dir, "BNG2.pl")
     assert result == (env_dir, expected_exec)
