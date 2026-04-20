@@ -743,16 +743,6 @@ def createBindingRBM(
                                     x.name for x in partialBonds[bond]
                                 ]:
                                     partialBonds[bond].append(molecule2)
-                        """
-                        for component in molecule.components:
-                            component2 = [x for x in molecule2.components if x.name == component.name]
-                            # component already exists in species template
-                            if component2:
-                                if component.bonds:
-                                    component2[0].bonds = component.bonds
-                            else:
-                                molecule2.addComponent(deepcopy(component))
-                        """
 
     bondSeeding = [partialBonds[x] for x in partialBonds if x > 0]
     bondExclusion = [partialBonds[x] for x in partialBonds if x < 0]
@@ -772,9 +762,7 @@ def createBindingRBM(
     # print moleculeCount
     # moleculePairsList = [sorted(x) for x in moleculePairsList]
     # moleculePairsList.sort(key=lambda x: [-moleculeCount[x[0]],(str(x[0]), x[0],str(x[1]),x[1])])
-    # TODO: update basic molecules with new components
-    # translator[molecule[0].name].molecules[0].components.append(deepcopy(newComponent1))
-    # translator[molecule[1].name].molecules[0].components.append(deepcopy(newComponent2))
+    # Basic molecules (in the translator) are dynamically updated with new components in the loop below.
     moleculeCounter = defaultdict(list)
     translator_components = {}
     for molecule in moleculePairsList:
