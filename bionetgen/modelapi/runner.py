@@ -1,4 +1,5 @@
 import os
+import logging
 from tempfile import TemporaryDirectory
 from bionetgen.main import BioNetGen
 from bionetgen.core.tools import BNGCLI
@@ -7,6 +8,8 @@ from bionetgen.core.tools import BNGCLI
 app = BioNetGen()
 app.setup()
 conf = app.config["bionetgen"]
+
+logger = logging.getLogger(__name__)
 
 
 def run(inp, out=None, suppress=False, timeout=None):
@@ -34,8 +37,11 @@ def run(inp, out=None, suppress=False, timeout=None):
                 os.chdir(cur_dir)
             except Exception as e:
                 os.chdir(cur_dir)
-                # TODO: Better error reporting
-                print("Couldn't run the simulation, see error")
+                logger.error("Couldn't run the simulation, see error")
+                if hasattr(e, "stdout") and e.stdout is not None:
+                    logger.error(f"STDOUT:\n{e.stdout}")
+                if hasattr(e, "stderr") and e.stderr is not None:
+                    logger.error(f"STDERR:\n{e.stderr}")
                 raise e
     else:
         # instantiate a CLI object with the info
@@ -45,7 +51,10 @@ def run(inp, out=None, suppress=False, timeout=None):
             os.chdir(cur_dir)
         except Exception as e:
             os.chdir(cur_dir)
-            # TODO: Better error reporting
-            print("Couldn't run the simulation, see error")
+            logger.error("Couldn't run the simulation, see error")
+            if hasattr(e, "stdout") and e.stdout is not None:
+                logger.error(f"STDOUT:\n{e.stdout}")
+            if hasattr(e, "stderr") and e.stderr is not None:
+                logger.error(f"STDERR:\n{e.stderr}")
             raise e
     return cli.result
