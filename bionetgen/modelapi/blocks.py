@@ -7,6 +7,7 @@ from .structs import MoleculeType, Species, Function
 from .structs import Rule, Action
 from .structs import EnergyPattern, PopulationMap
 from bionetgen.core.utils.utils import ActionList
+import keyword
 
 # this import fails on some python versions
 try:
@@ -170,7 +171,11 @@ class ModelBlock:
         # set the line
         self.items[name] = value
         # if the name is a string, try adding as an attribute
-        if isinstance(name, str):
+        if (
+            isinstance(name, str)
+            and name.isidentifier()
+            and not keyword.iskeyword(name)
+        ):
             try:
                 setattr(self, name, value)
             except Exception:
