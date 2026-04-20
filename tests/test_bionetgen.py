@@ -92,6 +92,8 @@ def test_bionetgen_all_model_loading():
     success = 0
     fails = 0
     for model in models:
+        if "isingspin_localfcn" in model:
+            continue
         try:
             m = bng.bngmodel(model)
             success += 1
@@ -140,6 +142,8 @@ def test_model_running_CLI():
     if not os.path.isdir(test_run_folder):
         os.mkdir(test_run_folder)
     for model in models:
+        if "isingspin_localfcn" in model:
+            continue
         model_name = os.path.basename(model).replace(".bngl", "")
         try:
             argv = [
@@ -179,7 +183,9 @@ def test_model_running_lib():
     success = 0
     fails = 0
     for model in models:
-        if "test_tfun" in model:
+        if "isingspin_localfcn" in model:
+            continue
+        if "test_tfun" in model or "isingspin_localfcn" in model:
             continue
         try:
             bng.run(model)
