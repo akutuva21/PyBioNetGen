@@ -518,18 +518,18 @@ def finalText(
     return output.getvalue()
 
 
-def sectionTemplate(name, content, annotations={}):
-    section = "begin %s\n" % name
-    temp = []
+def sectionTemplate(name, content, annotations=None):
+    if annotations is None:
+        annotations = {}
+    temp = ["begin %s\n" % name]
     for line in content:
         if line in annotations:
             for ann in annotations[line]:
                 temp.append("\t%s\n" % ann)
         temp.append("\t%s\n" % line)
     # temp = ['\t%s\n' % line for line in content]
-    section += "".join(temp)
-    section += "end %s\n" % name
-    return section
+    temp.append("end %s\n" % name)
+    return "".join(temp)
 
 
 # 341,6,12
