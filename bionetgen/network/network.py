@@ -1,5 +1,7 @@
 from bionetgen.main import BioNetGen
 from bionetgen.network.networkparser import BNGNetworkParser
+from bionetgen.core.exc import BNGModelError
+from bionetgen.core.utils.logging import BNGLogger
 from bionetgen.network.blocks import (
     NetworkGroupBlock,
     NetworkParameterBlock,
@@ -16,6 +18,7 @@ app = BioNetGen()
 app.setup()
 conf = app.config["bionetgen"]
 def_bng_path = conf["bngpath"]
+logger = BNGLogger(app=None)
 
 
 ###### CORE OBJECT AND PARSING FRONT-END ######
@@ -161,8 +164,10 @@ class Network:
 
     def add_reactions_block(self, block=None):
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, NetworkReactionBlock)
+            if not isinstance(block, NetworkReactionBlock):
+                err_msg = "The given block is not a NetworkReactionBlock"
+                logger.error(err_msg, loc=f"{__file__} : Network.add_reactions_block()")
+                raise BNGModelError(self, message=err_msg)
             self.reactions = block
             if "reactions" not in self.active_blocks:
                 self.active_blocks.append("reactions")
