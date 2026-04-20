@@ -81,7 +81,13 @@ class AtomizeTool:
             "Validating config options", loc=f"{__file__} : AtomizeTool.checkConfig()"
         )
         options = {}
-        options["inputFile"] = config["input"]  # TODO: ensure this is not None
+        options["inputFile"] = config["input"]
+        if options["inputFile"] is None:
+            self.logger.error(
+                "Input file is required but was not provided",
+                loc=f"{__file__} : AtomizeTool.checkConfig()",
+            )
+            raise ValueError("Input file is required but was not provided")
         conv, useID, naming = ls2b.selectReactionDefinitions(options["inputFile"])
         options["outputFile"] = (
             config["output"]
