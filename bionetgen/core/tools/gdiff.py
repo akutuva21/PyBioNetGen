@@ -624,16 +624,15 @@ class BNGGdiff:
                 # now we can add
                 node_to_add_to["graph"]["node"].append(copied_node)
             else:
-                # TODO: check if this is done correctly
                 # it's a single node and we need to turn
                 # it into a list instead
-                copied_original_node = copy.deepcopy(node_to_add_to["graph"]["node"])
-                og_node_id = self._get_node_id(copied_original_node)
+                original_node = node_to_add_to["graph"]["node"]
+                og_node_id = self._get_node_id(original_node)
                 new_id = self._get_id_list(og_node_id)
                 new_id[-1] += 1
                 new_id = self._get_id_str(new_id)
                 self._set_node_id(copied_node, new_id)
-                nodes_to_add = [copied_original_node, copied_node]
+                nodes_to_add = [original_node, copied_node]
                 node_to_add_to["graph"]["node"] = nodes_to_add
             # add to rename map
             rmap[self._get_node_id(node)] = self._get_node_id(copied_node)

@@ -156,7 +156,14 @@ class ModelBlock:
         # for the future, in case we want people to be able
         # to adjust the math
         # TODO: Error handling, some names will definitely break this
-        name, value = item_tpl
+        try:
+            name, value = item_tpl
+        except ValueError:
+            raise ValueError(f"Item must be a 2-tuple (name, value), got {item_tpl}")
+        except TypeError:
+            raise TypeError(
+                f"Item must be an iterable of length 2 (name, value), got {type(item_tpl)}"
+            )
         # allow for empty addition, uses index
         if name is None:
             name = len(self.items)
@@ -166,7 +173,7 @@ class ModelBlock:
         if isinstance(name, str):
             try:
                 setattr(self, name, value)
-            except:
+            except Exception:
                 print("can't set {} to {}".format(name, value))
                 pass
         # we just added an item to a block, let's assume we need

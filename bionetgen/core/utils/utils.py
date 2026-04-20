@@ -51,6 +51,7 @@ class ActionList:
             "simulate_ssa",
             "simulate_pla",
             "simulate_nf",
+            "simulate_psa",
             "parameter_scan",
             "bifurcate",
             "readFile",
@@ -139,10 +140,6 @@ class ActionList:
             "print_functions",
             "netfile",
             "seed",
-            # TODO: arguments for a method called "psa" that is not documented in
-            # https://docs.google.com/spreadsheets/d/1Co0bPgMmOyAFxbYnGCmwKzoEsY2aUCMtJXQNpQCEUag/
-            "poplevel",
-            "check_product_scale",
         ]
         self.arg_dict["simulate_ode"] = [
             "prefix",
@@ -251,6 +248,33 @@ class ActionList:
             "utl",
             "param",
         ]
+        self.arg_dict["simulate_psa"] = [
+            "prefix",
+            "suffix",
+            "verbose",
+            "argfile",
+            "continue",
+            "t_start",
+            "t_end",
+            "n_steps",
+            "n_output_steps",
+            "sample_times",
+            "output_step_interval",
+            "max_sim_steps",
+            "stop_if",
+            "print_on_stop",
+            "print_end",
+            "print_net",
+            "save_progress",
+            "print_CDAT",
+            "print_functions",
+            "netfile",
+            "seed",
+            # TODO: arguments for a method called "psa" that is not documented in
+            # https://docs.google.com/spreadsheets/d/1Co0bPgMmOyAFxbYnGCmwKzoEsY2aUCMtJXQNpQCEUag/
+            "poplevel",
+            "check_product_scale",
+        ]
         self.arg_dict["simulate"] = list(
             set(
                 self.arg_dict["simulate"]
@@ -258,6 +282,7 @@ class ActionList:
                 + self.arg_dict["simulate_ssa"]
                 + self.arg_dict["simulate_pla"]
                 + self.arg_dict["simulate_nf"]
+                + self.arg_dict["simulate_psa"]
             )
         )
         self.arg_dict["parameter_scan"] = [
