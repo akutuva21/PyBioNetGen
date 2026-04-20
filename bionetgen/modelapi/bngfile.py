@@ -150,17 +150,19 @@ class BNGFile:
         with open(model_path, "r", encoding="UTF-8") as mf:
             # read and strip actions
             mstr = mf.read()
-            # TODO: Clean this up _a lot_
             # this removes any new line escapes (\ \n) to continue
             # to another line, so we can just remove the action lines
             mstr = re.sub(r"\\\n", "", mstr)
             mlines = mstr.split("\n")
-            stripped_lines = list(filter(lambda x: self._not_action(x), mlines))
-            # remove spaces, actions don't allow them
-            self.parsed_actions = [
-                x.replace(" ", "")
-                for x in filter(lambda x: not self._not_action(x), mlines)
-            ]
+
+            stripped_lines = []
+            self.parsed_actions = []
+            for line in mlines:
+                if self._not_action(line):
+                    stripped_lines.append(line)
+                else:
+                    self.parsed_actions.append(line.replace(" ", ""))
+
             # let's remove begin/end actions, rarely used but should be removed
             remove_from = -1
             remove_to = -1
@@ -169,7 +171,8 @@ class BNGFile:
                     remove_from = iline
                 elif re.match(r"\s*(end)\s+(actions)\s*", line):
                     remove_to = iline
-            if remove_from > 0:
+
+            if remove_from >= 0:
                 # we have a begin/end actions block
                 if remove_to < 0:
                     msg = f'There is a "begin actions" statement at line {remove_from} without a matching "end actions" statement'
@@ -177,11 +180,10 @@ class BNGFile:
                 stripped_lines = (
                     stripped_lines[:remove_from] + stripped_lines[remove_to + 1 :]
                 )
-            if remove_to > 0:
-                if remove_from < 0:
-                    msg = f'There is an "end actions" statement at line {remove_to} without a matching "begin actions" statement'
-                    raise BNGFileError(model_path, message=msg)
-        # TODO: read stripped lines and store the actions
+            elif remove_to >= 0:
+                msg = f'There is an "end actions" statement at line {remove_to} without a matching "begin actions" statement'
+                raise BNGFileError(model_path, message=msg)
+
         # open new file and write just the model
         stripped_model = os.path.join(folder, model_file)
         if self.generate_network:
