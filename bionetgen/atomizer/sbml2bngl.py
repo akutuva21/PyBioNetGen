@@ -1195,12 +1195,9 @@ class SBML2BNGL:
         ]
         rateL = rateR = nl = nr = None
         if True:
-            # TODO: For some reason creating a deepcopy of this screws everything up, even
-            # though its what we should be doing
-            # update: apparently the solution was to use copy instead of deepcopy. This is because
-            # the underlying swig code in c was causing conflicts when copied. make sure this actually works
-            math = copy(kineticLaw.getMath())
-            math = math.deepCopy()
+            math = kineticLaw.getMath()
+            if math is not None:
+                math = math.deepCopy()
             # get a list of compartments so that we can remove them
             compartmentList = []
             for compartment in self.model.getListOfCompartments():
@@ -1445,8 +1442,6 @@ class SBML2BNGL:
                 else:
                     rProduct.append(x.getSpecies(), x.getStoichiometry())
 
-        # TODO: For some reason creating a deepcopy of this screws everything up, even
-        # though its what we should be doing
         rcomponent = defaultdict(Counter)
         pcomponent = defaultdict(Counter)
 
