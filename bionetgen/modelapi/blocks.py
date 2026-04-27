@@ -156,7 +156,6 @@ class ModelBlock:
         # TODO: try adding evaluation of the parameter here
         # for the future, in case we want people to be able
         # to adjust the math
-        # TODO: Error handling, some names will definitely break this
         try:
             name, value = item_tpl
         except ValueError:
@@ -171,11 +170,22 @@ class ModelBlock:
         # set the line
         self.items[name] = value
         # if the name is a string, try adding as an attribute
+        set_attr = False
         if (
             isinstance(name, str)
             and name.isidentifier()
             and not keyword.iskeyword(name)
         ):
+            if not hasattr(self.__class__, name) and name not in [
+                "name",
+                "items",
+                "comment",
+                "_changes",
+                "_recompile",
+            ]:
+                set_attr = True
+
+        if set_attr:
             try:
                 setattr(self, name, value)
             except Exception:
