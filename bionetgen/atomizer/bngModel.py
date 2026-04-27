@@ -112,7 +112,6 @@ class Species:
         if self.initAmount >= 0:
             self.val = self.initAmount
         elif self.initConc >= 0:
-            # TODO: Figure out what to do w/ conc
             self.isConc = True
             self.val = self.initConc
         else:
@@ -1463,8 +1462,10 @@ class bngModel:
                 if s.compartment in self.compartments:
                     comp = self.compartments[s.compartment]
                     s.val = s.initConc * comp.size
-                    s.concCorrected = True
-                    s.isConc = False
+                else:
+                    s.val = s.initConc
+                s.concCorrected = True
+                s.isConc = False
 
     # def adjust_concentrations(self):
     #     # some species are given as concentrations
