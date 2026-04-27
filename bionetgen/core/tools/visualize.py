@@ -169,7 +169,6 @@ class BNGVisualize:
                 )
             else:
                 model.add_action("visualize", action_args={"type": f"'{self.vtype}'"})
-        # TODO: Work in temp folder
         cur_dir = os.getcwd()
         from bionetgen.core.main import BNGCLI
 
@@ -179,12 +178,11 @@ class BNGVisualize:
         )
 
         with TemporaryDirectory() as out:
+            os.chdir(out)
             # instantiate a CLI object with the info
             cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
             try:
                 cli.run()
-                # go to the temp folder to load the files
-                os.chdir(out)
                 # load vis
                 vis_res = VisResult(
                     os.path.abspath(os.getcwd()),
