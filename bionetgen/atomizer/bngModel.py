@@ -112,7 +112,7 @@ class Species:
         if self.initAmount >= 0:
             self.val = self.initAmount
         elif self.initConc >= 0:
-            # TODO: Figure out what to do w/ conc
+            # Concentration conversion to amounts is handled downstream by bngModel.adjust_concentrations()
             self.isConc = True
             self.val = self.initConc
         else:
