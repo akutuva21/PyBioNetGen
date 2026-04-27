@@ -43,18 +43,15 @@ def name2uniprot(nameStr):
 def queryBioGridByName(name1, name2, organism, truename1, truename2):
     url = "http://webservice.thebiogrid.org/interactions/?"
     response = None
-    if organism:
-        organismExtract = list(organism)[0].split("/")[-1]
+    valid_organisms = [x.split("/")[-1] for x in organism if x.split("/")[-1].isdigit()] if organism else []
+    if valid_organisms:
         d = {
             "geneList": "|".join([name1, name2]),
-            "taxId": "|".join(organism),
+            "taxId": "|".join(valid_organisms),
             "format": "json",
             "accesskey": "f74b8d6f4c394fcc9d97b11c8c83d7f3",
             "includeInteractors": "false",
         }
-        # FIXME: check if all "organism"s are the wrong thing,
-        # for model 48 this returns a process identifier https://www.ebi.ac.uk/QuickGO/term/GO:0007173
-        # and not an organism taxonomy identifier
         data = urllib.parse.urlencode(d).encode("utf-8")
         try:
             response = urllib.request.urlopen(url, data=data).read()
@@ -62,7 +59,7 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
             logMess(
                 "ERROR:MSC02",
                 "A connection could not be established to biogrid while testing with taxon {1} and genes {0}, trying without organism taxonomy limitation".format(
-                    "|".join([name1, name2]), "|".join(organism)
+                    "|".join([name1, name2]), "|".join(valid_organisms)
                 ),
             )
             # return False
@@ -155,8 +152,9 @@ def queryActiveSite(nameStr, organism):
     retry = 0
     while retry < 3:
         retry += 1
-        if organism:
-            organismExtract = list(organism)[0].split("/")[-1]
+        valid_organisms = [x.split("/")[-1] for x in organism if x.split("/")[-1].isdigit()] if organism else []
+        if valid_organisms:
+            organismExtract = valid_organisms[0]
             # ASS - Updating the query to conform with a regular RESTful API request and work in Python3
             xparams = {
                 "query": "{}+AND+organism:{}".format(nameStr, organismExtract),
@@ -214,8 +212,9 @@ def name2uniprot(nameStr, organism):
     url = "http://www.uniprot.org/uniprot/?"
 
     response = None
-    if organism:
-        organismExtract = list(organism)[0].split("/")[-1]
+    valid_organisms = [x.split("/")[-1] for x in organism if x.split("/")[-1].isdigit()] if organism else []
+    if valid_organisms:
+        organismExtract = valid_organisms[0]
         d = {
             "query": f"{nameStr}+AND+organism:{organismExtract}",
             "format": "tab&limit=5",
