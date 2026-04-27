@@ -43,7 +43,11 @@ def name2uniprot(nameStr):
 def queryBioGridByName(name1, name2, organism, truename1, truename2):
     url = "http://webservice.thebiogrid.org/interactions/?"
     response = None
-    valid_organisms = [x.split("/")[-1] for x in organism if x.split("/")[-1].isdigit()] if organism else []
+    valid_organisms = (
+        [x.split("/")[-1] for x in organism if x.split("/")[-1].isdigit()]
+        if organism
+        else []
+    )
     if valid_organisms:
         d = {
             "geneList": "|".join([name1, name2]),
@@ -152,7 +156,11 @@ def queryActiveSite(nameStr, organism):
     retry = 0
     while retry < 3:
         retry += 1
-        valid_organisms = [x.split("/")[-1] for x in organism if x.split("/")[-1].isdigit()] if organism else []
+        valid_organisms = (
+            [x.split("/")[-1] for x in organism if x.split("/")[-1].isdigit()]
+            if organism
+            else []
+        )
         if valid_organisms:
             organismExtract = valid_organisms[0]
             # ASS - Updating the query to conform with a regular RESTful API request and work in Python3
@@ -212,7 +220,11 @@ def name2uniprot(nameStr, organism):
     url = "http://www.uniprot.org/uniprot/?"
 
     response = None
-    valid_organisms = [x.split("/")[-1] for x in organism if x.split("/")[-1].isdigit()] if organism else []
+    valid_organisms = (
+        [x.split("/")[-1] for x in organism if x.split("/")[-1].isdigit()]
+        if organism
+        else []
+    )
     if valid_organisms:
         organismExtract = valid_organisms[0]
         d = {
