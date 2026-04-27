@@ -4,6 +4,7 @@ import os
 import json
 from bionetgen.core.main import runAtomizeTool
 
+
 def test_runAtomizeTool_basic():
     mock_app = MagicMock()
     mock_app.pargs.input = "test_model.xml"
@@ -18,8 +19,11 @@ def test_runAtomizeTool_basic():
 
         runAtomizeTool(mock_app)
 
-        mock_atomize_tool.assert_called_once_with(parser_namespace=mock_app.pargs, app=mock_app)
+        mock_atomize_tool.assert_called_once_with(
+            parser_namespace=mock_app.pargs, app=mock_app
+        )
         mock_atomize_instance.run.assert_called_once()
+
 
 def test_runAtomizeTool_write_scts(tmp_path):
     mock_app = MagicMock()
@@ -48,6 +52,7 @@ def test_runAtomizeTool_write_scts(tmp_path):
             assert not os.path.exists("test_model_graph1.graphml")
         finally:
             os.chdir(orig_cwd)
+
 
 def test_runAtomizeTool_write_scts_and_graphs(tmp_path):
     mock_app = MagicMock()
