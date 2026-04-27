@@ -2171,8 +2171,12 @@ class SBML2BNGL:
             if exp.is_Add:
                 react_expr, prod_expr = self.gather_terms(exp)
                 if react_expr is None:
-                    # TODO: LogMess this
-                    print("no forward reaction rate?")
+                    logMess(
+                        "WARNING:ARUL003",
+                        "No forward reaction rate found for assignment rule variable {}".format(
+                            variable
+                        ),
+                    )
                 # Let's also ensure that we have a + and - term
                 elif prod_expr is not None:
                     # Remove mass action
