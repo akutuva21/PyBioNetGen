@@ -2173,7 +2173,9 @@ class SBML2BNGL:
                 if react_expr is None:
                     logMess(
                         "WARNING:ARUL003",
-                        "No forward reaction rate found for rule {}".format(arule.getId()),
+                        "No forward reaction rate found for rule {}".format(
+                            arule.getId()
+                        ),
                     )
                 # Let's also ensure that we have a + and - term
                 elif prod_expr is not None:
