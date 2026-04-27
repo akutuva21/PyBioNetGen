@@ -219,7 +219,7 @@ class BNGFile:
             with open("temp.bngl", "w", encoding="UTF-8") as f:
                 f.write(bngl_str)
             # run with --xml
-            # TODO: Make output supression an option somewhere
+            # Output suppression is handled downstream by self.suppress
             if xml_type == "bngxml":
                 rc, _ = run_command(
                     ["perl", self.bngexec, "--xml", "temp.bngl"], suppress=self.suppress
