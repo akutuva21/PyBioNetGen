@@ -129,8 +129,12 @@ class Network:
 
     def add_parameters_block(self, block=None):
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, NetworkParameterBlock)
+            if not isinstance(block, NetworkParameterBlock):
+                err_msg = "The given block is not a NetworkParameterBlock"
+                logger.error(
+                    err_msg, loc=f"{__file__} : Network.add_parameters_block()"
+                )
+                raise BNGModelError(self, message=err_msg)
             self.parameters = block
             if "parameters" not in self.active_blocks:
                 self.active_blocks.append("parameters")
@@ -139,7 +143,12 @@ class Network:
 
     # def add_compartments_block(self, block=None):
     #     if block is not None:
-    #         assert isinstance(block, NetworkCompartmentBlock)
+    #         if not isinstance(block, NetworkCompartmentBlock):
+    #             err_msg = "The given block is not a NetworkCompartmentBlock"
+    #             logger.error(
+    #                 err_msg, loc=f"{__file__} : Network.add_compartments_block()"
+    #             )
+    #             raise BNGModelError(self, message=err_msg)
     #         self.compartments = block
     #         if "compartments" not in self.active_blocks:
     #             self.active_blocks.append("compartments")
@@ -148,8 +157,12 @@ class Network:
 
     def add_species_block(self, block=None):
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, NetworkSpeciesBlock)
+            if not isinstance(block, NetworkSpeciesBlock):
+                err_msg = "The given block is not a NetworkSpeciesBlock"
+                logger.error(
+                    err_msg, loc=f"{__file__} : Network.add_species_block()"
+                )
+                raise BNGModelError(self, message=err_msg)
             self.species = block
             if "species" not in self.active_blocks:
                 self.active_blocks.append("species")
@@ -158,8 +171,12 @@ class Network:
 
     def add_groups_block(self, block=None):
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, NetworkGroupBlock)
+            if not isinstance(block, NetworkGroupBlock):
+                err_msg = "The given block is not a NetworkGroupBlock"
+                logger.error(
+                    err_msg, loc=f"{__file__} : Network.add_groups_block()"
+                )
+                raise BNGModelError(self, message=err_msg)
             self.groups = block
             if "groups" not in self.active_blocks:
                 self.active_blocks.append("groups")
@@ -180,7 +197,12 @@ class Network:
 
     # def add_functions_block(self, block=None):
     #     if block is not None:
-    #         assert isinstance(block, NetworkFunctionBlock)
+    #         if not isinstance(block, NetworkFunctionBlock):
+    #             err_msg = "The given block is not a NetworkFunctionBlock"
+    #             logger.error(
+    #                 err_msg, loc=f"{__file__} : Network.add_functions_block()"
+    #             )
+    #             raise BNGModelError(self, message=err_msg)
     #         self.functions = block
     #         if "functions" not in self.active_blocks:
     #             self.active_blocks.append("functions")
@@ -189,7 +211,12 @@ class Network:
 
     # def add_energy_patterns_block(self, block=None):
     #     if block is not None:
-    #         assert isinstance(block, NetworkEnergyPatternBlock)
+    #         if not isinstance(block, NetworkEnergyPatternBlock):
+    #             err_msg = "The given block is not a NetworkEnergyPatternBlock"
+    #             logger.error(
+    #                 err_msg, loc=f"{__file__} : Network.add_energy_patterns_block()"
+    #             )
+    #             raise BNGModelError(self, message=err_msg)
     #         self.energy_patterns = block
     #         if "energy_patterns" not in self.active_blocks:
     #             self.active_blocks.append("energy_patterns")
@@ -198,7 +225,12 @@ class Network:
 
     # def add_population_maps_block(self, block=None):
     #     if block is not None:
-    #         assert isinstance(block, NetworkPopulationMapBlock)
+    #         if not isinstance(block, NetworkPopulationMapBlock):
+    #             err_msg = "The given block is not a NetworkPopulationMapBlock"
+    #             logger.error(
+    #                 err_msg, loc=f"{__file__} : Network.add_population_maps_block()"
+    #             )
+    #             raise BNGModelError(self, message=err_msg)
     #         self.population_maps = block
     #         if "population_maps" not in self.active_blocks:
     #             self.active_blocks.append("population_maps")
