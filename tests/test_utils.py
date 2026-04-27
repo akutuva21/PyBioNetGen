@@ -1,5 +1,17 @@
+import pytest
 import subprocess
 from unittest.mock import MagicMock, patch
+
+from bionetgen.core.exc import BNGPerlError
+
+
+def test_perl_missing():
+    from bionetgen.core.utils.utils import test_perl
+
+    with patch("bionetgen.core.utils.utils.spawn.which") as mock_which:
+        mock_which.return_value = None
+        with pytest.raises(BNGPerlError):
+            test_perl()
 
 
 def test_bngexec_success():
