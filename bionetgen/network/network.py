@@ -159,9 +159,7 @@ class Network:
         if block is not None:
             if not isinstance(block, NetworkSpeciesBlock):
                 err_msg = "The given block is not a NetworkSpeciesBlock"
-                logger.error(
-                    err_msg, loc=f"{__file__} : Network.add_species_block()"
-                )
+                logger.error(err_msg, loc=f"{__file__} : Network.add_species_block()")
                 raise BNGModelError(self, message=err_msg)
             self.species = block
             if "species" not in self.active_blocks:
@@ -173,9 +171,7 @@ class Network:
         if block is not None:
             if not isinstance(block, NetworkGroupBlock):
                 err_msg = "The given block is not a NetworkGroupBlock"
-                logger.error(
-                    err_msg, loc=f"{__file__} : Network.add_groups_block()"
-                )
+                logger.error(err_msg, loc=f"{__file__} : Network.add_groups_block()")
                 raise BNGModelError(self, message=err_msg)
             self.groups = block
             if "groups" not in self.active_blocks:
