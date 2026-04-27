@@ -319,9 +319,10 @@ class Pattern:
 
     @compartment.setter
     def compartment(self, value):
-        # TODO: Build in logic to set the
-        # outer compartment
-        # print("Warning: Logical checks are not complete")
+        if hasattr(self, "_compartment"):
+            for molec in self.molecules:
+                if molec.compartment == self._compartment:
+                    molec.compartment = value
         self._compartment = value
 
     def consolidate_molecule_compartments(self):
