@@ -132,7 +132,13 @@ class NetworkBlock:
             and name.isidentifier()
             and not keyword.iskeyword(name)
         ):
-            if not hasattr(self.__class__, name) and name not in ["name", "items", "comment", "_changes", "_recompile"]:
+            if not hasattr(self.__class__, name) and name not in [
+                "name",
+                "items",
+                "comment",
+                "_changes",
+                "_recompile",
+            ]:
                 set_attr = True
 
         if set_attr:
