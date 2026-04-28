@@ -2816,11 +2816,10 @@ class SBML2BNGL:
         # BNGL model instead of a cBNGL model. Especially true since
         # this is the case for most SBML models.
         if len(allUsedCompartments) == 1:
-            # We are using only 1 compartment, check volume
-            # FIXME: We will try removing the compartment
-            # if only one is used
-            # self.noCompartment = True
-            # self.bngModel.noCompartment = True
+            # We are using only 1 compartment, check volume.
+            # We only remove the compartment if its volume is 1,
+            # as removing a compartment with a different volume
+            # would alter reaction rates.
             if self.compartmentDict[allUsedCompartments.pop()] == 1:
                 # we have 1 compartment and it's volume is 1
                 # just don't use compartments.
