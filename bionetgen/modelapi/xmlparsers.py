@@ -600,6 +600,17 @@ class RuleBlockXML(XMLObj):
             rate_cts = rate_cts_xml["RateConstant"]["@value"]
         elif rate_type == "Function":
             rate_cts = xml["@name"]
+        elif rate_type == "FunctionProduct":
+            # Mirror BNG2.pl/Perl2/RateLaw.pm:670-677 — emit
+            # FunctionProduct("name1(args1)","name2(args2)") so the
+            # regenerated BNGL round-trips through BNG2.pl's parser
+            # and reaches NFsim, which supports FunctionProduct
+            # natively (NFinput.cpp:2251).
+            name1 = xml["@name1"]
+            name2 = xml["@name2"]
+            a1 = self._ratelaw_arg_ids(xml.get("ListOfArguments1"))
+            a2 = self._ratelaw_arg_ids(xml.get("ListOfArguments2"))
+            rate_cts = f'FunctionProduct("{name1}({a1})","{name2}({a2})")'
         elif (
             rate_type == "MM"
             or rate_type == "Sat"
@@ -620,6 +631,22 @@ class RuleBlockXML(XMLObj):
         else:
             print("don't recognize rate law type")
         return rate_cts
+
+    def _ratelaw_arg_ids(self, args_xml):
+        """Join the ``@id`` of each Argument in a ListOfArguments[N] element.
+
+        BNG-XML packs a single Argument as a dict and multiple as a list,
+        so we accept both shapes. Returns "" when ``args_xml`` is None
+        or empty so callers can render zero-arg ``f()`` consistently.
+        """
+        if not args_xml:
+            return ""
+        args = args_xml.get("Argument") if hasattr(args_xml, "get") else None
+        if args is None:
+            return ""
+        if isinstance(args, list):
+            return ",".join(str(a["@id"]) for a in args)
+        return str(args["@id"])
 
     def resolve_rxn_side(self, xml):
         # this is either reactant or product
@@ -849,6 +876,17 @@ class PopulationMapBlockXML(XMLObj):
             rate_cts = rate_cts_xml["RateConstant"]["@value"]
         elif rate_type == "Function":
             rate_cts = xml["@name"]
+        elif rate_type == "FunctionProduct":
+            # Mirror BNG2.pl/Perl2/RateLaw.pm:670-677 — emit
+            # FunctionProduct("name1(args1)","name2(args2)") so the
+            # regenerated BNGL round-trips through BNG2.pl's parser
+            # and reaches NFsim, which supports FunctionProduct
+            # natively (NFinput.cpp:2251).
+            name1 = xml["@name1"]
+            name2 = xml["@name2"]
+            a1 = self._ratelaw_arg_ids(xml.get("ListOfArguments1"))
+            a2 = self._ratelaw_arg_ids(xml.get("ListOfArguments2"))
+            rate_cts = f'FunctionProduct("{name1}({a1})","{name2}({a2})")'
         elif (
             rate_type == "MM"
             or rate_type == "Sat"
@@ -869,6 +907,22 @@ class PopulationMapBlockXML(XMLObj):
         else:
             print("don't recognize rate law type")
         return rate_cts
+
+    def _ratelaw_arg_ids(self, args_xml):
+        """Join the ``@id`` of each Argument in a ListOfArguments[N] element.
+
+        BNG-XML packs a single Argument as a dict and multiple as a list,
+        so we accept both shapes. Returns "" when ``args_xml`` is None
+        or empty so callers can render zero-arg ``f()`` consistently.
+        """
+        if not args_xml:
+            return ""
+        args = args_xml.get("Argument") if hasattr(args_xml, "get") else None
+        if args is None:
+            return ""
+        if isinstance(args, list):
+            return ",".join(str(a["@id"]) for a in args)
+        return str(args["@id"])
 
 
 # TODO: Store operations!
