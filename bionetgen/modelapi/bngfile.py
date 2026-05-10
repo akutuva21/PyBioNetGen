@@ -192,8 +192,14 @@ class BNGFile:
         return stripped_model
 
     def _not_action(self, line) -> bool:
+        # Anchor the match to the start of the (left-stripped) line so that
+        # user identifiers containing an action name as a substring — most
+        # commonly ``conversion()`` (the substring ``version(`` matches the
+        # ``version`` action) inside a ``begin functions`` block — aren't
+        # misclassified and pulled out as actions.
+        stripped = line.lstrip()
         for action in self._action_list:
-            if action in line:
+            if stripped.startswith(action):
                 return False
         return True
 
