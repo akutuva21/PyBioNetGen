@@ -25,6 +25,7 @@ def _new_ccompiler():
         ) from exc
     return ccompiler.new_compiler()
 
+
 # This allows access to the CLIs config setup
 app = BioNetGen()
 app.setup()
