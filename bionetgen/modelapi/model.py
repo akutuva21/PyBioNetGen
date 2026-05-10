@@ -11,6 +11,7 @@ from .blocks import (
     MoleculeTypeBlock,
     ObservableBlock,
     ParameterBlock,
+    ProtocolBlock,
     RuleBlock,
     SpeciesBlock,
     EnergyPatternBlock,
@@ -87,6 +88,7 @@ class bngmodel:
             "energy_patterns",
             "population_maps",
             "rules",
+            "protocol",
             "actions",
         ]
         self.model_name = ""
@@ -308,6 +310,24 @@ class bngmodel:
                 self.active_blocks.append("population_maps")
         else:
             self.population_maps = PopulationMapBlock()
+
+    def add_protocol_block(self, block=None):
+        """
+        Adds a protocol block to the model object.
+
+        A protocol block lives inside ``begin model``/``end model`` and
+        holds a sequence of state-mutating action lines (e.g.
+        ``setParameter``, ``setConcentration``, ``simulate``) that BNG2.pl
+        executes when ``parameter_scan({method=>"protocol"})`` is invoked.
+        """
+        if block is not None:
+            # TODO: Transition to BNGErrors and logging
+            assert isinstance(block, ProtocolBlock)
+            self.protocol = block
+            if "protocol" not in self.active_blocks:
+                self.active_blocks.append("protocol")
+        else:
+            self.protocol = ProtocolBlock()
 
     def add_actions_block(self, block=None):
         """
