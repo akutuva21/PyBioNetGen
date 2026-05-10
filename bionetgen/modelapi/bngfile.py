@@ -150,10 +150,11 @@ class BNGFile:
         with open(model_path, "r", encoding="UTF-8") as mf:
             # read and strip actions
             mstr = mf.read()
-            # TODO: Clean this up _a lot_
-            # this removes any new line escapes (\ \n) to continue
-            # to another line, so we can just remove the action lines
-            mstr = re.sub(r"\\\n", "", mstr)
+            # Collapse `\<newline>` line continuations before stripping action
+            # lines. BNG2.pl also tolerates trailing whitespace between the
+            # `\` and the newline (e.g. `method=>"ode",\<space><newline>` is
+            # valid BNGL); accept the same shape here.
+            mstr = re.sub(r"\\[ \t]*\n", "", mstr)
             mlines = mstr.split("\n")
             stripped_lines = list(filter(lambda x: self._not_action(x), mlines))
             # remove spaces, actions don't allow them
