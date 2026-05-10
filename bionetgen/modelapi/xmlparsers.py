@@ -1,3 +1,5 @@
+import re
+
 from .blocks import ParameterBlock, CompartmentBlock, ObservableBlock
 from .blocks import SpeciesBlock, MoleculeTypeBlock
 from .blocks import FunctionBlock, RuleBlock
@@ -6,6 +8,28 @@ from .blocks import EnergyPatternBlock, PopulationMapBlock
 from .pattern import Pattern, Molecule, Component
 
 from .rulemod import RuleMod
+
+# BNG2.pl serializes the boolean operators ``&&`` and ``||`` in <Expression>
+# elements as the function-call-shaped strings ``(operand)and(operand)`` and
+# ``(operand)or(operand)`` (see Perl2/Expression.pm: '&&' => 'and'). When we
+# re-emit that body into a .bngl file BNG2.pl re-parses ``and(...)`` as a
+# function call and aborts ("Missing end parentheses ... at and(...)"), so
+# we have to undo the substitution here. The match is intentionally
+# anchored on the closing-paren of the left operand: BNG2.pl always wraps
+# both operands in parens when emitting these forms, so ``)and(`` /
+# ``)or(`` only appear as the boolean-operator encoding — never as the
+# tail of a user-defined identifier or a literal function call.
+_AND_OP_RE = re.compile(r"\)and\(")
+_OR_OP_RE = re.compile(r"\)or\(")
+
+
+def _decode_xml_boolean_ops(expr):
+    """Translate BNG2.pl's ``)and(`` / ``)or(`` XML encoding back to ``&&`` / ``||``."""
+    if not expr:
+        return expr
+    expr = _AND_OP_RE.sub(") && (", expr)
+    expr = _OR_OP_RE.sub(") || (", expr)
+    return expr
 
 
 ###### Base object  ######
@@ -494,7 +518,7 @@ class FunctionBlockXML(XMLObj):
             for f in xml:
                 # add content to line
                 fname = f["@id"]
-                expr = f["Expression"]
+                expr = _decode_xml_boolean_ops(f["Expression"])
                 args = []
                 if "ListOfArguments" in f:
                     args = self.get_arguments(f["ListOfArguments"]["Argument"])
@@ -502,7 +526,7 @@ class FunctionBlockXML(XMLObj):
                 block.add_function(fname, expr, args=args)
         else:
             fname = xml["@id"]
-            expr = xml["Expression"]
+            expr = _decode_xml_boolean_ops(xml["Expression"])
             args = []
             if "ListOfArguments" in xml:
                 args = self.get_arguments(xml["ListOfArguments"]["Argument"])
