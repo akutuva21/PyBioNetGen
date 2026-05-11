@@ -642,48 +642,30 @@ class SBML2BNGL:
         # let's parse the formula and get non-numerical symbols
         form = libsbml.formulaToString(math)
         # If we need to replace anything
-        # TODO: Replace all of these with regexp
-        for it in replace_dict.items():
-            form = form.replace(it[0], it[1])
+        for key, val in replace_dict.items():
+            form = re.sub(rf"\b{re.escape(key)}\b", val, form)
         # Let's also pool this in used_symbols
         for sym in self.all_syms.keys():
             if sym not in self.used_symbols:
                 self.used_symbols.append(sym)
         # Sympy doesn't allow and/not/or to be used
         # outside what it deems to be acceptable
-        # TODO: Replace all of these with regexp
-        if "piecewise(" in form:
-            form = form.replace("piecewise(", "sympyPiece(")
-            replace_dict["piecewise"] = "sympyPiece"
-        if "gt(" in form:
-            form = form.replace("gt(", "sympyGT(")
-            replace_dict["gt"] = "sympyGT"
-        if "geq(" in form:
-            form = form.replace("geq(", "sympyGEQ(")
-            replace_dict["geq"] = "sympyGEQ"
-        if "lt(" in form:
-            form = form.replace("lt(", "sympyLT(")
-            replace_dict["lt"] = "sympyLT"
-        if "leq(" in form:
-            form = form.replace("leq(", "sympyLEQ(")
-            replace_dict["leq"] = "sympyLEQ"
-        if "if(" in form:
-            form = form.replace("if(", "sympyIF(")
-            replace_dict["if"] = "sympyIF"
-        if "and(" in form:
-            form = form.replace("and(", "sympyAnd(")
-            replace_dict["and"] = "sympyAnd"
-        # TODO: "or(" catches stuff like "floor(" and other
-        # potential functions. This needs to be extended
-        # to more potential or statements (e.g. *or(, +or( etc
-        # the same goes for other functions too but this is
-        # particularly a problem for this one
-        if " or(" in form:
-            form = form.replace("or(", "sympyOr(")
-            replace_dict["or"] = "sympyOr"
-        if "not(" in form:
-            form = form.replace("not(", "sympyNot(")
-            replace_dict["not"] = "sympyNot"
+        sympy_funcs = {
+            "piecewise": "sympyPiece",
+            "gt": "sympyGT",
+            "geq": "sympyGEQ",
+            "lt": "sympyLT",
+            "leq": "sympyLEQ",
+            "if": "sympyIF",
+            "and": "sympyAnd",
+            "or": "sympyOr",
+            "not": "sympyNot",
+        }
+        for func, sympy_func in sympy_funcs.items():
+            pattern = rf"\b{func}\("
+            if re.search(pattern, form):
+                form = re.sub(pattern, f"{sympy_func}(", form)
+                replace_dict[func] = sympy_func
         return form, replace_dict
 
     def analyzeReactionRate(
