@@ -1,21 +1,37 @@
 class RuleMod:
     """
     Rule modifiers class for storage and printing.
+
+    A single rule may carry several modifiers — e.g. `DeleteMolecules`
+    together with `include_reactants(...)` / `exclude_products(...)`.
+    `self.modifiers` stores the BNGL serialization of each in insertion
+    order; `self.type` continues to track the single legacy modifier
+    name for backwards compatibility.
     """
 
-    def __init__(self, mod_type=None) -> None:
+    def __init__(self, mod_type=None, modifiers=None) -> None:
         # valid mod types
         self.valid_mod_names = ["DeleteMolecules", "MoveConnected", "TotalRate"]
+        self.modifiers: list[str] = []
         self.type = mod_type
+        if modifiers is not None:
+            for modifier in modifiers:
+                self.add_modifier(modifier)
 
     def __str__(self) -> str:
+        if len(self.modifiers) > 0:
+            return " ".join(self.modifiers)
         if self.type is None:
             return ""
-        else:
-            return self.type
+        return self.type
 
     def __repr__(self) -> str:
         return f"Rule modifier of type {self.type}"
+
+    def add_modifier(self, modifier) -> None:
+        text = str(modifier).strip()
+        if text and text not in self.modifiers:
+            self.modifiers.append(text)
 
     @property
     def type(self):

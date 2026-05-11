@@ -105,6 +105,7 @@ class ActionList:
             "max_agg",
             "max_iter",
             "max_stoich",
+            "check_iso",
             "TextReaction",
             "TextSpecies",
         ]
@@ -578,7 +579,10 @@ class ActionList:
         arg_type_list = "[" + pp.delimitedList((quote_word ^ arg_type_float)) + "]"
         arg_type_string = quote_word
         #
-        curly_arg_token = quote_word + "=>" + arg_type_int
+        # BNGL/Perl `=>` auto-quotes its left operand, so dict keys
+        # may be either bareword (max_stoich=>{R=>6}) or quoted
+        # (max_stoich=>{"R"=>6}). Accept both.
+        curly_arg_token = (base_name ^ quote_word) + "=>" + arg_type_int
         # TODO: handle 0 case
         arg_type_curly = "{" + pp.delimitedList(curly_arg_token) + "}"
         arg_types = (
@@ -746,20 +750,18 @@ def run_command(command, suppress=True, timeout=None, cwd=None):
     be killed.
     """
     if timeout is not None:
-        if suppress:
-            # I am unsure how to do both timeout and the live polling of stdo
-            rc = subprocess.run(
-                command,
-                timeout=timeout,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                cwd=cwd,
-            )
-            return rc.returncode, rc
-        else:
-            # I am unsure how to do both timeout and the live polling of stdo
-            rc = subprocess.run(command, timeout=timeout, capture_output=True, cwd=cwd)
-            return rc.returncode, rc
+        # Always capture stdout/stderr — this lets callers (notably BNGCLI)
+        # surface BNG2.pl's error tail in BNGRunError when the command
+        # fails. With timeout set, subprocess.run buffers all output
+        # anyway, so suppress=True vs False makes no behavioral difference
+        # for the user during the run.
+        rc = subprocess.run(
+            command,
+            timeout=timeout,
+            capture_output=True,
+            cwd=cwd,
+        )
+        return rc.returncode, rc
     else:
         if suppress:
             process = subprocess.Popen(
