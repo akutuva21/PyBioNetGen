@@ -150,10 +150,20 @@ class BNGFile:
         with open(model_path, "r", encoding="UTF-8") as mf:
             # read and strip actions
             mstr = mf.read()
-            # TODO: Clean this up _a lot_
-            # this removes any new line escapes (\ \n) to continue
-            # to another line, so we can just remove the action lines
-            mstr = re.sub(r"\\\n", "", mstr)
+            # Collapse `\<newline>` line continuations before stripping
+            # action lines, so the action parser sees the same logical
+            # command boundaries as BNG.
+            #
+            # Only collapse `\` that appears before any `#` on its line.
+            # A continuation marker after the comment introducer is part
+            # of the comment body in BNG2.pl — collapsing it would glue
+            # the next physical line (often a real definition) into the
+            # comment, dropping it from the model. Repro: a commented-out
+            # `# foo()=if(t<42,0,\` immediately above a live
+            # `foo()=if(t<42,9.899,\` definition would silently lose the
+            # live function from the regenerated `.bngl` (and from any
+            # `.net` BNG2.pl generated downstream).
+            mstr = re.sub(r"^([^#\n]*)\\\n", r"\1", mstr, flags=re.MULTILINE)
             mlines = mstr.split("\n")
             stripped_lines = list(filter(lambda x: self._not_action(x), mlines))
             # remove spaces, actions don't allow them
