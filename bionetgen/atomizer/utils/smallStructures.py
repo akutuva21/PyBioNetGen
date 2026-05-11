@@ -247,7 +247,8 @@ class Species:
     def updateBonds(self, bondNumbers):
         newBondNumbers = deepcopy(bondNumbers)
         correspondence = {}
-        intersection = [int(x) for x in newBondNumbers if x in self.getBondNumbers()]
+        self_bond_numbers = set(self.getBondNumbers())
+        intersection = [int(x) for x in newBondNumbers if x in self_bond_numbers]
         for element in self.molecules:
             for component in element.components:
                 for index in range(0, len(component.bonds)):
