@@ -69,7 +69,7 @@ class ModelObj:
         try:
             ll = int(val)
             self._line_label = "{} ".format(ll)
-        except:
+        except (TypeError, ValueError):
             self._line_label = "{}: ".format(val)
 
     def print_line(self) -> str:
@@ -423,7 +423,12 @@ class Rule(ModelObj):
             self.rate_constants = [rate_cts[0], rate_cts[1]]
             self.bidirectional = True
         else:
-            print("1 or 2 rate constants allowed")
+            raise BNGParseError(
+                message=(
+                    f": Rule {self.name} requires 1 or 2 rate constants, "
+                    f"got {len(rate_cts)}"
+                )
+            )
 
     def gen_string(self):
         if self.bidirectional:

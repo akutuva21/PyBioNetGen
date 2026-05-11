@@ -69,7 +69,7 @@ class NetworkObj:
         try:
             ll = int(val)
             self._line_label = "{} ".format(ll)
-        except:
+        except (TypeError, ValueError):
             self._line_label = "{}: ".format(val)
 
     def print_line(self) -> str:
