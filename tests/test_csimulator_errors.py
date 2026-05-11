@@ -1,3 +1,4 @@
+import os
 from unittest import mock
 
 import pytest
@@ -40,7 +41,7 @@ def test_csimulator_init_logs_missing_cvode_paths():
         mock.call("cvode_lib"),
     ]
     mock_wrapper.assert_called_once_with(
-        "/tmp/fake/libcsim.so", num_params=0, num_spec_init=0
+        os.path.abspath("/tmp/fake/libcsim.so"), num_params=0, num_spec_init=0
     )
 
 
