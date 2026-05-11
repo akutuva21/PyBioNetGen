@@ -29,7 +29,7 @@ def test_queryBioGridByName_httperror_with_organism():
         # Verify the specific error log was triggered
         mock_logMess.assert_any_call(
             "ERROR:MSC02",
-            "A connection could not be established to biogrid while testing with taxon tax/9606 and genes GENE1|GENE2, trying without organism taxonomy limitation",
+            "A connection could not be established to biogrid while testing with taxon 9606 and genes GENE1|GENE2, trying without organism taxonomy limitation",
         )
         assert result is False
 
