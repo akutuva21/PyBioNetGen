@@ -54,6 +54,11 @@ class BNGFile:
         self.BNGPATH = BNGPATH
         self.bngexec = bngexec
         self.parsed_actions = []
+        # Actions that live inside a ``begin protocol``/``end protocol``
+        # block, stored separately from top-level actions so BNGParser can
+        # round-trip them into a ProtocolBlock instead of folding them into
+        # the top-level ActionBlock.
+        self.parsed_protocol_actions = []
 
     def generate_xml(self, xml_file, model_file=None) -> bool:
         """
@@ -150,18 +155,55 @@ class BNGFile:
         with open(model_path, "r", encoding="UTF-8") as mf:
             # read and strip actions
             mstr = mf.read()
-            # Collapse `\<newline>` line continuations before stripping action
-            # lines. BNG2.pl also tolerates trailing whitespace between the
-            # `\` and the newline (e.g. `method=>"ode",\<space><newline>` is
+            # Collapse `\<newline>` line continuations before stripping
+            # action lines, so the action parser sees the same logical
+            # command boundaries as BNG.
+            #
+            # Only collapse `\` that appears before any `#` on its line.
+            # A continuation marker after the comment introducer is part
+            # of the comment body in BNG2.pl — collapsing it would glue
+            # the next physical line (often a real definition) into the
+            # comment, dropping it from the model. Repro: a commented-out
+            # `# foo()=if(t<42,0,\` immediately above a live
+            # `foo()=if(t<42,9.899,\` definition would silently lose the
+            # live function from the regenerated `.bngl` (and from any
+            # `.net` BNG2.pl generated downstream).
+            #
+            # BNG2.pl also tolerates trailing whitespace between the `\`
+            # and the newline (e.g. `method=>"ode",\<space><newline>` is
             # valid BNGL); accept the same shape here.
-            mstr = re.sub(r"\\[ \t]*\n", "", mstr)
+            mstr = re.sub(r"^([^#\n]*)\\[ \t]*\n", r"\1", mstr, flags=re.MULTILINE)
             mlines = mstr.split("\n")
-            stripped_lines = list(filter(lambda x: self._not_action(x), mlines))
-            # remove spaces, actions don't allow them
-            self.parsed_actions = [
-                x.replace(" ", "")
-                for x in filter(lambda x: not self._not_action(x), mlines)
-            ]
+            # Walk the lines once, separating non-action content (kept in the
+            # stripped output for BNG2.pl) from action-shaped lines, and
+            # further splitting action-shaped lines based on whether they sit
+            # inside a ``begin protocol``/``end protocol`` block. Protocol
+            # actions are tracked separately so BNGParser can round-trip them
+            # into a ProtocolBlock instead of the top-level ActionBlock.
+            self.parsed_actions = []
+            self.parsed_protocol_actions = []
+            stripped_lines = []
+            in_protocol = False
+            for line in mlines:
+                if re.match(r"\s*(begin)\s+(protocol)\b", line):
+                    in_protocol = True
+                    stripped_lines.append(line)
+                    continue
+                if re.match(r"\s*(end)\s+(protocol)\b", line):
+                    in_protocol = False
+                    stripped_lines.append(line)
+                    continue
+                if self._not_action(line):
+                    stripped_lines.append(line)
+                    continue
+                # Hand the action line off to BNGParser intact — quoted
+                # spans (e.g. ``param=>"-v -gml 1000000"``) need to survive
+                # the whitespace-collapse pass, which `_normalize_action_text`
+                # does in a quote-aware way.
+                if in_protocol:
+                    self.parsed_protocol_actions.append(line)
+                else:
+                    self.parsed_actions.append(line)
             # let's remove begin/end actions, rarely used but should be removed
             remove_from = -1
             remove_to = -1
@@ -193,8 +235,14 @@ class BNGFile:
         return stripped_model
 
     def _not_action(self, line) -> bool:
+        # Anchor the match to the start of the (left-stripped) line so that
+        # user identifiers containing an action name as a substring — most
+        # commonly ``conversion()`` (the substring ``version(`` matches the
+        # ``version`` action) inside a ``begin functions`` block — aren't
+        # misclassified and pulled out as actions.
+        stripped = line.lstrip()
         for action in self._action_list:
-            if action in line:
+            if stripped.startswith(action):
                 return False
         return True
 
