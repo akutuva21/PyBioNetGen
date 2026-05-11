@@ -168,7 +168,11 @@ class BNGFile:
             # `foo()=if(t<42,9.899,\` definition would silently lose the
             # live function from the regenerated `.bngl` (and from any
             # `.net` BNG2.pl generated downstream).
-            mstr = re.sub(r"^([^#\n]*)\\\n", r"\1", mstr, flags=re.MULTILINE)
+            #
+            # BNG2.pl also tolerates trailing whitespace between the `\`
+            # and the newline (e.g. `method=>"ode",\<space><newline>` is
+            # valid BNGL); accept the same shape here.
+            mstr = re.sub(r"^([^#\n]*)\\[ \t]*\n", r"\1", mstr, flags=re.MULTILINE)
             mlines = mstr.split("\n")
             # Walk the lines once, separating non-action content (kept in the
             # stripped output for BNG2.pl) from action-shaped lines, and
