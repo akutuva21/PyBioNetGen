@@ -1,6 +1,6 @@
 import os, bionetgen, glob
 from tempfile import TemporaryDirectory
-from typing import NoReturn
+from typing import NoReturn, Optional
 
 from bionetgen.core.exc import BNGError, BNGFileError
 from bionetgen.core.utils.logging import BNGLogger
@@ -200,7 +200,7 @@ class BNGVisualize:
         )
 
     def _run_and_collect_vis(
-        self, cli, *, model_name: str, cur_dir: str, dump_dir: str | None = None
+        self, cli, *, model_name: str, cur_dir: str, dump_dir: Optional[str] = None
     ) -> VisResult:
         try:
             cli.run()
