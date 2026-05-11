@@ -73,3 +73,20 @@ def test_pattern_canonicalization():
             break
     # assert that everything matched up
     assert res is True
+
+
+def test_action_normalization_drops_stray_backslashes_outside_quotes():
+    from bionetgen.modelapi.bngparser import _normalize_action_text
+
+    out = _normalize_action_text(
+        'parameter_scan({n_scan_pts=>101,\\log_scale=>1,method=>"ode"})'
+    )
+    assert "\\" not in out
+    assert "log_scale=>1" in out
+
+
+def test_action_normalization_preserves_backslashes_inside_quotes():
+    from bionetgen.modelapi.bngparser import _normalize_action_text
+
+    out = _normalize_action_text('action({arg=>"a\\b"})')
+    assert '"a\\b"' in out
