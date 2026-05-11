@@ -2,6 +2,7 @@ try:
     from typing import OrderedDict
 except ImportError:
     from collections import OrderedDict
+from bionetgen.core.utils.logging import BNGLogger
 from .structs import Parameter, Compartment, Observable
 from .structs import MoleculeType, Species, Function
 from .structs import Rule, Action
@@ -13,6 +14,8 @@ try:
     from typing import OrderedDict
 except ImportError:
     from collections import OrderedDict
+
+logger = BNGLogger()
 
 
 ###### BLOCK OBJECTS ######
@@ -105,10 +108,11 @@ class ModelBlock:
             if name in self.items.keys():
                 try:
                     new_value = float(value)
+                except (TypeError, ValueError):
+                    self.items[name] = value
+                else:
                     changed = True
                     self.items[name] = new_value
-                except:
-                    self.items[name] = value
                 if changed:
                     self._changes[name] = new_value
                     self.__dict__[name] = new_value
@@ -166,9 +170,13 @@ class ModelBlock:
         if isinstance(name, str):
             try:
                 setattr(self, name, value)
-            except:
-                print("can't set {} to {}".format(name, value))
-                pass
+            except Exception as exc:
+                logger.warning(
+                    f"Unable to bind attribute {name!r} for the {self.name} block;"
+                    " the item remains available via block.items. "
+                    f"Original error: {exc}",
+                    loc=f"{__file__} : ModelBlock.add_item()",
+                )
         # we just added an item to a block, let's assume we need
         # to recompile if we have a compiled simulator
         self._recompile = True
@@ -214,16 +222,20 @@ class ParameterBlock(ModelBlock):
                     try:
                         # try a new value, we need to make sure
                         # to stop printing out the expression
-                        value = float(value)
-                        if self.items[name]["value"] != value:
+                        new_value = float(value)
+                        if self.items[name]["value"] != new_value:
                             changed = True
-                            self.items[name]["value"] = value
+                            self.items[name]["value"] = new_value
                             self.items[name].write_expr = False
-                    except:
-                        print(
-                            "can't set parameter {} to {}".format(
-                                self.items[name]["name"], value
-                            )
+                            value = new_value
+                    except (TypeError, ValueError):
+                        logger.warning(
+                            "Unable to set parameter {!r} to {!r}; keeping existing value {!r}".format(
+                                self.items[name]["name"],
+                                value,
+                                self.items[name]["value"],
+                            ),
+                            loc=f"{__file__} : ParameterBlock.__setattr__()",
                         )
                 if changed:
                     self._changes[name] = value
@@ -266,15 +278,19 @@ class CompartmentBlock(ModelBlock):
                         self.items[name]["name"] = value
                 else:
                     try:
-                        value = float(value)
-                        if self.items[name]["size"] != value:
+                        new_value = float(value)
+                        if self.items[name]["size"] != new_value:
                             changed = True
-                            self.items[name]["size"] = value
-                    except:
-                        print(
-                            "can't set compartment {} to {}".format(
-                                self.items[name]["name"], value
-                            )
+                            self.items[name]["size"] = new_value
+                            value = new_value
+                    except (TypeError, ValueError):
+                        logger.warning(
+                            "Unable to set compartment {!r} to {!r}; keeping existing size {!r}".format(
+                                self.items[name]["name"],
+                                value,
+                                self.items[name]["size"],
+                            ),
+                            loc=f"{__file__} : CompartmentBlock.__setattr__()",
                         )
                 if changed:
                     self._changes[name] = value
@@ -316,10 +332,13 @@ class ObservableBlock(ModelBlock):
                         changed = True
                         self.items[name]["name"] = value
                 else:
-                    print(
-                        "can't set observable {} to {}".format(
-                            self.items[name]["name"], value
-                        )
+                    logger.warning(
+                        "Unable to set observable {!r} to {!r}; keeping existing observable {!r}".format(
+                            self.items[name]["name"],
+                            value,
+                            self.items[name]["name"],
+                        ),
+                        loc=f"{__file__} : ObservableBlock.__setattr__()",
                     )
                 if changed:
                     self._changes[name] = value
@@ -361,10 +380,13 @@ class SpeciesBlock(ModelBlock):
                         changed = True
                         self.items[name]["name"] = value
                 else:
-                    print(
-                        "can't set species {} to {}".format(
-                            self.items[name]["name"], value
-                        )
+                    logger.warning(
+                        "Unable to set species {!r} to {!r}; keeping existing species {!r}".format(
+                            self.items[name]["name"],
+                            value,
+                            self.items[name]["name"],
+                        ),
+                        loc=f"{__file__} : SpeciesBlock.__setattr__()",
                     )
                 if changed:
                     self._changes[name] = value
