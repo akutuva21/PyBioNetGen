@@ -336,8 +336,8 @@ def extractRedundantContext(rules, transformationCenter, transformationContext):
     redundantDict = groupByReactionCenterAndRateAndActions2(rules, centerDict)
     # redundantDict['{0}.{1}'.format(element, element2)] = tmpDict[element2]
     redundantListDict = obtainDifferences(redundantDict, transformationContext)
-    # todo: remove redundancies from rules
-    # group together equivalent patterns
+
+    # remove redundancies from rules
     patternDictList = {}
     for center in redundantListDict:
         for rate in redundantListDict[center]:
@@ -392,10 +392,10 @@ def main():
     for center in redundantDict:
         for context in redundantDict[center]:
             for element in range(1, len(redundantDict[center][context])):
-                newRules.remove(redundantDict[center][context][element])
-
-    # for element in newRules:
-    #    print str(rules[element][0])
+                try:
+                    newRules.remove(redundantDict[center][context][element])
+                except ValueError:
+                    pass
 
     newRulesArray = []
     for element in newRules:
