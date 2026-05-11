@@ -54,6 +54,11 @@ class BNGFile:
         self.BNGPATH = BNGPATH
         self.bngexec = bngexec
         self.parsed_actions = []
+        # Actions that live inside a ``begin protocol``/``end protocol``
+        # block, stored separately from top-level actions so BNGParser can
+        # round-trip them into a ProtocolBlock instead of folding them into
+        # the top-level ActionBlock.
+        self.parsed_protocol_actions = []
 
     def generate_xml(self, xml_file, model_file=None) -> bool:
         """
@@ -165,12 +170,36 @@ class BNGFile:
             # `.net` BNG2.pl generated downstream).
             mstr = re.sub(r"^([^#\n]*)\\\n", r"\1", mstr, flags=re.MULTILINE)
             mlines = mstr.split("\n")
-            stripped_lines = list(filter(lambda x: self._not_action(x), mlines))
-            # remove spaces, actions don't allow them
-            self.parsed_actions = [
-                x.replace(" ", "")
-                for x in filter(lambda x: not self._not_action(x), mlines)
-            ]
+            # Walk the lines once, separating non-action content (kept in the
+            # stripped output for BNG2.pl) from action-shaped lines, and
+            # further splitting action-shaped lines based on whether they sit
+            # inside a ``begin protocol``/``end protocol`` block. Protocol
+            # actions are tracked separately so BNGParser can round-trip them
+            # into a ProtocolBlock instead of the top-level ActionBlock.
+            self.parsed_actions = []
+            self.parsed_protocol_actions = []
+            stripped_lines = []
+            in_protocol = False
+            for line in mlines:
+                if re.match(r"\s*(begin)\s+(protocol)\b", line):
+                    in_protocol = True
+                    stripped_lines.append(line)
+                    continue
+                if re.match(r"\s*(end)\s+(protocol)\b", line):
+                    in_protocol = False
+                    stripped_lines.append(line)
+                    continue
+                if self._not_action(line):
+                    stripped_lines.append(line)
+                    continue
+                # Hand the action line off to BNGParser intact — quoted
+                # spans (e.g. ``param=>"-v -gml 1000000"``) need to survive
+                # the whitespace-collapse pass, which `_normalize_action_text`
+                # does in a quote-aware way.
+                if in_protocol:
+                    self.parsed_protocol_actions.append(line)
+                else:
+                    self.parsed_actions.append(line)
             # let's remove begin/end actions, rarely used but should be removed
             remove_from = -1
             remove_to = -1
