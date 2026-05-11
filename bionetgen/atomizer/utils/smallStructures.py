@@ -247,7 +247,8 @@ class Species:
     def updateBonds(self, bondNumbers):
         newBondNumbers = deepcopy(bondNumbers)
         correspondence = {}
-        intersection = [int(x) for x in newBondNumbers if x in self.getBondNumbers()]
+        self_bond_numbers = set(self.getBondNumbers())
+        intersection = [int(x) for x in newBondNumbers if x in self_bond_numbers]
         for element in self.molecules:
             for component in element.components:
                 for index in range(0, len(component.bonds)):
@@ -549,7 +550,7 @@ class Molecule:
         return [x for x in self.components if x.bonds != []]
 
     def contains(self, componentName):
-        return componentName in [x.name for x in self.components]
+        return any(x.name == componentName for x in self.components)
 
     def __str__(self):
         self.components = sorted(self.components, key=lambda st: st.name)

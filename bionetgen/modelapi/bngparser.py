@@ -149,19 +149,32 @@ class BNGParser:
                         ablock.add_action(atype, {action_list[0]: None})
                         continue
                     elif len(action_list) == 3:
-                        # TODO: Error checking here!
                         if action_list[1] == ",":
                             # this is of the form action(argument, value)
                             ablock.add_action(
                                 atype, {action_list[0]: None, action_list[2]: None}
                             )
                             continue
+                        else:
+                            raise BNGParseError(
+                                self.bngfile.path, f"Action {action} is malformed"
+                            )
+                    else:
+                        raise BNGParseError(
+                            self.bngfile.path, f"Action {action} is malformed"
+                        )
                 elif atype in self.alist.square_braces:
                     # these are actions like saveParameters(["a","b"])
-                    # TODO: Error checking here!
                     if action_list[0] == "[":
-                        # remove square braces
-                        action_list = action_list[1:-1]
+                        if action_list[-1] == "]":
+                            # remove square braces
+                            action_list = action_list[1:-1]
+                        else:
+                            raise BNGParseError(
+                                self.bngfile.path, f"Action {action} is malformed"
+                            )
+                    # if action_list doesn't have square brackets, it just loops over arguments
+                    # but we should ensure it's not empty, which was handled earlier (or is length 0)
                     arg_dict = {}
                     for arg in action_list:
                         arg_dict[arg] = None
@@ -169,10 +182,14 @@ class BNGParser:
                     continue
                 elif atype in self.alist.normal_types:
                     # finally a normal action, we have {} and => syntax
-                    # TODO: Error checking here!
                     if action_list[0] == "{":
-                        # remove curly braces
-                        action_list = action_list[1:-1]
+                        if action_list[-1] == "}":
+                            # remove curly braces
+                            action_list = action_list[1:-1]
+                        else:
+                            raise BNGParseError(
+                                self.bngfile.path, f"Action {action} is malformed"
+                            )
                     arg_dict = {}
                     if len(action_list) == 0:
                         ablock.add_action(atype, arg_dict)

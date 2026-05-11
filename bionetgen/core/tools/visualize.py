@@ -34,8 +34,8 @@ class VisResult:
         # we need to assume some sort of GML output
         # at least for now
         # use the name, if given, search for GMLs if not
-        gmls = glob.glob("*.gml")
-        graphmls = glob.glob("*.graphml")
+        gmls = glob.glob(os.path.join(self.input_folder, "*.gml"))
+        graphmls = glob.glob(os.path.join(self.input_folder, "*.graphml"))
         graphfiles = gmls + graphmls
         for gfile in graphfiles:
             if self.name is None:
@@ -46,7 +46,7 @@ class VisResult:
                 self.file_strs[gfile] = l
             else:
                 # pull GMLs that contain the name
-                if self.name in gfile:
+                if self.name in os.path.basename(gfile):
                     self.files.append(gfile)
                     # now load into string
                     with open(gfile, "r") as f:
@@ -57,10 +57,10 @@ class VisResult:
         self.logger.debug(
             "Writing graphml/gml files", loc=f"{__file__} : VisResult._dump_files()"
         )
-        os.chdir(folder)
         for gfile in self.files:
             g_name = os.path.split(gfile)[-1]
-            with open(g_name, "w") as f:
+            dest = os.path.join(folder, g_name)
+            with open(dest, "w") as f:
                 f.write(self.file_strs[gfile])
 
 
@@ -185,29 +185,24 @@ class BNGVisualize:
                 cli.run()
                 # load vis
                 vis_res = VisResult(
-                    os.path.abspath(os.getcwd()),
+                    os.path.abspath(out),
                     name=model.model_name,
                     vtype=self.vtype,
                 )
-                # go back
-                os.chdir(cur_dir)
 
                 # dump files
                 if self.output is None:
-                    vis_res._dump_files(cur_dir)
+                    vis_res._dump_files(os.getcwd())
                 else:
                     if not os.path.isdir(self.output):
                         os.makedirs(self.output, exist_ok=True)
                     vis_res._dump_files(os.path.abspath(self.output))
 
-                # _dump_files changes the current directory, so we must go back
-                os.chdir(cur_dir)
                 return vis_res
             except Exception as e:
                 self.logger.error(
                     "Failed to run file",
                     loc=f"{__file__} : BNGVisualize._normal_mode()",
                 )
-                os.chdir(cur_dir)
                 print("Couldn't run the simulation, see error.")
                 raise e

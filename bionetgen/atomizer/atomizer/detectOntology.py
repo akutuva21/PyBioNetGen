@@ -10,7 +10,6 @@ import difflib
 from collections import Counter
 import json
 import ast
-import pickle
 import os
 from os import listdir
 from os.path import isfile, join
@@ -322,39 +321,49 @@ def databaseAnalysis(directory, outputFile):
         fileCounter = Counter()
         for element in fileDict:
             fileCounter[element] = len(fileDict[element])
-        with open(outputFile, "wb") as f:
-            pickle.dump(differenceCounter, f)
-            # pickle.dump(differenceDict,f)
-            pickle.dump(fileCounter, f)
+
+        data = {
+            "differenceCounter": {repr(k): v for k, v in differenceCounter.items()},
+            "fileCounter": {repr(k): v for k, v in fileCounter.items()},
+        }
+        with open(outputFile, "w") as f:
+            json.dump(data, f)
 
 
-"""        
 try:
     import pandas as pd
 except ImportError:
     pd = None
 
+
 def analyzeTrends(inputFile):
-    with open(inputFile,'rb') as f:
-        counter = pickle.load(f)
-        #dictionary = pickle.load(f)
-        fileCounter = pickle.load(f)
+    with open(inputFile, "r") as f:
+        data = json.load(f)
+
+    counter = Counter(
+        {ast.literal_eval(k): v for k, v in data.get("differenceCounter", {}).items()}
+    )
+    fileCounter = Counter(
+        {ast.literal_eval(k): v for k, v in data.get("fileCounter", {}).items()}
+    )
+
     totalCounter = Counter()
     for element in counter:
-        
-        totalCounter[element] = counter[element] * fileCounter[element]/469.0
+
+        totalCounter[element] = counter[element] * fileCounter[element] / 469.0
     keys = totalCounter.most_common(200)
-    #keys = keys[1:]
+    # keys = keys[1:]
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(keys)
-    data = pd.DataFrame(keys)
-    #print(data.to_excel('name.xls'))
-    
-    #for element in keys:
+    if pd is not None:
+        data = pd.DataFrame(keys)
+        # print(data.to_excel('name.xls'))
+
+    # for element in keys:
     #    print('------------------')
     #    print(element)
     #    pp.pprint(dictionary[element[0]])
-"""
+
 
 if __name__ == "__main__":
     bioNumber = 19

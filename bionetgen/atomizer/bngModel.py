@@ -112,7 +112,6 @@ class Species:
         if self.initAmount >= 0:
             self.val = self.initAmount
         elif self.initConc >= 0:
-            # TODO: Figure out what to do w/ conc
             self.isConc = True
             self.val = self.initConc
         else:
@@ -1238,7 +1237,7 @@ class bngModel:
                         # namespace collisions.
                         # TODO: We might want to
                         # remove parameters as well
-                        if molec.name in self.observables:
+                        if getattr(molec, "name", None) in self.observables:
                             obs = self.observables.pop(molec.name)
                             self.obs_map[obs.get_obs_name()] = molec.Id + "()"
                         elif molec.Id in self.observables:
@@ -1247,7 +1246,7 @@ class bngModel:
                         # for spec in self.species:
                         #     sobj = self.species[spec]
                         #     # if molec.name == sobj.Id or molec
-                        if molec.name in self.species:
+                        if getattr(molec, "name", None) in self.species:
                             spec = self.species.pop(molec.name)
                         elif molec.Id in self.species:
                             spec = self.species.pop(molec.Id)
@@ -1256,8 +1255,6 @@ class bngModel:
 
                         # this will be a function
                         fobj = self.make_function()
-                        # TODO: sometimes molec.name is not
-                        # normalized, check if .Id works consistently
                         fobj.Id = molec.Id + "()"
                         fobj.definition = arule.rates[0]
                         if len(arule.compartmentList) > 0:
@@ -1463,8 +1460,10 @@ class bngModel:
                 if s.compartment in self.compartments:
                     comp = self.compartments[s.compartment]
                     s.val = s.initConc * comp.size
-                    s.concCorrected = True
-                    s.isConc = False
+                else:
+                    s.val = s.initConc
+                s.concCorrected = True
+                s.isConc = False
 
     # def adjust_concentrations(self):
     #     # some species are given as concentrations
