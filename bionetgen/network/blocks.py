@@ -2,6 +2,7 @@ try:
     from typing import OrderedDict
 except ImportError:
     from collections import OrderedDict
+from bionetgen.core.utils.logging import BNGLogger
 from .structs import NetworkParameter, NetworkCompartment, NetworkGroup
 from .structs import NetworkSpecies, NetworkFunction, NetworkReaction
 from .structs import NetworkEnergyPattern, NetworkPopulationMap
@@ -11,6 +12,8 @@ try:
     from typing import OrderedDict
 except ImportError:
     from collections import OrderedDict
+
+logger = BNGLogger()
 
 
 ###### BLOCK OBJECTS ######
@@ -42,6 +45,7 @@ class NetworkBlock:
     def __init__(self) -> None:
         self.name = "NetworkBlock"
         self.comment = (None, None)
+        self._changes = OrderedDict()
         self.items = OrderedDict()
 
     def __str__(self) -> str:
@@ -87,10 +91,11 @@ class NetworkBlock:
             if name in self.items.keys():
                 try:
                     new_value = float(value)
+                except (TypeError, ValueError):
+                    self.items[name] = value
+                else:
                     changed = True
                     self.items[name] = new_value
-                except:
-                    self.items[name] = value
                 if changed:
                     self._changes[name] = new_value
                     self.__dict__[name] = new_value
@@ -129,9 +134,13 @@ class NetworkBlock:
         if isinstance(name, str):
             try:
                 setattr(self, name, value)
-            except:
-                # print("can't set {} to {}".format(name, value))
-                pass
+            except Exception as exc:
+                logger.warning(
+                    f"Unable to bind attribute {name!r} for the {self.name} block;"
+                    " the item remains available via block.items. "
+                    f"Original error: {exc}",
+                    loc=f"{__file__} : NetworkBlock.add_item()",
+                )
         # we just added an item to a block, let's assume we need
         # to recompile if we have a compiled simulator
         self._recompile = True
@@ -174,16 +183,20 @@ class NetworkParameterBlock(NetworkBlock):
                     try:
                         # try a new value, we need to make sure
                         # to stop printing out the expression
-                        value = float(value)
-                        if self.items[name]["value"] != value:
+                        new_value = float(value)
+                        if self.items[name]["value"] != new_value:
                             changed = True
-                            self.items[name]["value"] = value
+                            self.items[name]["value"] = new_value
                             self.items[name].write_expr = False
-                    except:
-                        print(
-                            "can't set parameter {} to {}".format(
-                                self.items[name]["name"], value
-                            )
+                            value = new_value
+                    except (TypeError, ValueError):
+                        logger.warning(
+                            "Unable to set parameter {!r} to {!r}; keeping existing value {!r}".format(
+                                self.items[name]["name"],
+                                value,
+                                self.items[name]["value"],
+                            ),
+                            loc=f"{__file__} : NetworkParameterBlock.__setattr__()",
                         )
                 if changed:
                     self._changes[name] = value
@@ -226,15 +239,19 @@ class NetworkCompartmentBlock(NetworkBlock):
                         self.items[name]["name"] = value
                 else:
                     try:
-                        value = float(value)
-                        if self.items[name]["size"] != value:
+                        new_value = float(value)
+                        if self.items[name]["size"] != new_value:
                             changed = True
-                            self.items[name]["size"] = value
-                    except:
-                        print(
-                            "can't set compartment {} to {}".format(
-                                self.items[name]["name"], value
-                            )
+                            self.items[name]["size"] = new_value
+                            value = new_value
+                    except (TypeError, ValueError):
+                        logger.warning(
+                            "Unable to set compartment {!r} to {!r}; keeping existing size {!r}".format(
+                                self.items[name]["name"],
+                                value,
+                                self.items[name]["size"],
+                            ),
+                            loc=f"{__file__} : NetworkCompartmentBlock.__setattr__()",
                         )
                 if changed:
                     self._changes[name] = value
@@ -276,10 +293,13 @@ class NetworkGroupBlock(NetworkBlock):
                         changed = True
                         self.items[name]["name"] = value
                 else:
-                    print(
-                        "can't set group {} to {}".format(
-                            self.items[name]["name"], value
-                        )
+                    logger.warning(
+                        "Unable to set group {!r} to {!r}; keeping existing group {!r}".format(
+                            self.items[name]["name"],
+                            value,
+                            self.items[name]["name"],
+                        ),
+                        loc=f"{__file__} : NetworkGroupBlock.__setattr__()",
                     )
                 if changed:
                     self._changes[name] = value
@@ -321,10 +341,13 @@ class NetworkSpeciesBlock(NetworkBlock):
                         changed = True
                         self.items[name]["name"] = value
                 else:
-                    print(
-                        "can't set species {} to {}".format(
-                            self.items[name]["name"], value
-                        )
+                    logger.warning(
+                        "Unable to set species {!r} to {!r}; keeping existing species {!r}".format(
+                            self.items[name]["name"],
+                            value,
+                            self.items[name]["name"],
+                        ),
+                        loc=f"{__file__} : NetworkSpeciesBlock.__setattr__()",
                     )
                 if changed:
                     self._changes[name] = value
