@@ -1,7 +1,7 @@
 import xmltodict
 
 from bionetgen.main import BioNetGen
-from bionetgen.core.exc import BNGParseError, BNGModelError
+from bionetgen.core.exc import BNGFileError, BNGParseError, BNGModelError
 from tempfile import TemporaryFile
 
 from .bngfile import BNGFile
@@ -181,17 +181,19 @@ class BNGParser:
             # TODO: Add verbosity option to the library
             # print("Attempting to generate XML")
             with TemporaryFile("w+") as xml_file:
-                if self.bngfile.generate_xml(xml_file):
-                    # TODO: Add verbosity option to the library
-                    xmlstr = xml_file.read()
-                    # < is not a valid XML character, we need to replace it
-                    xmlstr = xmlstr.replace('relation="<', 'relation="&lt;')
-                    self.parse_xml(xmlstr, model_obj)
-                    model_obj.reset_compilation_tags()
-                else:
+                try:
+                    self.bngfile.generate_xml(xml_file)
+                except BNGFileError as exc:
                     raise BNGModelError(
-                        self.bngfile.path, message="XML file couldn't be generated"
-                    )
+                        self.bngfile.path,
+                        message=f"XML file couldn't be generated: {exc.message}",
+                    ) from exc
+                # TODO: Add verbosity option to the library
+                xmlstr = xml_file.read()
+                # < is not a valid XML character, we need to replace it
+                xmlstr = xmlstr.replace('relation="<', 'relation="&lt;')
+                self.parse_xml(xmlstr, model_obj)
+                model_obj.reset_compilation_tags()
         elif model_file.endswith(".xml"):
             with open(model_file, "r") as f:
                 xml_str = f.read()

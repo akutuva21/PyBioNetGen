@@ -1,5 +1,8 @@
 import re
+from typing import NoReturn
 
+from bionetgen.core.exc import BNGParseError
+from bionetgen.core.utils.logging import BNGLogger
 from .blocks import ParameterBlock, CompartmentBlock, ObservableBlock
 from .blocks import SpeciesBlock, MoleculeTypeBlock
 from .blocks import FunctionBlock, RuleBlock
@@ -21,6 +24,56 @@ from .rulemod import RuleMod
 # tail of a user-defined identifier or a literal function call.
 _AND_OP_RE = re.compile(r"\)and\(")
 _OR_OP_RE = re.compile(r"\)or\(")
+logger = BNGLogger()
+_PARSE_SOURCE = "<BNG-XML>"
+
+
+def _raise_parse_error(message: str, *, loc: str) -> NoReturn:
+    logger.error(message, loc=loc)
+    raise BNGParseError(_PARSE_SOURCE, message=f": {message}")
+
+
+def _ratelaw_arg_ids(args_xml):
+    """Join argument ids from a ListOfArguments[N] element."""
+    if not args_xml:
+        return ""
+    args = args_xml.get("Argument") if hasattr(args_xml, "get") else None
+    if args is None:
+        return ""
+    if isinstance(args, list):
+        return ",".join(str(arg["@id"]) for arg in args)
+    return str(args["@id"])
+
+
+def _resolve_ratelaw(xml, *, context: str, loc: str) -> str:
+    rate_type = str(xml["@type"])
+    if rate_type == "Ele":
+        rate_cts_xml = xml["ListOfRateConstants"]
+        return str(rate_cts_xml["RateConstant"]["@value"])
+    if rate_type == "Function":
+        return str(xml["@name"])
+    if rate_type == "FunctionProduct":
+        name1 = str(xml["@name1"])
+        name2 = str(xml["@name2"])
+        a1 = _ratelaw_arg_ids(xml.get("ListOfArguments1"))
+        a2 = _ratelaw_arg_ids(xml.get("ListOfArguments2"))
+        return f'FunctionProduct("{name1}({a1})","{name2}({a2})")'
+    if rate_type in ("MM", "Sat", "Hill", "Arrhenius"):
+        rate_cts = rate_type + "("
+        args = xml["ListOfRateConstants"]["RateConstant"]
+        if isinstance(args, list):
+            for iarg, arg in enumerate(args):
+                if iarg > 0:
+                    rate_cts += ","
+                rate_cts += str(arg["@value"])
+        else:
+            rate_cts += str(args["@value"])
+        rate_cts += ")"
+        return rate_cts
+    _raise_parse_error(
+        f"Unrecognized rate law type {rate_type!r} in {context}",
+        loc=loc,
+    )
 
 
 def _decode_xml_boolean_ops(expr):
@@ -103,7 +156,7 @@ class BondsXML:
         comp_id = comp["@id"]
         try:
             num_bonds = int(num_bonds)
-        except:
+        except (TypeError, ValueError):
             # This means we have something like +/?
             return num_bonds
         # use the comp_id to find the bond index from
@@ -205,10 +258,17 @@ class PatternXML(XMLObj):
             try:
                 n = int(quantity)
                 f = float(quantity)
-                if n == f:
-                    pattern.quantity = quantity
-            except ValueError as e:
-                print("Quantity needs to be an integer")
+            except (TypeError, ValueError):
+                _raise_parse_error(
+                    f"Pattern quantity must be an integer, got {quantity!r}",
+                    loc=f"{__file__} : PatternXML.parse_xml()",
+                )
+            if n != f:
+                _raise_parse_error(
+                    f"Pattern quantity must be an integer, got {quantity!r}",
+                    loc=f"{__file__} : PatternXML.parse_xml()",
+                )
+            pattern.quantity = quantity
         # check for either list of molecules or single molecule, add if exist
         mols = xml["ListOfMolecules"]["Molecule"]
         molecules = []
@@ -615,8 +675,9 @@ class RuleBlockXML(XMLObj):
                 reactants = self.resolve_rxn_side(rule["ListOfReactantPatterns"])
                 products = self.resolve_rxn_side(rule["ListOfProductPatterns"])
                 if "RateLaw" not in rule:
-                    print(
-                        "Rule seems to be missing a rate law, please make sure that XML exporter of BNGL supports whatever you are doing!"
+                    _raise_parse_error(
+                        f"Reaction rule {name!r} is missing a RateLaw entry",
+                        loc=f"{__file__} : RuleBlockXML.parse_xml()",
                     )
                 rate_constants = [self.resolve_ratelaw(rule["RateLaw"])]
                 rule_modifier = self.get_rule_mod(rule)
@@ -637,8 +698,9 @@ class RuleBlockXML(XMLObj):
             reactants = self.resolve_rxn_side(xml["ListOfReactantPatterns"])
             products = self.resolve_rxn_side(xml["ListOfProductPatterns"])
             if "RateLaw" not in xml:
-                print(
-                    "Rule seems to be missing a rate law, please make sure that XML exporter of BNGL supports whatever you are doing!"
+                _raise_parse_error(
+                    f"Reaction rule {name!r} is missing a RateLaw entry",
+                    loc=f"{__file__} : RuleBlockXML.parse_xml()",
                 )
             rate_constants = [self.resolve_ratelaw(xml["RateLaw"])]
             rule_modifier = self.get_rule_mod(xml)
@@ -656,59 +718,11 @@ class RuleBlockXML(XMLObj):
         return block
 
     def resolve_ratelaw(self, xml):
-        rate_type = xml["@type"]
-        if rate_type == "Ele":
-            rate_cts_xml = xml["ListOfRateConstants"]
-            rate_cts = rate_cts_xml["RateConstant"]["@value"]
-        elif rate_type == "Function":
-            rate_cts = xml["@name"]
-        elif rate_type == "FunctionProduct":
-            # Mirror BNG2.pl/Perl2/RateLaw.pm:670-677 — emit
-            # FunctionProduct("name1(args1)","name2(args2)") so the
-            # regenerated BNGL round-trips through BNG2.pl's parser
-            # and reaches NFsim, which supports FunctionProduct
-            # natively (NFinput.cpp:2251).
-            name1 = xml["@name1"]
-            name2 = xml["@name2"]
-            a1 = self._ratelaw_arg_ids(xml.get("ListOfArguments1"))
-            a2 = self._ratelaw_arg_ids(xml.get("ListOfArguments2"))
-            rate_cts = f'FunctionProduct("{name1}({a1})","{name2}({a2})")'
-        elif (
-            rate_type == "MM"
-            or rate_type == "Sat"
-            or rate_type == "Hill"
-            or rate_type == "Arrhenius"
-        ):
-            # A function type
-            rate_cts = rate_type + "("
-            args = xml["ListOfRateConstants"]["RateConstant"]
-            if isinstance(args, list):
-                for iarg, arg in enumerate(args):
-                    if iarg > 0:
-                        rate_cts += ","
-                    rate_cts += arg["@value"]
-            else:
-                rate_cts += args["@value"]
-            rate_cts += ")"
-        else:
-            print("don't recognize rate law type")
-        return rate_cts
-
-    def _ratelaw_arg_ids(self, args_xml):
-        """Join the ``@id`` of each Argument in a ListOfArguments[N] element.
-
-        BNG-XML packs a single Argument as a dict and multiple as a list,
-        so we accept both shapes. Returns "" when ``args_xml`` is None
-        or empty so callers can render zero-arg ``f()`` consistently.
-        """
-        if not args_xml:
-            return ""
-        args = args_xml.get("Argument") if hasattr(args_xml, "get") else None
-        if args is None:
-            return ""
-        if isinstance(args, list):
-            return ",".join(str(a["@id"]) for a in args)
-        return str(args["@id"])
+        return _resolve_ratelaw(
+            xml,
+            context="reaction rule",
+            loc=f"{__file__} : RuleBlockXML.resolve_ratelaw()",
+        )
 
     def resolve_rxn_side(self, xml):
         # this is either reactant or product
@@ -745,7 +759,10 @@ class RuleBlockXML(XMLObj):
                 sl.append(PatternXML(side).parsed_obj)
             return sl
         else:
-            print("Can't parse rule XML {}".format(xml))
+            _raise_parse_error(
+                "Reaction side XML must contain ReactantPattern or ProductPattern",
+                loc=f"{__file__} : RuleBlockXML.resolve_rxn_side()",
+            )
 
     def get_operations(self, xml):
         # TODO: create working operations class
@@ -994,59 +1011,11 @@ class PopulationMapBlockXML(XMLObj):
         return block
 
     def resolve_ratelaw(self, xml):
-        rate_type = xml["@type"]
-        if rate_type == "Ele":
-            rate_cts_xml = xml["ListOfRateConstants"]
-            rate_cts = rate_cts_xml["RateConstant"]["@value"]
-        elif rate_type == "Function":
-            rate_cts = xml["@name"]
-        elif rate_type == "FunctionProduct":
-            # Mirror BNG2.pl/Perl2/RateLaw.pm:670-677 — emit
-            # FunctionProduct("name1(args1)","name2(args2)") so the
-            # regenerated BNGL round-trips through BNG2.pl's parser
-            # and reaches NFsim, which supports FunctionProduct
-            # natively (NFinput.cpp:2251).
-            name1 = xml["@name1"]
-            name2 = xml["@name2"]
-            a1 = self._ratelaw_arg_ids(xml.get("ListOfArguments1"))
-            a2 = self._ratelaw_arg_ids(xml.get("ListOfArguments2"))
-            rate_cts = f'FunctionProduct("{name1}({a1})","{name2}({a2})")'
-        elif (
-            rate_type == "MM"
-            or rate_type == "Sat"
-            or rate_type == "Hill"
-            or rate_type == "Arrhenius"
-        ):
-            # A function type
-            rate_cts = rate_type + "("
-            args = xml["ListOfRateConstants"]["RateConstant"]
-            if isinstance(args, list):
-                for iarg, arg in enumerate(args):
-                    if iarg > 0:
-                        rate_cts += ","
-                    rate_cts += arg["@value"]
-            else:
-                rate_cts += args["@value"]
-            rate_cts += ")"
-        else:
-            print("don't recognize rate law type")
-        return rate_cts
-
-    def _ratelaw_arg_ids(self, args_xml):
-        """Join the ``@id`` of each Argument in a ListOfArguments[N] element.
-
-        BNG-XML packs a single Argument as a dict and multiple as a list,
-        so we accept both shapes. Returns "" when ``args_xml`` is None
-        or empty so callers can render zero-arg ``f()`` consistently.
-        """
-        if not args_xml:
-            return ""
-        args = args_xml.get("Argument") if hasattr(args_xml, "get") else None
-        if args is None:
-            return ""
-        if isinstance(args, list):
-            return ",".join(str(a["@id"]) for a in args)
-        return str(args["@id"])
+        return _resolve_ratelaw(
+            xml,
+            context="population map",
+            loc=f"{__file__} : PopulationMapBlockXML.resolve_ratelaw()",
+        )
 
 
 # TODO: Store operations!
