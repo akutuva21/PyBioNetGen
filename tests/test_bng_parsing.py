@@ -90,3 +90,20 @@ def test_action_normalization_preserves_backslashes_inside_quotes():
 
     out = _normalize_action_text('action({arg=>"a\\b"})')
     assert '"a\\b"' in out
+
+
+def test_action_normalization_collapses_unquoted_double_commas():
+    from bionetgen.modelapi.bngparser import _normalize_action_text
+
+    out = _normalize_action_text(
+        'simulate({method=>"ode",t_end=>3000,n_steps=>20,,print_functions=>1})'
+    )
+    assert ",," not in out
+    assert ",n_steps=>20,print_functions=>1" in out
+
+
+def test_action_normalization_preserves_double_commas_inside_quotes():
+    from bionetgen.modelapi.bngparser import _normalize_action_text
+
+    out = _normalize_action_text('something({xs=>"0,,1,,2"})')
+    assert '"0,,1,,2"' in out

@@ -28,7 +28,47 @@ def _normalize_action_text(action: str) -> str:
     text = _strip_comment_outside_quotes(action)
     text = _collapse_unquoted_whitespace(text)
     text = _strip_unquoted_backslashes(text)
+    text = _collapse_unquoted_double_commas(text)
     return text.strip()
+
+
+def _collapse_unquoted_double_commas(text: str) -> str:
+    """Collapse repeated commas that appear outside string literals."""
+    out = []
+    in_single = False
+    in_double = False
+    escaped = False
+    prev_was_comma = False
+    for ch in text:
+        if escaped:
+            out.append(ch)
+            escaped = False
+            prev_was_comma = False
+            continue
+        if ch == "\\" and (in_single or in_double):
+            out.append(ch)
+            escaped = True
+            prev_was_comma = False
+            continue
+        if ch == '"' and not in_single:
+            in_double = not in_double
+            out.append(ch)
+            prev_was_comma = False
+            continue
+        if ch == "'" and not in_double:
+            in_single = not in_single
+            out.append(ch)
+            prev_was_comma = False
+            continue
+        if ch == "," and not in_single and not in_double:
+            if prev_was_comma:
+                continue
+            prev_was_comma = True
+            out.append(ch)
+            continue
+        prev_was_comma = False
+        out.append(ch)
+    return "".join(out)
 
 
 def _strip_unquoted_backslashes(text: str) -> str:
