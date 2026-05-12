@@ -90,10 +90,7 @@ class ModelBlock:
         self.items[key] = value
 
     def __delitem__(self, key) -> None:
-        if key in self.items:
-            self.items.pop(key)
-        else:
-            print("Item {} not found".format(key))
+        self.items.pop(key)
 
     def __iter__(self):
         return self.items.keys().__iter__()
@@ -630,11 +627,7 @@ class ActionBlock(ModelBlock):
         self.items[key] = value
 
     def __delitem__(self, key) -> None:
-        try:
-            return self.items.pop(key)
-        # TODO: more specific except statements
-        except:
-            print("Item {} not found".format(key))
+        return self.items.pop(key)
 
     def __iter__(self):
         return range(len(self.items)).__iter__()
@@ -647,13 +640,8 @@ class ActionBlock(ModelBlock):
         adds action, needs type as string and args as list of tuples
         (which preserve order) of (argument, value) pairs
         """
-        if action_type in self._action_list:
-            a = Action(action_type=action_type, action_args=action_args)
-            self.add_item((action_type, a))
-        else:
-            print(
-                "Action type {} is not recognized as a BNGL action".format(action_type)
-            )
+        a = Action(action_type=action_type, action_args=action_args)
+        self.add_item((action_type, a))
 
     def clear_actions(self) -> None:
         self.items.clear()
