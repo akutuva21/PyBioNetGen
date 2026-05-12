@@ -27,7 +27,41 @@ def _normalize_action_text(action: str) -> str:
     """
     text = _strip_comment_outside_quotes(action)
     text = _collapse_unquoted_whitespace(text)
+    text = _strip_unquoted_backslashes(text)
     return text.strip()
+
+
+def _strip_unquoted_backslashes(text: str) -> str:
+    """Drop ``\\`` characters that appear outside string literals."""
+    return _filter_outside_quotes(text, lambda ch: ch != "\\")
+
+
+def _filter_outside_quotes(text: str, keep) -> str:
+    out = []
+    in_single = False
+    in_double = False
+    escaped = False
+    for ch in text:
+        if escaped:
+            out.append(ch)
+            escaped = False
+            continue
+        if ch == "\\" and (in_single or in_double):
+            out.append(ch)
+            escaped = True
+            continue
+        if ch == '"' and not in_single:
+            in_double = not in_double
+            out.append(ch)
+            continue
+        if ch == "'" and not in_double:
+            in_single = not in_single
+            out.append(ch)
+            continue
+        if not in_single and not in_double and not keep(ch):
+            continue
+        out.append(ch)
+    return "".join(out)
 
 
 def _strip_comment_outside_quotes(text: str) -> str:
