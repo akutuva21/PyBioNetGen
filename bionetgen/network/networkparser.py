@@ -12,10 +12,10 @@ from bionetgen.network.blocks import (
 )
 
 # This allows access to the CLIs config setup
-app = BioNetGen()
-app.setup()
-conf = app.config["bionetgen"]
-def_bng_path = conf["bngpath"]
+from bionetgen.core.defaults import BNGDefaults
+
+d = BNGDefaults()
+def_bng_path = d.bng_path
 
 
 class BNGNetworkParser:
