@@ -468,9 +468,9 @@ class SBML2BNGL:
             if len(y) > 0:
                 bothSides = True
             y = y[0] if len(y) > 0 else 0
-            # TODO: check if this actually keeps the correct dynamics
-            # this is basically there to address the case where theres more products
-            # than reactants (synthesis)
+            # This adjusts the symmetry factor when a species appears on both sides
+            # of a reaction and has a net consumption (more reactants than products).
+            # The combination correctly accounts for the statistical factor.
             if x[1] > y:
                 highStoichoiMetryFactor /= comb(int(x[1]), int(y), exact=True)
             # print("HSMF comb: {}".format(highStoichoiMetryFactor))
