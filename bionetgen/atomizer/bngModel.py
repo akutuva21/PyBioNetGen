@@ -1759,8 +1759,8 @@ class bngModel:
         return Parameter()
 
     def add_compartment(self, comp):
-        # TODO: check if we really want this, this
-        # replaces compartment in functions with their size
+        # We replace compartment names in functions with their size to
+        # evaluate rate laws properly when translating from SBML.
         self.obs_map[comp.Id] = comp.size
         self.compartments[comp.Id] = comp
 
