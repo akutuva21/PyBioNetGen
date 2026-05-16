@@ -70,43 +70,46 @@ class BNGFile:
             stripped_bngl = self.strip_actions(model_file, temp_folder)
             # run with --xml
             os.chdir(temp_folder)
-            # If BNG2.pl is not available, fall back to a minimal in-Python XML
-            # representation so that the rest of the library can still function.
-            if self.bngexec is None:
-                return self._generate_minimal_xml(xml_file, stripped_bngl)
+            try:
+                # If BNG2.pl is not available, fall back to a minimal in-Python XML
+                # representation so that the rest of the library can still function.
+                if self.bngexec is None:
+                    return self._generate_minimal_xml(xml_file, stripped_bngl)
 
-            # TODO: take stdout option from app instead
-            rc, _ = run_command(
-                ["perl", self.bngexec, "--xml", stripped_bngl], suppress=self.suppress
-            )
-            if rc != 0:
-                return False
+                # TODO: take stdout option from app instead
+                rc, _ = run_command(
+                    ["perl", self.bngexec, "--xml", stripped_bngl],
+                    suppress=self.suppress,
+                )
+                if rc != 0:
+                    return False
 
-            # we should now have the XML file
-            path, model_name = os.path.split(stripped_bngl)
-            model_name = model_name.replace(".bngl", "")
-            written_xml_file = model_name + ".xml"
-            xml_path = os.path.join(temp_folder, written_xml_file)
-            if not os.path.exists(xml_path):
-                candidates = glob.glob(os.path.join(temp_folder, "*.xml"))
-                if candidates:
-                    preferred = [
-                        c
-                        for c in candidates
-                        if os.path.basename(c).startswith(model_name)
-                    ]
-                    xml_path = preferred[0] if preferred else candidates[0]
-            if not os.path.exists(xml_path):
-                return False
-            with open(xml_path, "r", encoding="UTF-8") as f:
-                content = f.read()
-                xml_file.write(content)
-            # since this is an open file, to read it later
-            # we need to go back to the beginning
-            xml_file.seek(0)
-            return True
+                # we should now have the XML file
+                path, model_name = os.path.split(stripped_bngl)
+                model_name = model_name.replace(".bngl", "")
+                written_xml_file = model_name + ".xml"
+                xml_path = os.path.join(temp_folder, written_xml_file)
+                if not os.path.exists(xml_path):
+                    candidates = glob.glob(os.path.join(temp_folder, "*.xml"))
+                    if candidates:
+                        preferred = [
+                            c
+                            for c in candidates
+                            if os.path.basename(c).startswith(model_name)
+                        ]
+                        xml_path = preferred[0] if preferred else candidates[0]
+                if not os.path.exists(xml_path):
+                    return False
+                with open(xml_path, "r", encoding="UTF-8") as f:
+                    content = f.read()
+                    xml_file.write(content)
+                # since this is an open file, to read it later
+                # we need to go back to the beginning
+                xml_file.seek(0)
+                return True
+            finally:
+                os.chdir(cur_dir)
         finally:
-            os.chdir(cur_dir)
             try:
                 shutil.rmtree(temp_folder)
             except Exception:
@@ -216,48 +219,51 @@ class BNGFile:
         try:
             # write the current model to temp folder
             os.chdir(temp_folder)
-            with open("temp.bngl", "w", encoding="UTF-8") as f:
-                f.write(bngl_str)
-            # run with --xml
-            # Output suppression is handled downstream by self.suppress
-            if xml_type == "bngxml":
-                rc, _ = run_command(
-                    ["perl", self.bngexec, "--xml", "temp.bngl"], suppress=self.suppress
-                )
-                if rc != 0:
-                    print("XML generation failed")
-                    return False
-                else:
-                    # we should now have the XML file
-                    with open("temp.xml", "r", encoding="UTF-8") as f:
-                        content = f.read()
-                        open_file.write(content)
-                    # go back to beginning
-                    open_file.seek(0)
-                    return True
-            elif xml_type == "sbml":
-                if self.bngexec is None:
-                    print(
-                        "SBML generation requires BNG2.pl (BioNetGen) to be installed."
+            try:
+                with open("temp.bngl", "w", encoding="UTF-8") as f:
+                    f.write(bngl_str)
+                # run with --xml
+                # Output suppression is handled downstream by self.suppress
+                if xml_type == "bngxml":
+                    rc, _ = run_command(
+                        ["perl", self.bngexec, "--xml", "temp.bngl"],
+                        suppress=self.suppress,
                     )
-                    return False
-                command = ["perl", self.bngexec, "temp.bngl"]
-                rc, _ = run_command(command, suppress=self.suppress)
-                if rc != 0:
-                    print("SBML generation failed")
-                    return False
+                    if rc != 0:
+                        print("XML generation failed")
+                        return False
+                    else:
+                        # we should now have the XML file
+                        with open("temp.xml", "r", encoding="UTF-8") as f:
+                            content = f.read()
+                            open_file.write(content)
+                        # go back to beginning
+                        open_file.seek(0)
+                        return True
+                elif xml_type == "sbml":
+                    if self.bngexec is None:
+                        print(
+                            "SBML generation requires BNG2.pl (BioNetGen) to be installed."
+                        )
+                        return False
+                    command = ["perl", self.bngexec, "temp.bngl"]
+                    rc, _ = run_command(command, suppress=self.suppress)
+                    if rc != 0:
+                        print("SBML generation failed")
+                        return False
+                    else:
+                        # we should now have the SBML file
+                        with open("temp_sbml.xml", "r", encoding="UTF-8") as f:
+                            content = f.read()
+                            open_file.write(content)
+                        open_file.seek(0)
+                        return True
                 else:
-                    # we should now have the SBML file
-                    with open("temp_sbml.xml", "r", encoding="UTF-8") as f:
-                        content = f.read()
-                        open_file.write(content)
-                    open_file.seek(0)
-                    return True
-            else:
-                print("XML type {} not recognized".format(xml_type))
-                return False
+                    print("XML type {} not recognized".format(xml_type))
+                    return False
+            finally:
+                os.chdir(cur_dir)
         finally:
-            os.chdir(cur_dir)
             try:
                 shutil.rmtree(temp_folder)
             except Exception:
