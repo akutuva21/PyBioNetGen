@@ -53,8 +53,6 @@ class BNGResult:
             self.gnames[fnoext] = direct_path
             self.gdats[fnoext] = self.load(direct_path)
         elif path is not None:
-            # TODO change this pattern so that each method
-            # is stand alone and usable.
             self.path = path
             self.find_dat_files()
             self.load_results()
@@ -103,47 +101,56 @@ class BNGResult:
     def _load_scan(self, fpath):
         return self._load_dat(fpath)
 
-    def find_dat_files(self):
+    def find_dat_files(self, folder_path=None):
+        folder_path = folder_path or getattr(self, "path", None)
+        if folder_path is None:
+            self.logger.error(
+                "No path provided to find_dat_files",
+                loc=f"{__file__} : BNGResult.find_dat_files()",
+            )
+            return
+
         self.logger.debug(
-            f"Scanning for valid files in folder {self.path}",
+            f"Scanning for valid files in folder {folder_path}",
             loc=f"{__file__} : BNGResult.find_dat_files()",
         )
-        files = os.listdir(self.path)
+        files = os.listdir(folder_path)
         ext = "gdat"
         gdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
         for dat_file in gdat_files:
             name = dat_file.replace(f".{ext}", "")
-            self.gnames[name] = dat_file
+            self.gnames[name] = os.path.join(folder_path, dat_file)
 
         ext = "cdat"
         cdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
         for dat_file in cdat_files:
             name = dat_file.replace(f".{ext}", "")
-            self.cnames[name] = dat_file
+            self.cnames[name] = os.path.join(folder_path, dat_file)
 
         ext = "scan"
         scan_files = filter(lambda x: x.endswith(f".{ext}"), files)
         for dat_file in scan_files:
             name = dat_file.replace(f".{ext}", "")
-            self.snames[name] = dat_file
+            self.snames[name] = os.path.join(folder_path, dat_file)
 
-    def load_results(self):
+    def load_results(self, folder_path=None):
+        if folder_path is not None:
+            self.find_dat_files(folder_path)
+
+        path_to_log = folder_path if folder_path is not None else getattr(self, "path", None)
         self.logger.debug(
-            f"Loading results from {self.path}",
+            f"Loading results from {path_to_log}",
             loc=f"{__file__} : BNGResult.load_results()",
         )
         # load gdat files
         for name in self.gnames:
-            gdat_path = os.path.join(self.path, self.gnames[name])
-            self.gdats[name] = self.load(gdat_path)
-        # load gdat files
+            self.gdats[name] = self.load(self.gnames[name])
+        # load cdat files
         for name in self.cnames:
-            cdat_path = os.path.join(self.path, self.cnames[name])
-            self.cdats[name] = self.load(cdat_path)
+            self.cdats[name] = self.load(self.cnames[name])
         # load scan files
         for name in self.snames:
-            scan_path = os.path.join(self.path, self.snames[name])
-            self.scans[name] = self.load(scan_path)
+            self.scans[name] = self.load(self.snames[name])
 
     def _load_dat(self, path, dformat="f8"):
         """
