@@ -1590,7 +1590,10 @@ class bngModel:
                             #     break
                             if spec_name in frate.definition:
                                 # means we got a volume to divide by
-                                # TODO: Wtf happens if this has multiple species
+                                # If this has multiple species, regex word boundaries
+                                # (\W|^) and (\W|$) ensure that each species name
+                                # is substituted independently without interfering
+                                # with previously replaced text or parameter names.
                                 sp = self.species[spec_name]
                                 comp = self.compartments[sp.compartment]
                                 vol = comp.size
