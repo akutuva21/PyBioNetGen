@@ -130,6 +130,19 @@ def test_bionetgen_info():
         assert app.exit_code == 0
 
 
+def test_bionetgen_info_detail():
+    # tests info subcommand with detail flag
+    argv = ["info", "-d"]
+    with BioNetGenTest(argv=argv) as app:
+        app.run()
+        assert app.exit_code == 0
+
+    argv = ["info", "--detail"]
+    with BioNetGenTest(argv=argv) as app:
+        app.run()
+        assert app.exit_code == 0
+
+
 def test_model_running_CLI():
     # tests running a list of models using the CLI
     mpattern = os.path.join(tfold, "models") + os.sep + "*.bngl"

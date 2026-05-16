@@ -53,6 +53,19 @@ def test_bionetgen_info():
         assert app.exit_code == 0
 
 
+def test_bionetgen_info_detail():
+    # tests info subcommand with detail flag
+    argv = ["info", "-d"]
+    with BioNetGenTest(argv=argv) as app:
+        app.run()
+        assert app.exit_code == 0
+
+    argv = ["info", "--detail"]
+    with BioNetGenTest(argv=argv) as app:
+        app.run()
+        assert app.exit_code == 0
+
+
 def test_plotDAT_valid_input(mocker):
     from unittest.mock import MagicMock
     from bionetgen.core.main import plotDAT
