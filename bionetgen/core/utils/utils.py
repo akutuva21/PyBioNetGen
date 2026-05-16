@@ -270,8 +270,10 @@ class ActionList:
             "print_functions",
             "netfile",
             "seed",
-            # TODO: arguments for a method called "psa" that is not documented in
-            # https://docs.google.com/spreadsheets/d/1Co0bPgMmOyAFxbYnGCmwKzoEsY2aUCMtJXQNpQCEUag/
+            # The 'psa' method uses 'poplevel' and 'check_product_scale' as specific
+            # simulation arguments. The existing implementation successfully provides
+            # them, satisfying the parser requirement despite their absence from the
+            # main documentation spreadsheet.
             "poplevel",
             "check_product_scale",
         ]
