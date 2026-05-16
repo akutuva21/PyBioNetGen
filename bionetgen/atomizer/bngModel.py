@@ -1,4 +1,5 @@
 import re, pyparsing, sympy, json
+import networkx as nx
 from bionetgen.atomizer.utils.util import logMess
 from bionetgen.atomizer.writer.bnglWriter import rindex
 
@@ -1731,22 +1732,12 @@ class bngModel:
             else:
                 frates.append(fkey)
         # Now reorder accordingly
-        ordered_funcs = []
-        # this ensures we write the independendent functions first
-        stck = sorted(dep_dict.keys(), key=lambda x: len(dep_dict[x]))
-        # FIXME: This algorithm works but likely inefficient
-        while len(stck) > 0:
-            k = stck.pop()
-            deps = dep_dict[k]
-            if len(deps) == 0:
-                if k not in ordered_funcs:
-                    ordered_funcs.append(k)
-            else:
-                stck.append(k)
-                for dep in deps:
-                    if dep not in ordered_funcs:
-                        stck.append(dep)
-                    dep_dict[k].remove(dep)
+        G = nx.DiGraph(dep_dict).reverse()
+        try:
+            ordered_funcs = list(nx.topological_sort(G))
+        except nx.NetworkXUnfeasible:
+            # Fallback if there is a cycle (though in biological models, function deps shouldn't have cycles)
+            ordered_funcs = list(G.nodes())
         # print ordered functions and return
         ordered_funcs += frates
         self.function_order = ordered_funcs
