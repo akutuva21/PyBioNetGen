@@ -168,16 +168,14 @@ class CSimulator(BNGSimulator):
         elif isinstance(model_file, bionetgen.bngmodel):
             # loaded model
             self.model = model_file
-            cd = os.getcwd()
             with tempfile.TemporaryDirectory() as tmpdirname:
-                os.chdir(tmpdirname)
                 self.model.actions.clear_actions()
-                self.model.write_model(f"{self.model.model_name}_cpy.bngl")
+                cpy_path = os.path.join(tmpdirname, f"{self.model.model_name}_cpy.bngl")
+                self.model.write_model(cpy_path)
                 self.model = bionetgen.bngmodel(
-                    f"{self.model.model_name}_cpy.bngl",
+                    cpy_path,
                     generate_network=generate_network,
                 )
-            os.chdir(cd)
         else:
             print(f"model format not recognized: {model_file}")
         # set compiler
