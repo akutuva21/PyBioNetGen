@@ -24,6 +24,7 @@ def _bngl2xml_worker(bnglFile):
     with open(xml_file, "w+") as f:
         mdl.bngparser.bngfile.write_xml(f, xml_type="bngxml", bngl_str=str(mdl))
 
+
 def bngl2xml(bnglFile, timeout=60):
     p = multiprocessing.Process(target=_bngl2xml_worker, args=(bnglFile,))
     p.start()
@@ -33,6 +34,7 @@ def bngl2xml(bnglFile, timeout=60):
         p.join()
         # cleanup partially written file if exists
         import os
+
         xml_file = bnglFile.replace(".bngl", "_bngxml.xml")
         if os.path.exists(xml_file):
             os.remove(xml_file)
