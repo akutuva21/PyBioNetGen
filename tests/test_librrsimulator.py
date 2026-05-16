@@ -3,6 +3,7 @@ import unittest.mock
 import sys
 from bionetgen.simulator.librrsimulator import libRRSimulator
 
+
 def test_librrsimulator_sbml():
     sim = libRRSimulator()
     mock_simulator = unittest.mock.Mock()
@@ -22,6 +23,7 @@ def test_librrsimulator_sbml():
     assert sim.sbml == "<sbml>new</sbml>"
     assert mock_simulator.getCurrentSBML.call_count == 1
 
+
 def test_librrsimulator_simulator_property():
     sim = libRRSimulator()
 
@@ -29,7 +31,7 @@ def test_librrsimulator_simulator_property():
     mock_rr_module = unittest.mock.Mock()
     mock_rr_module.RoadRunner.return_value = "mock_rr_instance"
 
-    with unittest.mock.patch.dict('sys.modules', {'roadrunner': mock_rr_module}):
+    with unittest.mock.patch.dict("sys.modules", {"roadrunner": mock_rr_module}):
         sim.simulator = "dummy_model"
 
         # Verify RoadRunner was instantiated with the model
@@ -38,18 +40,20 @@ def test_librrsimulator_simulator_property():
         # Verify simulator property returns the instance
         assert sim.simulator == "mock_rr_instance"
 
+
 def test_librrsimulator_simulator_import_error():
     sim = libRRSimulator()
 
     # Test simulator setter when roadrunner import fails
-    with unittest.mock.patch.dict('sys.modules', {'roadrunner': None}):
+    with unittest.mock.patch.dict("sys.modules", {"roadrunner": None}):
         # Mock print to verify the error message is printed
-        with unittest.mock.patch('builtins.print') as mock_print:
+        with unittest.mock.patch("builtins.print") as mock_print:
             sim.simulator = "dummy_model"
             mock_print.assert_called_once_with("libroadrunner is not installed!")
 
             # _simulator should remain uninitialized or as previously set
-            assert not hasattr(sim, '_simulator')
+            assert not hasattr(sim, "_simulator")
+
 
 def test_librrsimulator_simulate():
     sim = libRRSimulator()
