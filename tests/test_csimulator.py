@@ -27,14 +27,18 @@ def test_set_parameters_success():
     with unittest.mock.patch("bionetgen.simulator.csimulator.ctypes.CDLL"):
         wrapper = CSimWrapper("dummy_lib_path", num_params=3, num_spec_init=2)
         wrapper.set_parameters([1.0, 2.0, 3.0])
-        np.testing.assert_array_equal(wrapper.parameters, np.array([1.0, 2.0, 3.0], dtype=np.float64))
+        np.testing.assert_array_equal(
+            wrapper.parameters, np.array([1.0, 2.0, 3.0], dtype=np.float64)
+        )
 
 
 def test_set_species_init_success():
     with unittest.mock.patch("bionetgen.simulator.csimulator.ctypes.CDLL"):
         wrapper = CSimWrapper("dummy_lib_path", num_params=3, num_spec_init=2)
         wrapper.set_species_init([1.0, 2.0])
-        np.testing.assert_array_equal(wrapper.species_init, np.array([1.0, 2.0], dtype=np.float64))
+        np.testing.assert_array_equal(
+            wrapper.species_init, np.array([1.0, 2.0], dtype=np.float64)
+        )
 
 
 def test_csimulator_simulator_property():
@@ -50,23 +54,28 @@ def test_csimulator_simulator_property():
                 "_ignore": MockVal("1.0"),
                 "param1": MockVal("2.0"),
                 "param2": MockVal("not_a_float"),
-                "param3": MockVal("3.0")
+                "param3": MockVal("3.0"),
             }
             self.species = {"spec1": 1, "spec2": 2}
 
     csim.model = MockModel()
 
-    with unittest.mock.patch("bionetgen.simulator.csimulator.CSimWrapper") as mock_wrapper:
+    with unittest.mock.patch(
+        "bionetgen.simulator.csimulator.CSimWrapper"
+    ) as mock_wrapper:
         csim.simulator = "dummy_lib_file"
         mock_wrapper.assert_called_once()
         args, kwargs = mock_wrapper.call_args
-        assert kwargs["num_params"] == 2 # param1 and param3
-        assert kwargs["num_spec_init"] == 2 # 2 species
+        assert kwargs["num_params"] == 2  # param1 and param3
+        assert kwargs["num_spec_init"] == 2  # 2 species
         assert args[0] == os.path.abspath("dummy_lib_file")
 
         assert csim.simulator == mock_wrapper.return_value
 
-    with unittest.mock.patch("bionetgen.simulator.csimulator.CSimWrapper", side_effect=Exception("Test Error")):
+    with unittest.mock.patch(
+        "bionetgen.simulator.csimulator.CSimWrapper",
+        side_effect=Exception("Test Error"),
+    ):
         with pytest.raises(BNGCompileError):
             csim.simulator = "dummy_lib_file"
 
