@@ -206,3 +206,5 @@ class BNGVisualize:
                 )
                 print("Couldn't run the simulation, see error.")
                 raise e
+            finally:
+                os.chdir(cur_dir)
