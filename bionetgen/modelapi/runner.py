@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def run(inp, out=None, suppress=False, timeout=None):
+    cur_dir = os.getcwd()
     """
     Convenience function to run BNG2.pl as a library
 
@@ -27,9 +28,9 @@ def run(inp, out=None, suppress=False, timeout=None):
         into. If it doesn't exist, it will be created.
     """
     # if out is None we make a temp directory
-    cur_dir = os.getcwd()
     if out is None:
         with TemporaryDirectory() as out:
+            cur_dir = os.getcwd()
             # instantiate a CLI object with the info
             cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
             try:
@@ -44,6 +45,7 @@ def run(inp, out=None, suppress=False, timeout=None):
                     logger.error(f"STDERR:\n{e.stderr}")
                 raise e
     else:
+        cur_dir = os.getcwd()
         # instantiate a CLI object with the info
         cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
         try:
