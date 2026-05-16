@@ -43,6 +43,8 @@ class NetworkBlock:
     def __init__(self) -> None:
         self.name = "NetworkBlock"
         self.comment = (None, None)
+        self._changes = OrderedDict()
+        self._recompile = False
         self.items = OrderedDict()
 
     def __str__(self) -> str:
@@ -81,20 +83,15 @@ class NetworkBlock:
     def __contains__(self, key) -> bool:
         return key in self.items
 
-    # TODO: Think extensively how this is going to work
     def __setattr__(self, name, value) -> None:
-        changed = False
-        if hasattr(self, "items"):
-            if name in self.items.keys():
-                try:
-                    new_value = float(value)
-                    changed = True
-                    self.items[name] = new_value
-                except:
-                    self.items[name] = value
-                if changed:
-                    self._changes[name] = new_value
-                    self.__dict__[name] = new_value
+        if hasattr(self, "items") and name in self.items:
+            try:
+                new_value = float(value)
+            except ValueError:
+                new_value = value
+            self.items[name] = new_value
+            self._changes[name] = new_value
+            self.__dict__[name] = new_value
         else:
             self.__dict__[name] = value
 
