@@ -6,6 +6,7 @@ from .structs import NetworkParameter, NetworkCompartment, NetworkGroup
 from .structs import NetworkSpecies, NetworkFunction, NetworkReaction
 from .structs import NetworkEnergyPattern, NetworkPopulationMap
 import keyword
+import sympy
 
 # this import fails on some python versions
 try:
@@ -116,10 +117,17 @@ class NetworkBlock:
         return "\n".join(block_lines)
 
     def add_item(self, item_tpl) -> None:
-        # TODO: try adding evaluation of the parameter here
-        # for the future, in case we want people to be able
-        # to adjust the math
         name, value = item_tpl
+
+        # Try evaluating parameter value if it's a numeric expression
+        if hasattr(value, "value") and isinstance(value.value, str):
+            try:
+                sym_val = sympy.sympify(value.value)
+                if sym_val.is_Number:
+                    value.value = str(float(sym_val))
+            except Exception:
+                pass
+
         # allow for empty addition, uses index
         if name is None:
             name = len(self.items)
