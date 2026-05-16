@@ -315,9 +315,27 @@ class Function:
             fdef = self.resolve_sbmlfuncs(fdef)
 
         if self.rule_ptr is not None:
-            # TODO: pull info
+            # pull info
             # react/prod/comp
-            pass
+            reactants = self.rule_ptr.reactants
+            products = self.rule_ptr.products
+
+            for reactant in reactants:
+                fdef = re.sub(r"(\W|^)({0}\s*\*)".format(reactant[0]), r"\1", fdef)
+                fdef = re.sub(
+                    r"(\W|^)(\*\s*{0}(\s|$))".format(reactant[0]), r"\1", fdef
+                )
+
+            if self.rule_ptr.model is not None and hasattr(
+                self.rule_ptr.model, "compartments"
+            ):
+                for comp_id, comp in self.rule_ptr.model.compartments.items():
+                    if comp_id in fdef:
+                        fdef = re.sub(
+                            r"(\W|^)({0})(\W|$)".format(comp_id),
+                            r"\1 {0} \3".format(str(comp.size)),
+                            fdef,
+                        )
 
         # This is stuff ported from bnglWriter
         # deals with comparison operators
