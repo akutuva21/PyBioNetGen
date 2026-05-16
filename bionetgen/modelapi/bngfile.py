@@ -62,9 +62,9 @@ class BNGFile:
         """
         if model_file is None:
             model_file = self.path
-        cur_dir = os.getcwd()
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
+        cur_dir = os.getcwd()
         try:
             # make a stripped copy without actions in the folder
             stripped_bngl = self.strip_actions(model_file, temp_folder)
@@ -73,6 +73,7 @@ class BNGFile:
             # If BNG2.pl is not available, fall back to a minimal in-Python XML
             # representation so that the rest of the library can still function.
             if self.bngexec is None:
+                os.chdir(cur_dir)
                 return self._generate_minimal_xml(xml_file, stripped_bngl)
 
             # TODO: take stdout option from app instead
@@ -80,6 +81,7 @@ class BNGFile:
                 ["perl", self.bngexec, "--xml", stripped_bngl], suppress=self.suppress
             )
             if rc != 0:
+                os.chdir(cur_dir)
                 return False
 
             # we should now have the XML file
@@ -97,6 +99,7 @@ class BNGFile:
                     ]
                     xml_path = preferred[0] if preferred else candidates[0]
             if not os.path.exists(xml_path):
+                os.chdir(cur_dir)
                 return False
             with open(xml_path, "r", encoding="UTF-8") as f:
                 content = f.read()
@@ -104,6 +107,7 @@ class BNGFile:
             # since this is an open file, to read it later
             # we need to go back to the beginning
             xml_file.seek(0)
+            os.chdir(cur_dir)
             return True
         finally:
             os.chdir(cur_dir)
@@ -210,9 +214,9 @@ class BNGFile:
             # should load in the right str here
             raise NotImplementedError
 
-        cur_dir = os.getcwd()
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
+        cur_dir = os.getcwd()
         try:
             # write the current model to temp folder
             os.chdir(temp_folder)
@@ -226,6 +230,7 @@ class BNGFile:
                 )
                 if rc != 0:
                     print("XML generation failed")
+                    os.chdir(cur_dir)
                     return False
                 else:
                     # we should now have the XML file
@@ -234,17 +239,20 @@ class BNGFile:
                         open_file.write(content)
                     # go back to beginning
                     open_file.seek(0)
+                    os.chdir(cur_dir)
                     return True
             elif xml_type == "sbml":
                 if self.bngexec is None:
                     print(
                         "SBML generation requires BNG2.pl (BioNetGen) to be installed."
                     )
+                    os.chdir(cur_dir)
                     return False
                 command = ["perl", self.bngexec, "temp.bngl"]
                 rc, _ = run_command(command, suppress=self.suppress)
                 if rc != 0:
                     print("SBML generation failed")
+                    os.chdir(cur_dir)
                     return False
                 else:
                     # we should now have the SBML file
@@ -252,9 +260,11 @@ class BNGFile:
                         content = f.read()
                         open_file.write(content)
                     open_file.seek(0)
+                    os.chdir(cur_dir)
                     return True
             else:
                 print("XML type {} not recognized".format(xml_type))
+                os.chdir(cur_dir)
                 return False
         finally:
             os.chdir(cur_dir)

@@ -32,16 +32,15 @@ def test_runAtomizeTool_write_scts(tmp_path):
     mock_app.pargs.write_sct_graphs = False
 
     with patch("bionetgen.atomizer.AtomizeTool") as mock_atomize_tool:
-        mock_atomize_instance = mock_atomize_tool.return_value
-
-        mock_res_arr = MagicMock()
-        mock_res_arr.database.scts = {"graph1": {"node1": [["conn1", "conn2"]]}}
-        mock_atomize_instance.run.return_value = mock_res_arr
-
         orig_cwd = os.getcwd()
         os.chdir(tmp_path)
-
         try:
+            mock_atomize_instance = mock_atomize_tool.return_value
+
+            mock_res_arr = MagicMock()
+            mock_res_arr.database.scts = {"graph1": {"node1": [["conn1", "conn2"]]}}
+            mock_atomize_instance.run.return_value = mock_res_arr
+
             runAtomizeTool(mock_app)
 
             assert os.path.exists("test_model_scts.json")
@@ -61,16 +60,15 @@ def test_runAtomizeTool_write_scts_and_graphs(tmp_path):
     mock_app.pargs.write_sct_graphs = True
 
     with patch("bionetgen.atomizer.AtomizeTool") as mock_atomize_tool:
-        mock_atomize_instance = mock_atomize_tool.return_value
-
-        mock_res_arr = MagicMock()
-        mock_res_arr.database.scts = {"graph1": {"node1": [["conn1", "conn2"]]}}
-        mock_atomize_instance.run.return_value = mock_res_arr
-
         orig_cwd = os.getcwd()
         os.chdir(tmp_path)
-
         try:
+            mock_atomize_instance = mock_atomize_tool.return_value
+
+            mock_res_arr = MagicMock()
+            mock_res_arr.database.scts = {"graph1": {"node1": [["conn1", "conn2"]]}}
+            mock_atomize_instance.run.return_value = mock_res_arr
+
             runAtomizeTool(mock_app)
 
             assert os.path.exists("test_model_scts.json")
