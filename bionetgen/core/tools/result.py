@@ -137,7 +137,9 @@ class BNGResult:
         if folder_path is not None:
             self.find_dat_files(folder_path)
 
-        path_to_log = folder_path if folder_path is not None else getattr(self, "path", None)
+        path_to_log = (
+            folder_path if folder_path is not None else getattr(self, "path", None)
+        )
         self.logger.debug(
             f"Loading results from {path_to_log}",
             loc=f"{__file__} : BNGResult.load_results()",
