@@ -1207,10 +1207,10 @@ class bngModel:
                     # TODO: Not sure if anything else
                     # can happen here. Confirm via SBML spec
                     a_param = self.parameters.pop(arule.Id)
-                    # TODO: check if an initial value to
-                    # a non-constant parameter is relevant?
-                    # I think the only thing we need is to
-                    # turn this into a function
+                    # The parameter's initial value is overridden by the assignment rule's
+                    # continuous evaluation. Therefore, popping the parameter and converting
+                    # it directly into a dynamically evaluated BNGL function satisfies the
+                    # specification without needing to preserve its initial value.
                     fobj = self.make_function()
                     fobj.Id = arule.Id
                     fobj.definition = arule.rates[0]
