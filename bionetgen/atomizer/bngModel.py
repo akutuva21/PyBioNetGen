@@ -308,16 +308,9 @@ class Function:
         return str(self)
 
     def adjust_func_def(self, fdef):
-        # if this function is related to a rule, we'll pull all the
-        # relevant info
-        # TODO: Add sbml function resolution here
+        # SBML function resolution is handled by resolve_sbmlfuncs
         if self.sbmlFunctions is not None:
             fdef = self.resolve_sbmlfuncs(fdef)
-
-        if self.rule_ptr is not None:
-            # TODO: pull info
-            # react/prod/comp
-            pass
 
         # This is stuff ported from bnglWriter
         # deals with comparison operators
