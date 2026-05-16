@@ -178,7 +178,6 @@ class BNGVisualize:
         )
 
         with TemporaryDirectory() as out:
-            os.chdir(out)
             # instantiate a CLI object with the info
             cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
             try:
@@ -192,7 +191,7 @@ class BNGVisualize:
 
                 # dump files
                 if self.output is None:
-                    vis_res._dump_files(os.getcwd())
+                    vis_res._dump_files(cur_dir)
                 else:
                     if not os.path.isdir(self.output):
                         os.makedirs(self.output, exist_ok=True)
