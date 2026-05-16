@@ -178,27 +178,18 @@ class BNGVisualize:
         )
 
         with TemporaryDirectory() as out:
-            os.chdir(out)
-            # instantiate a CLI object with the info
-            cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
+            out_abs = os.path.abspath(out)
             try:
+                os.chdir(out_abs)
+                # instantiate a CLI object with the info
+                cli = BNGCLI(model, out_abs, self.bngpath, suppress=self.suppress)
                 cli.run()
                 # load vis
                 vis_res = VisResult(
-                    os.path.abspath(out),
+                    out_abs,
                     name=model.model_name,
                     vtype=self.vtype,
                 )
-
-                # dump files
-                if self.output is None:
-                    vis_res._dump_files(os.getcwd())
-                else:
-                    if not os.path.isdir(self.output):
-                        os.makedirs(self.output, exist_ok=True)
-                    vis_res._dump_files(os.path.abspath(self.output))
-
-                return vis_res
             except Exception as e:
                 self.logger.error(
                     "Failed to run file",
@@ -206,3 +197,15 @@ class BNGVisualize:
                 )
                 print("Couldn't run the simulation, see error.")
                 raise e
+            finally:
+                os.chdir(cur_dir)
+
+            # dump files
+            if self.output is None:
+                vis_res._dump_files(cur_dir)
+            else:
+                if not os.path.isdir(self.output):
+                    os.makedirs(self.output, exist_ok=True)
+                vis_res._dump_files(os.path.abspath(self.output))
+
+            return vis_res

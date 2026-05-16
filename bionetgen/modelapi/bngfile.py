@@ -65,11 +65,12 @@ class BNGFile:
         cur_dir = os.getcwd()
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
+        temp_folder_abs = os.path.abspath(temp_folder)
         try:
             # make a stripped copy without actions in the folder
-            stripped_bngl = self.strip_actions(model_file, temp_folder)
+            stripped_bngl = self.strip_actions(model_file, temp_folder_abs)
             # run with --xml
-            os.chdir(temp_folder)
+            os.chdir(temp_folder_abs)
             # If BNG2.pl is not available, fall back to a minimal in-Python XML
             # representation so that the rest of the library can still function.
             if self.bngexec is None:
@@ -86,9 +87,9 @@ class BNGFile:
             path, model_name = os.path.split(stripped_bngl)
             model_name = model_name.replace(".bngl", "")
             written_xml_file = model_name + ".xml"
-            xml_path = os.path.join(temp_folder, written_xml_file)
+            xml_path = os.path.join(temp_folder_abs, written_xml_file)
             if not os.path.exists(xml_path):
-                candidates = glob.glob(os.path.join(temp_folder, "*.xml"))
+                candidates = glob.glob(os.path.join(temp_folder_abs, "*.xml"))
                 if candidates:
                     preferred = [
                         c
@@ -213,9 +214,10 @@ class BNGFile:
         cur_dir = os.getcwd()
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
+        temp_folder_abs = os.path.abspath(temp_folder)
         try:
             # write the current model to temp folder
-            os.chdir(temp_folder)
+            os.chdir(temp_folder_abs)
             with open("temp.bngl", "w", encoding="UTF-8") as f:
                 f.write(bngl_str)
             # run with --xml
