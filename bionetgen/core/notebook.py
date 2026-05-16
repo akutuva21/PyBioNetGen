@@ -40,7 +40,10 @@ class BNGNotebook:
         new_lines = []
         for line in temp_lines:
             for key in self.odict:
-                line = re.sub(key, self.odict[key], line)
+                # Need to escape backslashes so they are correctly output in the JSON string
+                # We use string replace instead of re.sub to avoid regex escape issues
+                val = self.odict[key].replace("\\", "\\\\")
+                line = line.replace(key, val)
             new_lines.append(line)
 
         with open(outfile, "w") as f:
