@@ -379,3 +379,21 @@ def test_setup_simulator():
 #     # xml_doc = etree.parse(to_validate)
 #     # result = xmlschema.validate(xml_doc)
 #     # assert result == True
+
+def test_bionetgen_notebook():
+    # test the notebook command without input
+    argv = ["notebook"]
+    with BioNetGenTest(argv=argv) as app:
+        app.run()
+        assert app.exit_code == 0
+        assert os.path.exists("bng-notebook.ipynb")
+        os.remove("bng-notebook.ipynb")
+
+    # test the notebook command with input
+    notebook_path = os.path.join(tfold, "test_notebook.ipynb")
+    argv = ["notebook", "-i", os.path.join(tfold, "test.bngl"), "-o", notebook_path]
+    with BioNetGenTest(argv=argv) as app:
+        app.run()
+        assert app.exit_code == 0
+        assert os.path.exists(notebook_path)
+        os.remove(notebook_path)
