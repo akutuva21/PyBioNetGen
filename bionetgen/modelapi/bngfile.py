@@ -62,6 +62,7 @@ class BNGFile:
         """
         if model_file is None:
             model_file = self.path
+        cur_dir = os.getcwd()
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
         try:
@@ -105,6 +106,7 @@ class BNGFile:
             xml_file.seek(0)
             return True
         finally:
+            os.chdir(cur_dir)
             try:
                 shutil.rmtree(temp_folder)
             except Exception:
@@ -208,6 +210,7 @@ class BNGFile:
             # should load in the right str here
             raise NotImplementedError
 
+        cur_dir = os.getcwd()
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
         try:
@@ -254,6 +257,7 @@ class BNGFile:
                 print("XML type {} not recognized".format(xml_type))
                 return False
         finally:
+            os.chdir(cur_dir)
             try:
                 shutil.rmtree(temp_folder)
             except Exception:
