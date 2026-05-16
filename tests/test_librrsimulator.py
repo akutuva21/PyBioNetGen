@@ -4,6 +4,7 @@ import unittest.mock
 from unittest.mock import MagicMock
 from bionetgen.simulator.librrsimulator import libRRSimulator
 
+
 def test_librrsimulator_sbml():
     mock_rr = MagicMock()
     mock_rr_instance = mock_rr.RoadRunner.return_value
