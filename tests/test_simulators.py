@@ -1,4 +1,5 @@
 import pytest
+import os
 from unittest.mock import patch, MagicMock
 from bionetgen.simulator.simulators import sim_getter
 
@@ -26,9 +27,10 @@ def test_sim_getter_model_file_unsupported(mock_print):
     assert result is None
 
 
+@patch("os.remove")
 @patch("bionetgen.simulator.simulators.libRRSimulator")
 @patch("tempfile.NamedTemporaryFile")
-def test_sim_getter_model_str_libRR(mock_ntf, mock_libRR):
+def test_sim_getter_model_str_libRR(mock_ntf, mock_libRR, mock_remove):
     mock_libRR.return_value = "mock_libRR_instance"
 
     mock_file_obj = mock_ntf.return_value.__enter__.return_value
@@ -39,12 +41,14 @@ def test_sim_getter_model_str_libRR(mock_ntf, mock_libRR):
     mock_file_obj.write.assert_called_once_with("model_content")
     mock_file_obj.seek.assert_called_once_with(0)
     mock_libRR.assert_called_once_with(model_file="temp_model_str.bngl")
+    mock_remove.assert_called_with("temp_model_str.bngl")
     assert result == "mock_libRR_instance"
 
 
+@patch("os.remove")
 @patch("bionetgen.simulator.simulators.CSimulator")
 @patch("tempfile.NamedTemporaryFile")
-def test_sim_getter_model_str_cpy(mock_ntf, mock_cpy):
+def test_sim_getter_model_str_cpy(mock_ntf, mock_cpy, mock_remove):
     mock_cpy.return_value = "mock_cpy_instance"
 
     mock_file_obj = mock_ntf.return_value.__enter__.return_value
@@ -56,6 +60,7 @@ def test_sim_getter_model_str_cpy(mock_ntf, mock_cpy):
     mock_cpy.assert_called_once_with(
         model_file="temp_model_str.bngl", generate_network=True
     )
+    mock_remove.assert_called_with("temp_model_str.bngl")
     assert result == "mock_cpy_instance"
 
 
