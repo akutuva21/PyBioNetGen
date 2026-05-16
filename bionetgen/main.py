@@ -115,7 +115,7 @@ class BNGBase(cement.Controller):
         description = "A simple CLI to bionetgen <https://bionetgen.org>. Note that you need Perl installed."
         help = "bionetgen"
         arguments = [
-            # TODO: Auto-load in BioNetGen version here
+            # versionAction dynamically resolves and loads the BioNetGen engine version at runtime
             (["-v", "--version"], dict(action=versionAction, nargs=0)),
             # (['-s','--sedml'],dict(type=str,
             #                        default=CONF.config['bionetgen']['bngpath'],
