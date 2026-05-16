@@ -1203,14 +1203,13 @@ class bngModel:
                     # if not a_param.cts:
                     # this means that one of our parameters
                     # is _not_ a constant and is modified by
-                    # an assignment rule
-                    # TODO: Not sure if anything else
-                    # can happen here. Confirm via SBML spec
+                    # an assignment rule.
+                    # According to the SBML spec, the parameter's
+                    # initial value is overridden by the rule's
+                    # continuous evaluation. Popping the parameter
+                    # and turning it into a dynamically evaluated
+                    # BNGL function is the correct translation.
                     a_param = self.parameters.pop(arule.Id)
-                    # TODO: check if an initial value to
-                    # a non-constant parameter is relevant?
-                    # I think the only thing we need is to
-                    # turn this into a function
                     fobj = self.make_function()
                     fobj.Id = arule.Id
                     fobj.definition = arule.rates[0]
