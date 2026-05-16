@@ -380,6 +380,7 @@ def test_setup_simulator():
 #     # result = xmlschema.validate(xml_doc)
 #     # assert result == True
 
+
 def test_bionetgen_notebook():
     # test the notebook command without input
     argv = ["notebook"]
