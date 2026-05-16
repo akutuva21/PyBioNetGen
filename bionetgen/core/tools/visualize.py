@@ -128,6 +128,8 @@ class BNGVisualize:
         self.vtype = vtype
         # set output
         self.output = output
+        if self.output is not None:
+            self.output = os.path.abspath(self.output)
         self.suppress = suppress
         self.bngpath = bngpath
 
@@ -192,7 +194,7 @@ class BNGVisualize:
 
                 # dump files
                 if self.output is None:
-                    vis_res._dump_files(os.getcwd())
+                    vis_res._dump_files(cur_dir)
                 else:
                     if not os.path.isdir(self.output):
                         os.makedirs(self.output, exist_ok=True)
@@ -206,3 +208,5 @@ class BNGVisualize:
                 )
                 print("Couldn't run the simulation, see error.")
                 raise e
+            finally:
+                os.chdir(cur_dir)
