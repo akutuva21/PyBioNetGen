@@ -1595,8 +1595,12 @@ class bngModel:
                                 sp = self.species[spec_name]
                                 comp = self.compartments[sp.compartment]
                                 vol = comp.size
-                                sub_from = r"(\W|^)({0})(\W|$)".format(re.escape(spec_name))
-                                sub_to = r"\g<1>({0}/{1})\g<3>".format(spec_name.replace('\\', r'\\'), vol)
+                                sub_from = r"(\W|^)({0})(\W|$)".format(
+                                    re.escape(spec_name)
+                                )
+                                sub_to = r"\g<1>({0}/{1})\g<3>".format(
+                                    spec_name.replace("\\", r"\\"), vol
+                                )
                                 frate.definition = re.sub(
                                     sub_from, sub_to, frate.definition
                                 )
