@@ -154,6 +154,11 @@ class BNGResult:
         Optional argument allows you to set the data type for every column. See
         numpy dtype/data type strings for what's allowed. TODO: Add link
         """
+        # Fix paths relative to BNGCLI output folder
+        if getattr(self, "direct_path", None) is None:
+            if hasattr(self, "path"):
+                path = os.path.join(self.path, os.path.basename(path))
+
         # First step is to read the header,
         # we gotta open the file and pull that line in
         with open(path, "r") as f:

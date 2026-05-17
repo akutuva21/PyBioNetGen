@@ -75,7 +75,9 @@ class BNGFile:
 
             # TODO: take stdout option from app instead
             rc, _ = run_command(
-                ["perl", self.bngexec, "--xml", stripped_bngl], suppress=self.suppress, cwd=temp_folder
+                ["perl", self.bngexec, "--xml", stripped_bngl],
+                suppress=self.suppress,
+                cwd=temp_folder,
             )
             if rc != 0:
                 return False
@@ -211,20 +213,26 @@ class BNGFile:
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
         try:
             # write the current model to temp folder
-            with open(os.path.join(temp_folder, "temp.bngl"), "w", encoding="UTF-8") as f:
+            with open(
+                os.path.join(temp_folder, "temp.bngl"), "w", encoding="UTF-8"
+            ) as f:
                 f.write(bngl_str)
             # run with --xml
             # Output suppression is handled downstream by self.suppress
             if xml_type == "bngxml":
                 rc, _ = run_command(
-                    ["perl", self.bngexec, "--xml", "temp.bngl"], suppress=self.suppress, cwd=temp_folder
+                    ["perl", self.bngexec, "--xml", "temp.bngl"],
+                    suppress=self.suppress,
+                    cwd=temp_folder,
                 )
                 if rc != 0:
                     print("XML generation failed")
                     return False
                 else:
                     # we should now have the XML file
-                    with open(os.path.join(temp_folder, "temp.xml"), "r", encoding="UTF-8") as f:
+                    with open(
+                        os.path.join(temp_folder, "temp.xml"), "r", encoding="UTF-8"
+                    ) as f:
                         content = f.read()
                         open_file.write(content)
                     # go back to beginning
@@ -237,13 +245,17 @@ class BNGFile:
                     )
                     return False
                 command = ["perl", self.bngexec, "temp.bngl"]
-                rc, _ = run_command(command, suppress=self.suppress)
+                rc, _ = run_command(command, suppress=self.suppress, cwd=temp_folder)
                 if rc != 0:
                     print("SBML generation failed")
                     return False
                 else:
                     # we should now have the SBML file
-                    with open(os.path.join(temp_folder, "temp_sbml.xml"), "r", encoding="UTF-8") as f:
+                    with open(
+                        os.path.join(temp_folder, "temp_sbml.xml"),
+                        "r",
+                        encoding="UTF-8",
+                    ) as f:
                         content = f.read()
                         open_file.write(content)
                     open_file.seek(0)

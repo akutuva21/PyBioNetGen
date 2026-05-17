@@ -38,6 +38,7 @@ def test_runAtomizeTool_write_scts(tmp_path):
         mock_res_arr.database.scts = {"graph1": {"node1": [["conn1", "conn2"]]}}
         mock_atomize_instance.run.return_value = mock_res_arr
 
+        import pyyed
         orig_cwd = os.getcwd()
         os.chdir(tmp_path)
 
@@ -67,6 +68,7 @@ def test_runAtomizeTool_write_scts_and_graphs(tmp_path):
         mock_res_arr.database.scts = {"graph1": {"node1": [["conn1", "conn2"]]}}
         mock_atomize_instance.run.return_value = mock_res_arr
 
+        import pyyed
         orig_cwd = os.getcwd()
         os.chdir(tmp_path)
 
@@ -77,10 +79,10 @@ def test_runAtomizeTool_write_scts_and_graphs(tmp_path):
             assert os.path.exists("test_model_graph1.graphml")
 
             with open("test_model_graph1.graphml", "r") as f:
-                content = f.read()
-                assert "node1" in content
-                assert "conn1" in content
-                assert "conn2" in content
-                assert "<graphml" in content
+                content_file = f.read()
+                assert "node1" in content_file
+                assert "conn1" in content_file
+                assert "conn2" in content_file
+                assert "<graphml" in content_file
         finally:
             os.chdir(orig_cwd)

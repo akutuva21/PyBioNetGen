@@ -197,6 +197,30 @@ class BNGVisualize:
                         os.makedirs(self.output, exist_ok=True)
                     vis_res._dump_files(os.path.abspath(self.output))
 
+                if getattr(cli, "output", None):
+                    import glob
+                    import shutil
+                    if self.output and not os.path.isdir(self.output):
+                        os.makedirs(self.output, exist_ok=True)
+                    out_path = os.path.abspath(".") if self.output is None else os.path.abspath(self.output)
+
+                    # Copy everything explicitly instead of relying on _dump_files
+                    for f in glob.glob(os.path.join(cli.output, "*")):
+                        if os.path.isfile(f):
+                            shutil.copy(f, os.path.join(out_path, os.path.basename(f)))
+
+                if getattr(cli, "output", None):
+                    import glob
+                    import shutil
+                    if self.output and not os.path.isdir(self.output):
+                        os.makedirs(self.output, exist_ok=True)
+                    out_path = os.path.abspath(".") if self.output is None else os.path.abspath(self.output)
+
+                    # Copy everything explicitly instead of relying on _dump_files
+                    for f in glob.glob(os.path.join(cli.output, "*")):
+                        if os.path.isfile(f):
+                            shutil.copy(f, os.path.join(out_path, os.path.basename(f)))
+
                 return vis_res
             except Exception as e:
                 self.logger.error(

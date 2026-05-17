@@ -146,10 +146,78 @@ class BNGCLI:
             fname = os.path.basename(self.inp_path)
             fname = fname.replace(".bngl", "")
             command = ["perl", self.bng_exec, self.inp_path]
+        if not self.is_bngmodel:
+            self.logger.debug(
+                "The given model is a file", loc=f"{__file__} : BNGCLI.run()"
+            )
+            fname = os.path.basename(self.inp_path)
+            fname = fname.replace(".bngl", "")
+
+            # Use absolute path to the BNGL file since we change CWD to self.output
+            if not os.path.isabs(self.inp_path):
+                self.inp_path = os.path.abspath(self.inp_path)
+
+            command = ["perl", self.bng_exec, self.inp_path]
+
+        if not self.is_bngmodel:
+            self.logger.debug(
+                "The given model is a file", loc=f"{__file__} : BNGCLI.run()"
+            )
+            fname = os.path.basename(self.inp_path)
+            fname = fname.replace(".bngl", "")
+
+            # Use absolute path to the BNGL file since we change CWD to self.output
+            if not os.path.isabs(self.inp_path):
+                self.inp_path = os.path.abspath(self.inp_path)
+
+            command = ["perl", self.bng_exec, self.inp_path]
+
         self.logger.debug("Running command", loc=f"{__file__} : BNGCLI.run()")
         rc, out = run_command(
             command, suppress=self.suppress, timeout=self.timeout, cwd=self.output
         )
+        if rc == 0:
+            import glob, shutil
+            # bng2.pl generates files like .gml or .gdat in the directory of the BNGL file.
+            # When cwd=self.output but the input file is absolute, the perl script produces some files locally instead of in cwd.
+            # We fix this by copying `.gdat` `.cdat` and `.gml` and `.graphml` files generated next to the BNGL back to output folder if needed.
+            if not self.is_bngmodel:
+                inp_dir = os.path.dirname(os.path.abspath(self.inp_path))
+                if inp_dir != os.path.abspath(self.output):
+                    for ext in ["*.gdat", "*.cdat", "*.gml", "*.graphml"]:
+                        for f in glob.glob(os.path.join(inp_dir, ext)):
+                            try:
+                                shutil.move(f, self.output)
+                            except:
+                                pass
+        if rc == 0:
+            import glob, shutil
+            # bng2.pl generates files like .gml or .gdat in the directory of the BNGL file.
+            # When cwd=self.output but the input file is absolute, the perl script produces some files locally instead of in cwd.
+            # We fix this by copying `.gdat` `.cdat` and `.gml` and `.graphml` files generated next to the BNGL back to output folder if needed.
+            if not self.is_bngmodel:
+                inp_dir = os.path.dirname(os.path.abspath(self.inp_path))
+                if inp_dir != os.path.abspath(self.output):
+                    for ext in ["*.gdat", "*.cdat", "*.gml", "*.graphml"]:
+                        for f in glob.glob(os.path.join(inp_dir, ext)):
+                            try:
+                                shutil.move(f, self.output)
+                            except:
+                                pass
+        if rc == 0:
+            import glob, shutil
+            # bng2.pl generates files like .gml or .gdat in the directory of the BNGL file.
+            # When cwd=self.output but the input file is absolute, the perl script produces some files locally instead of in cwd.
+            # We fix this by copying `.gdat` `.cdat` and `.gml` and `.graphml` files generated next to the BNGL back to output folder if needed.
+            if not self.is_bngmodel:
+                inp_dir = os.path.dirname(os.path.abspath(self.inp_path))
+                if inp_dir != os.path.abspath(self.output):
+                    for ext in ["*.gdat", "*.cdat", "*.gml", "*.graphml"]:
+                        for f in glob.glob(os.path.join(inp_dir, ext)):
+                            try:
+                                shutil.move(f, self.output)
+                            except:
+                                pass
         if self.log_file is not None:
             self.logger.debug("Setting up log file", loc=f"{__file__} : BNGCLI.run()")
 
