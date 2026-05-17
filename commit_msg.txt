@@ -1,6 +1,0 @@
-🧹 Resolve TODO regarding SBML function resolution
-
-🎯 **What:** Replaced the TODO comment regarding SBML function resolution in `bionetgen/atomizer/bngModel.py` with an explanatory comment detailing that `resolve_sbmlfuncs` handles this functionality.
-💡 **Why:** Resolving actionable TODOs clarifies the code's intent and helps maintain a clean, readable codebase by eliminating technical debt.
-✅ **Verification:** Ran formatting and lint checks. Test failures are pre-existing issues related to `BNG2.pl` binary dependencies and test suite environment setup.
-✨ **Result:** A clearer, better-documented function without lingering technical debt.
