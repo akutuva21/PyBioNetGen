@@ -55,6 +55,7 @@ def test_bionetgen_info():
 
 from unittest.mock import patch
 
+
 @patch("bionetgen.core.tools.BNGPlotter")
 def test_plotDAT_valid_input(MockBNGPlotter):
     from unittest.mock import MagicMock
