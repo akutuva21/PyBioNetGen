@@ -62,9 +62,9 @@ class BNGFile:
         """
         if model_file is None:
             model_file = self.path
+        cur_dir = os.getcwd()
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
-        cur_dir = os.getcwd()
         try:
             # make a stripped copy without actions in the folder
             stripped_bngl = self.strip_actions(model_file, temp_folder)
@@ -210,9 +210,9 @@ class BNGFile:
             # should load in the right str here
             raise NotImplementedError
 
+        cur_dir = os.getcwd()
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
-        cur_dir = os.getcwd()
         try:
             # write the current model to temp folder
             os.chdir(temp_folder)

@@ -169,13 +169,18 @@ class BNGVisualize:
                 )
             else:
                 model.add_action("visualize", action_args={"type": f"'{self.vtype}'"})
-        cur_dir = os.getcwd()
         from bionetgen.core.main import BNGCLI
 
         self.logger.debug(
             "Generating visualization files",
             loc=f"{__file__} : BNGVisualize._normal_mode()",
         )
+
+        cur_dir = os.getcwd()
+
+        # Ensure we use absolute output path before chdir
+        if self.output is not None and not os.path.isabs(self.output):
+            self.output = os.path.abspath(self.output)
 
         with TemporaryDirectory() as out:
             try:
@@ -190,16 +195,6 @@ class BNGVisualize:
                         name=model.model_name,
                         vtype=self.vtype,
                     )
-
-                    # dump files
-                    if self.output is None:
-                        vis_res._dump_files(os.getcwd())
-                    else:
-                        if not os.path.isdir(self.output):
-                            os.makedirs(self.output, exist_ok=True)
-                        vis_res._dump_files(os.path.abspath(self.output))
-
-                    return vis_res
                 except Exception as e:
                     self.logger.error(
                         "Failed to run file",
@@ -209,3 +204,13 @@ class BNGVisualize:
                     raise e
             finally:
                 os.chdir(cur_dir)
+
+        if vis_res:
+            if self.output is None:
+                vis_res._dump_files(cur_dir)
+            else:
+                if not os.path.isdir(self.output):
+                    os.makedirs(self.output, exist_ok=True)
+                vis_res._dump_files(self.output)
+
+        return vis_res
