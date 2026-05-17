@@ -71,6 +71,7 @@ def test_plotDAT_valid_input():
         MockBNGPlotter.return_value.plot.assert_called_once()
         app_mock.log.debug.assert_called()
 
+
 def test_plotDAT_invalid_input():
     from unittest.mock import MagicMock
     from bionetgen.core.main import plotDAT
