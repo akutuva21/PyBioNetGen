@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 def run(inp, out=None, suppress=False, timeout=None):
-    cur_dir = os.getcwd()
     """
     Convenience function to run BNG2.pl as a library
 
