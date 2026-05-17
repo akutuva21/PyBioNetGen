@@ -17,16 +17,6 @@ __all__ = [
 
 
 def __getattr__(name):
-    if name == "__version__":
-        import importlib.metadata
-
-        try:
-            return importlib.metadata.version("bionetgen")
-        except importlib.metadata.PackageNotFoundError:
-            from .core.version import get_version
-
-            return get_version()
-
     if name in {"SympyOdes", "export_sympy_odes"}:
         from .modelapi.sympy_odes import SympyOdes, export_sympy_odes
 

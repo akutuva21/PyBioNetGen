@@ -62,7 +62,7 @@ class versionAction(argparse.Action):
             bng_version = get_latest_bng_version()
 
         banner = "BioNetGen simple command line interface {}\nBioNetGen version: {}\n{}\n".format(
-            bng.__version__, bng_version, get_version_banner()
+            bng.core.version.get_version(), bng_version, get_version_banner()
         )
         print(banner)
         parser.exit()
@@ -115,6 +115,7 @@ class BNGBase(cement.Controller):
         description = "A simple CLI to bionetgen <https://bionetgen.org>. Note that you need Perl installed."
         help = "bionetgen"
         arguments = [
+            # TODO: Auto-load in BioNetGen version here
             (["-v", "--version"], dict(action=versionAction, nargs=0)),
             # (['-s','--sedml'],dict(type=str,
             #                        default=CONF.config['bionetgen']['bngpath'],
