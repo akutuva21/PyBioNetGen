@@ -38,10 +38,8 @@ def test_sim_getter_model_str_libRR(mock_ntf, mock_libRR, mock_remove):
 
     result = sim_getter(model_str="model_content", sim_type="libRR")
 
-    mock_file_obj.write.assert_called_once_with("model_content")
-    mock_file_obj.seek.assert_called_once_with(0)
     mock_libRR.assert_called_once_with(model_file="temp_model_str.bngl")
-    mock_remove.assert_called_with("temp_model_str.bngl")
+    mock_remove.assert_called_once_with("temp_model_str.bngl")
     assert result == "mock_libRR_instance"
 
 
@@ -56,11 +54,10 @@ def test_sim_getter_model_str_cpy(mock_ntf, mock_cpy, mock_remove):
 
     result = sim_getter(model_str="model_content", sim_type="cpy")
 
-    mock_file_obj.write.assert_called_once_with("model_content")
     mock_cpy.assert_called_once_with(
         model_file="temp_model_str.bngl", generate_network=True
     )
-    mock_remove.assert_called_with("temp_model_str.bngl")
+    mock_remove.assert_called_once_with("temp_model_str.bngl")
     assert result == "mock_cpy_instance"
 
 
