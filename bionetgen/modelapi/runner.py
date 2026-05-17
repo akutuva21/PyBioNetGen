@@ -32,7 +32,9 @@ def run(inp, out=None, suppress=False, timeout=None):
         if out is None:
             with TemporaryDirectory() as temp_out:
                 # instantiate a CLI object with the info
-                cli = BNGCLI(inp, temp_out, conf["bngpath"], suppress=suppress, timeout=timeout)
+                cli = BNGCLI(
+                    inp, temp_out, conf["bngpath"], suppress=suppress, timeout=timeout
+                )
                 try:
                     cli.run()
                 except Exception as e:
