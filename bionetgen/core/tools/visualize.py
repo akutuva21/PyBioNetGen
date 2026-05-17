@@ -192,7 +192,9 @@ class BNGVisualize:
 
                 # dump files
                 if self.output is None:
-                    vis_res._dump_files(os.getcwd())
+                    vis_res._dump_files(
+                        cur_dir
+                    )  # we want to dump to the original folder, not temp folder
                 else:
                     if not os.path.isdir(self.output):
                         os.makedirs(self.output, exist_ok=True)
@@ -206,3 +208,5 @@ class BNGVisualize:
                 )
                 print("Couldn't run the simulation, see error.")
                 raise e
+            finally:
+                os.chdir(cur_dir)

@@ -31,17 +31,17 @@ def test_runAtomizeTool_write_scts(tmp_path):
     mock_app.pargs.write_scts = True
     mock_app.pargs.write_sct_graphs = False
 
-    with patch("bionetgen.atomizer.AtomizeTool") as mock_atomize_tool:
-        mock_atomize_instance = mock_atomize_tool.return_value
+    orig_cwd = os.getcwd()
+    os.chdir(tmp_path)
 
-        mock_res_arr = MagicMock()
-        mock_res_arr.database.scts = {"graph1": {"node1": [["conn1", "conn2"]]}}
-        mock_atomize_instance.run.return_value = mock_res_arr
+    try:
+        with patch("bionetgen.atomizer.AtomizeTool") as mock_atomize_tool:
+            mock_atomize_instance = mock_atomize_tool.return_value
 
-        orig_cwd = os.getcwd()
-        os.chdir(tmp_path)
+            mock_res_arr = MagicMock()
+            mock_res_arr.database.scts = {"graph1": {"node1": [["conn1", "conn2"]]}}
+            mock_atomize_instance.run.return_value = mock_res_arr
 
-        try:
             runAtomizeTool(mock_app)
 
             assert os.path.exists("test_model_scts.json")
@@ -50,8 +50,8 @@ def test_runAtomizeTool_write_scts(tmp_path):
                 assert data == {"graph1": {"node1": [["conn1", "conn2"]]}}
 
             assert not os.path.exists("test_model_graph1.graphml")
-        finally:
-            os.chdir(orig_cwd)
+    finally:
+        os.chdir(orig_cwd)
 
 
 def test_runAtomizeTool_write_scts_and_graphs(tmp_path):
@@ -60,17 +60,32 @@ def test_runAtomizeTool_write_scts_and_graphs(tmp_path):
     mock_app.pargs.write_scts = True
     mock_app.pargs.write_sct_graphs = True
 
-    with patch("bionetgen.atomizer.AtomizeTool") as mock_atomize_tool:
-        mock_atomize_instance = mock_atomize_tool.return_value
+    orig_cwd = os.getcwd()
+    os.chdir(tmp_path)
 
-        mock_res_arr = MagicMock()
-        mock_res_arr.database.scts = {"graph1": {"node1": [["conn1", "conn2"]]}}
-        mock_atomize_instance.run.return_value = mock_res_arr
+    try:
+        import sys
 
-        orig_cwd = os.getcwd()
-        os.chdir(tmp_path)
+        mock_pyyed = MagicMock()
+        mock_graph = MagicMock()
+        mock_pyyed.Graph.return_value = mock_graph
 
-        try:
+        # It calls G.write_graph(f"{model_name}_{graph_name}.graphml", pretty_print=True)
+        # So we just mock the write_graph to create the file.
+        def write_graph_mock(filename, pretty_print):
+            with open(filename, "w") as f:
+                f.write("mock_graph_content_with_node1_conn1_conn2_<graphml>")
+
+        mock_graph.write_graph.side_effect = write_graph_mock
+        sys.modules["pyyed"] = mock_pyyed
+
+        with patch("bionetgen.atomizer.AtomizeTool") as mock_atomize_tool:
+            mock_atomize_instance = mock_atomize_tool.return_value
+
+            mock_res_arr = MagicMock()
+            mock_res_arr.database.scts = {"graph1": {"node1": [["conn1", "conn2"]]}}
+            mock_atomize_instance.run.return_value = mock_res_arr
+
             runAtomizeTool(mock_app)
 
             assert os.path.exists("test_model_scts.json")
@@ -82,5 +97,7 @@ def test_runAtomizeTool_write_scts_and_graphs(tmp_path):
                 assert "conn1" in content
                 assert "conn2" in content
                 assert "<graphml" in content
-        finally:
-            os.chdir(orig_cwd)
+    finally:
+        if "pyyed" in sys.modules:
+            del sys.modules["pyyed"]
+        os.chdir(orig_cwd)
