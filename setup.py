@@ -196,7 +196,7 @@ setup(
     author_email="bionetgen.main@gmail.com",
     url="https://github.com/RuleWorld/PyBioNetGen",
     license="MIT",
-    packages=find_packages(exclude=["ez_setup", "tests*"]),
+    packages=find_packages(exclude=["ez_setup", "tests*"]) + ["bionetgen.assets"],
     package_data={"bionetgen": ["bng*/*", "assets/*"]},
     zip_safe=False,
     include_package_data=True,
