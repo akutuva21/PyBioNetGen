@@ -169,8 +169,8 @@ class CSimulator(BNGSimulator):
             # loaded model
             self.model = model_file
             cd = os.getcwd()
-            try:
-                with tempfile.TemporaryDirectory() as tmpdirname:
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                try:
                     os.chdir(tmpdirname)
                     self.model.actions.clear_actions()
                     self.model.write_model(f"{self.model.model_name}_cpy.bngl")
@@ -178,8 +178,8 @@ class CSimulator(BNGSimulator):
                         f"{self.model.model_name}_cpy.bngl",
                         generate_network=generate_network,
                     )
-            finally:
-                os.chdir(cd)
+                finally:
+                    os.chdir(cd)
         else:
             print(f"model format not recognized: {model_file}")
         # set compiler
