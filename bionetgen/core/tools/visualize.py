@@ -192,11 +192,14 @@ class BNGVisualize:
 
                 # dump files
                 if self.output is None:
-                    vis_res._dump_files(os.getcwd())
+                    vis_res._dump_files(cur_dir)
                 else:
-                    if not os.path.isdir(self.output):
-                        os.makedirs(self.output, exist_ok=True)
-                    vis_res._dump_files(os.path.abspath(self.output))
+                    out_path = self.output
+                    if not os.path.isabs(out_path):
+                        out_path = os.path.join(cur_dir, out_path)
+                    if not os.path.isdir(out_path):
+                        os.makedirs(out_path, exist_ok=True)
+                    vis_res._dump_files(out_path)
 
                 return vis_res
             except Exception as e:
@@ -206,3 +209,5 @@ class BNGVisualize:
                 )
                 print("Couldn't run the simulation, see error.")
                 raise e
+            finally:
+                os.chdir(cur_dir)

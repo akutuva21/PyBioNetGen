@@ -73,13 +73,16 @@ class BNGFile:
             # If BNG2.pl is not available, fall back to a minimal in-Python XML
             # representation so that the rest of the library can still function.
             if self.bngexec is None:
-                return self._generate_minimal_xml(xml_file, stripped_bngl)
+                res = self._generate_minimal_xml(xml_file, stripped_bngl)
+                os.chdir(cur_dir)
+                return res
 
             # TODO: take stdout option from app instead
             rc, _ = run_command(
                 ["perl", self.bngexec, "--xml", stripped_bngl], suppress=self.suppress
             )
             if rc != 0:
+                os.chdir(cur_dir)
                 return False
 
             # we should now have the XML file
@@ -225,6 +228,7 @@ class BNGFile:
                     ["perl", self.bngexec, "--xml", "temp.bngl"], suppress=self.suppress
                 )
                 if rc != 0:
+                    os.chdir(cur_dir)
                     print("XML generation failed")
                     return False
                 else:
@@ -234,6 +238,7 @@ class BNGFile:
                         open_file.write(content)
                     # go back to beginning
                     open_file.seek(0)
+                    os.chdir(cur_dir)
                     return True
             elif xml_type == "sbml":
                 if self.bngexec is None:

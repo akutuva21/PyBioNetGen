@@ -43,7 +43,6 @@ def test_runAtomizeTool_write_scts(tmp_path):
 
         try:
             runAtomizeTool(mock_app)
-
             assert os.path.exists("test_model_scts.json")
             with open("test_model_scts.json", "r") as f:
                 data = json.load(f)
@@ -72,7 +71,6 @@ def test_runAtomizeTool_write_scts_and_graphs(tmp_path):
 
         try:
             runAtomizeTool(mock_app)
-
             assert os.path.exists("test_model_scts.json")
             assert os.path.exists("test_model_graph1.graphml")
 
