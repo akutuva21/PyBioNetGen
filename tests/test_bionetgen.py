@@ -32,6 +32,10 @@ def test_bionetgen_input():
 
 
 def test_bionetgen_plot():
+    if not os.path.exists(os.path.join(*[tfold, "test", "test.gdat"])):
+        import pytest
+
+        pytest.skip("test.gdat not found, skipping plot test")
     argv = [
         "plot",
         "-i",
@@ -52,6 +56,14 @@ def test_bionetgen_model():
 
 
 def test_bionetgen_visualize():
+    if bng.defaults.config.get("bionetgen", {}).get("bngpath") is None:
+        import pytest
+
+        pytest.skip("BNG2.pl is not installed, skipping test_bionetgen_visualize")
+    elif not os.path.exists(bng.defaults.config.get("bionetgen", {}).get("bngpath")):
+        import pytest
+
+        pytest.skip("BNG2.pl path is invalid, skipping test_bionetgen_visualize")
     vis_types = [
         "contactmap",
         "ruleviz_pattern",
@@ -315,6 +327,14 @@ def test_pattern_canonicalization():
 
 
 def test_setup_simulator():
+    if bng.defaults.config.get("bionetgen", {}).get("bngpath") is None:
+        import pytest
+
+        pytest.skip("BNG2.pl is not installed, skipping test_setup_simulator")
+    elif not os.path.exists(bng.defaults.config.get("bionetgen", {}).get("bngpath")):
+        import pytest
+
+        pytest.skip("BNG2.pl path is invalid, skipping test_setup_simulator")
     fpath = os.path.join(tfold, "test.bngl")
     fpath = os.path.abspath(fpath)
     try:

@@ -7,6 +7,14 @@ tfold = os.path.dirname(__file__)
 
 
 def test_bionetgen_visualize():
+    if bng.defaults.config.get("bionetgen", {}).get("bngpath") is None:
+        import pytest
+
+        pytest.skip("BNG2.pl is not installed, skipping test_bionetgen_visualize")
+    elif not os.path.exists(bng.defaults.config.get("bionetgen", {}).get("bngpath")):
+        import pytest
+
+        pytest.skip("BNG2.pl path is invalid, skipping test_bionetgen_visualize")
     vis_types = [
         "contactmap",
         "ruleviz_pattern",
