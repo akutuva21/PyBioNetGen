@@ -28,7 +28,9 @@ def test_runner_without_out(mock_tempdir, mock_bngcli):
     mock_cli_instance.result = "mock_result"
 
     mock_tempdir_instance = MagicMock()
-    mock_tempdir.return_value.__enter__.return_value = "temp_out"
+    mock_tempdir.return_value = mock_tempdir_instance
+    mock_tempdir_instance.name = "temp_out"
+    mock_tempdir_instance.__enter__.return_value = "temp_out"
 
     inp = "test.bngl"
 
