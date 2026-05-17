@@ -39,29 +39,28 @@ class VisResult:
         graphfiles = gmls + graphmls
         for gfile in graphfiles:
             if self.name is None:
-                self.files.append(gfile)
+                self.files.append(os.path.basename(gfile))
                 # now load into string
                 with open(gfile, "r") as f:
                     l = f.read()
-                self.file_strs[gfile] = l
+                self.file_strs[os.path.basename(gfile)] = l
             else:
                 # pull GMLs that contain the name
                 if self.name in os.path.basename(gfile):
-                    self.files.append(gfile)
+                    self.files.append(os.path.basename(gfile))
                     # now load into string
                     with open(gfile, "r") as f:
                         l = f.read()
-                    self.file_strs[gfile] = l
+                    self.file_strs[os.path.basename(gfile)] = l
 
     def _dump_files(self, folder) -> None:
         self.logger.debug(
             "Writing graphml/gml files", loc=f"{__file__} : VisResult._dump_files()"
         )
-        for gfile in self.files:
-            g_name = os.path.split(gfile)[-1]
+        for g_name in self.files:
             dest = os.path.join(folder, g_name)
             with open(dest, "w") as f:
-                f.write(self.file_strs[gfile])
+                f.write(self.file_strs[g_name])
 
 
 class BNGVisualize:
@@ -179,30 +178,33 @@ class BNGVisualize:
 
         with TemporaryDirectory() as out:
             os.chdir(out)
-            # instantiate a CLI object with the info
-            cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
             try:
-                cli.run()
-                # load vis
-                vis_res = VisResult(
-                    os.path.abspath(out),
-                    name=model.model_name,
-                    vtype=self.vtype,
-                )
+                # instantiate a CLI object with the info
+                cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
+                try:
+                    cli.run()
+                    # load vis
+                    vis_res = VisResult(
+                        os.path.abspath(out),
+                        name=model.model_name,
+                        vtype=self.vtype,
+                    )
 
-                # dump files
-                if self.output is None:
-                    vis_res._dump_files(os.getcwd())
-                else:
-                    if not os.path.isdir(self.output):
-                        os.makedirs(self.output, exist_ok=True)
-                    vis_res._dump_files(os.path.abspath(self.output))
+                    # dump files
+                    if self.output is None:
+                        vis_res._dump_files(cur_dir)
+                    else:
+                        if not os.path.isdir(self.output):
+                            os.makedirs(self.output, exist_ok=True)
+                        vis_res._dump_files(os.path.abspath(self.output))
 
-                return vis_res
-            except Exception as e:
-                self.logger.error(
-                    "Failed to run file",
-                    loc=f"{__file__} : BNGVisualize._normal_mode()",
-                )
-                print("Couldn't run the simulation, see error.")
-                raise e
+                    return vis_res
+                except Exception as e:
+                    self.logger.error(
+                        "Failed to run file",
+                        loc=f"{__file__} : BNGVisualize._normal_mode()",
+                    )
+                    print("Couldn't run the simulation, see error.")
+                    raise e
+            finally:
+                os.chdir(cur_dir)
