@@ -13,8 +13,10 @@ from .core.main import generate_notebook
 from .core.utils.utils import test_perl
 
 # pull defaults defined in core/defaults
-CONF = bng.defaults
-VERSION_BANNER = bng.defaults.banner
+from bionetgen.core.defaults import defaults
+
+CONF = defaults
+VERSION_BANNER = defaults.banner
 
 
 # require version argparse action
@@ -36,11 +38,11 @@ class versionAction(argparse.Action):
 
         bngpath = os.environ.get("BNGPATH")
         if bngpath is None:
-            config = bng.defaults.config.get("bionetgen", {})
+            config = defaults.config.get("bionetgen", {})
             if isinstance(config, dict):
                 bngpath = config.get("bngpath")
             else:
-                bngpath = bng.defaults.config.get("bionetgen", "bngpath")
+                bngpath = defaults.config.get("bionetgen", "bngpath")
 
         bng_version = None
         if bngpath is not None:

@@ -1,4 +1,3 @@
-from .core.defaults import defaults
 from .modelapi import bngmodel
 from .modelapi.runner import run
 from .simulator.simulators import sim_getter
@@ -7,7 +6,6 @@ from .simulator.simulators import sim_getter
 # SympyOdes helpers until they are actually accessed.
 
 __all__ = [
-    "defaults",
     "bngmodel",
     "run",
     "sim_getter",
