@@ -27,7 +27,7 @@ class BNGResult:
         numpy.recarray
     """
 
-    def __init__(self, path=None, direct_path=None, app=None):
+    def __init__(self, path=None, direct_path=None, app=None, ext=None):
         self.app = app
         self.logger = BNGLogger(app=self.app)
         self.logger.debug(
@@ -36,8 +36,7 @@ class BNGResult:
         # defaults
         self.process_return = None
         self.output = None
-        # TODO Make it so that with path you can supply an
-        # extension or a list of extensions to load in
+        self.ext = ext
         self.gdats = {}
         self.cdats = {}
         self.scans = {}
@@ -109,23 +108,34 @@ class BNGResult:
             loc=f"{__file__} : BNGResult.find_dat_files()",
         )
         files = os.listdir(self.path)
-        ext = "gdat"
-        gdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
-        for dat_file in gdat_files:
-            name = dat_file.replace(f".{ext}", "")
-            self.gnames[name] = dat_file
 
-        ext = "cdat"
-        cdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
-        for dat_file in cdat_files:
-            name = dat_file.replace(f".{ext}", "")
-            self.cnames[name] = dat_file
+        allowed_exts = ["gdat", "cdat", "scan"]
+        if self.ext is not None:
+            if isinstance(self.ext, str):
+                allowed_exts = [self.ext]
+            else:
+                allowed_exts = list(self.ext)
 
-        ext = "scan"
-        scan_files = filter(lambda x: x.endswith(f".{ext}"), files)
-        for dat_file in scan_files:
-            name = dat_file.replace(f".{ext}", "")
-            self.snames[name] = dat_file
+        if "gdat" in allowed_exts:
+            ext = "gdat"
+            gdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
+            for dat_file in gdat_files:
+                name = dat_file.replace(f".{ext}", "")
+                self.gnames[name] = dat_file
+
+        if "cdat" in allowed_exts:
+            ext = "cdat"
+            cdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
+            for dat_file in cdat_files:
+                name = dat_file.replace(f".{ext}", "")
+                self.cnames[name] = dat_file
+
+        if "scan" in allowed_exts:
+            ext = "scan"
+            scan_files = filter(lambda x: x.endswith(f".{ext}"), files)
+            for dat_file in scan_files:
+                name = dat_file.replace(f".{ext}", "")
+                self.snames[name] = dat_file
 
     def load_results(self):
         self.logger.debug(
