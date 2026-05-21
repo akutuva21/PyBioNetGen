@@ -162,38 +162,6 @@ class SCTSolver:
         # let's store each step separately for analysis downstream
         self.database.scts["03_post_user_sct"] = deepcopy(self.database.dependencyGraph)
 
-        # self.database.eequivalence translator contains 1:1 equivalences
-        # FIXME: do we need this update step or is it enough with the later one?
-        # catalysis reactions
-        """
-        for key in self.database.eequivalenceTranslator:
-            for namingEquivalence in self.database.eequivalenceTranslator[key]:
-                baseElement = min(namingEquivalence, key=len)
-                modElement = max(namingEquivalence, key=len)
-                if key != 'Binding':
-                    if baseElement not in self.database.dependencyGraph or self.database.dependencyGraph[baseElement] == []:
-                        if modElement not in self.database.dependencyGraph or self.database.dependencyGraph[modElement] == []:
-                            self.database.dependencyGraph[baseElement] = []
-                        # do we have a meaningful reverse dependence?
-                        # elif all([baseElement not in x for x in self.database.dependencyGraph[modElement]]):
-                        #    atoAux.addToDependencyGraph(self.database.dependencyGraph,baseElement,[modElement])
-                        #    continue
-
-                            if baseElement in self.database.annotationDict and modElement in self.database.annotationDict:
-                                baseSet = set([y for x in self.database.annotationDict[
-                                              baseElement] for y in self.database.annotationDict[baseElement][x]])
-                                modSet = set([y for x in self.database.annotationDict[
-                                             modElement] for y in self.database.annotationDict[modElement][x]])
-                                if len(baseSet.intersection(modSet)) > 0 or len(baseSet) == 0 or len(modSet) == 0:
-                                    atoAux.addToDependencyGraph(self.database.dependencyGraph, modElement,
-                                                         [baseElement])
-                                else:
-                                    logMess("ERROR:ANN201", "{0} and {1} have a direct correspondence according to reaction information however their annotations are completely different.".format(
-                                        baseElement, modElement))
-                            else:
-                                atoAux.addToDependencyGraph(self.database.dependencyGraph, modElement,
-                                                     [baseElement])
-        """
         # include user label information.
         for element in self.database.userLabelDictionary:
             if self.database.userLabelDictionary[element] in [0, [(0,)]]:
