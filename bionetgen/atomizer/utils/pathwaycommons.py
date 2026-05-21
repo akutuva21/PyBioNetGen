@@ -173,7 +173,6 @@ def queryActiveSite(nameStr, organism):
             }
             xparams = urllib.parse.urlencode(xparams).encode("utf-8")
             try:
-                xparams = urllib.parse.urlencode(xparams).encode("utf-8")
                 req = urllib.request.Request(url)
                 with urllib.request.urlopen(req, data=xparams) as f:
                     response = f.read().decode("utf-8")
@@ -182,7 +181,7 @@ def queryActiveSite(nameStr, organism):
                     "ERROR:MSC03", "A connection could not be established to uniprot"
                 )
         response = str(response)
-        if response in ["", None]:
+        if response in ["", "None", None]:
             url = "http://www.uniprot.org/uniprot/?"
             # ASS - Updating the query to conform with a regular RESTful API request and work in Python3
             xparams = {
@@ -240,7 +239,7 @@ def name2uniprot(nameStr, organism):
             logMess("ERROR:MSC03", "A connection could not be established to uniprot")
             return None
 
-    if response in ["", None]:
+    if response in ["", "None", None]:
         url = "http://www.uniprot.org/uniprot/?"
         d = {
             "query": f"{nameStr}",
