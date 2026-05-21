@@ -214,8 +214,8 @@ class BNGFile:
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
         try:
-            # write the current model to temp folder
             os.chdir(temp_folder)
+            # write the current model to temp folder
             with open("temp.bngl", "w", encoding="UTF-8") as f:
                 f.write(bngl_str)
             # run with --xml
