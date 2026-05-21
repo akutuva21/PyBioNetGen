@@ -53,6 +53,40 @@ class TestGetVersionJson(unittest.TestCase):
         self.assertIn("failed: 2", stdout_val)
         self.assertIn("success: 3", stdout_val)
 
+    @patch("time.sleep")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("urllib.request.urlopen")
+    def test_http_error_fallback(self, mock_urlopen, mock_open_file, mock_sleep):
+        error = urllib.error.HTTPError(
+            url="https://api.github.com/repos/RuleWorld/bionetgen/releases/latest",
+            code=403,
+            msg="Forbidden",
+            hdrs={},
+            fp=io.BytesIO(b""),
+        )
+
+        mock_urlopen.side_effect = error
+
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        target_path = os.path.abspath(
+            os.path.join(script_dir, "..", "bionetgen", "assets", "get_version_json.py")
+        )
+
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout:
+            with self.assertRaises(SystemExit) as cm:
+                runpy.run_path(target_path)
+
+            self.assertEqual(cm.exception.code, 1)
+
+        self.assertEqual(mock_urlopen.call_count, 100)
+        self.assertEqual(mock_sleep.call_count, 200)
+
+        mock_open_file.assert_not_called()
+
+        stdout_val = mock_stdout.getvalue()
+        self.assertIn("failed: 100", stdout_val)
+        self.assertIn("Connection to GitHub couldn't be established, quitting", stdout_val)
+
 
 if __name__ == "__main__":
     unittest.main()
