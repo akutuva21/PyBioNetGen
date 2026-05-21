@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, cast
 
 import sympy as sp
+from bionetgen.core.exc import BNGError
 from sympy.parsing.sympy_parser import parse_expr, standard_transformations
 
 
@@ -79,7 +80,12 @@ def export_sympy_odes(
     try:
         run(model, out=out_dir, timeout=timeout, suppress=suppress)
         mex_path = _find_mex_c_file(out_dir, mex_suffix=mex_suffix)
-        return extract_odes_from_mexfile(mex_path)
+        try:
+            return extract_odes_from_mexfile(mex_path)
+        except Exception as e:
+            raise BNGError(
+                f"Failed to extract ODEs from mex C file: {mex_path}\nDetails: {e}"
+            )
     finally:
         if orig_actions_items is not None:
             model.actions.items = orig_actions_items
