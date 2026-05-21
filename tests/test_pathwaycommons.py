@@ -66,10 +66,13 @@ def test_queryBioGridByName_httperror_no_organism():
 
 def test_queryActiveSite_success_with_organism():
     from bionetgen.atomizer.utils.pathwaycommons import queryActiveSite
+
     with patch("urllib.request.urlopen") as mock_urlopen:
         queryActiveSite.cache.clear()
         mock_response = MagicMock()
-        mock_response.read.return_value = b"Name\tID\tFeature\nMYNAME_1\tID1\tACT_SITE\nNOT_MATCHING\tID2\tACT_SITE"
+        mock_response.read.return_value = (
+            b"Name\tID\tFeature\nMYNAME_1\tID1\tACT_SITE\nNOT_MATCHING\tID2\tACT_SITE"
+        )
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
         res = queryActiveSite("myname", ["tax/9606"])
@@ -78,10 +81,13 @@ def test_queryActiveSite_success_with_organism():
 
 def test_queryActiveSite_success_no_organism():
     from bionetgen.atomizer.utils.pathwaycommons import queryActiveSite
+
     with patch("urllib.request.urlopen") as mock_urlopen:
         queryActiveSite.cache.clear()
         mock_response = MagicMock()
-        mock_response.read.return_value = b"Name\tID\tFeature\nMYNAME_1\tID1\tACT_SITE\nNOT_MATCHING\tID2\tACT_SITE"
+        mock_response.read.return_value = (
+            b"Name\tID\tFeature\nMYNAME_1\tID1\tACT_SITE\nNOT_MATCHING\tID2\tACT_SITE"
+        )
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
         res = queryActiveSite("myname", None)
@@ -90,12 +96,17 @@ def test_queryActiveSite_success_no_organism():
 
 def test_queryActiveSite_httperror():
     from bionetgen.atomizer.utils.pathwaycommons import queryActiveSite
+
     with patch("urllib.request.urlopen") as mock_urlopen, patch(
         "bionetgen.atomizer.utils.pathwaycommons.logMess"
     ) as mock_logMess:
         queryActiveSite.cache.clear()
         mock_urlopen.side_effect = urllib.error.HTTPError(
-            url="http://test.com", code=500, msg="Internal Server Error", hdrs={}, fp=None
+            url="http://test.com",
+            code=500,
+            msg="Internal Server Error",
+            hdrs={},
+            fp=None,
         )
 
         res = queryActiveSite("myname", ["tax/9606"])
@@ -107,6 +118,7 @@ def test_queryActiveSite_httperror():
 
 def test_queryActiveSite_no_match():
     from bionetgen.atomizer.utils.pathwaycommons import queryActiveSite
+
     with patch("urllib.request.urlopen") as mock_urlopen:
         queryActiveSite.cache.clear()
         mock_response = MagicMock()
