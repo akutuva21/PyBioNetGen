@@ -1051,7 +1051,9 @@ class SBMLAnalyzer:
                 is_modification = True
             elif len(removed_chars) > 0:
                 is_modification = True
-            elif (len(reactant) >= longEnough and len(reactant) >= len(diff)) or reactant in moleculeSet:
+            elif (
+                len(reactant) >= longEnough and len(reactant) >= len(diff)
+            ) or reactant in moleculeSet:
                 if len(removed_chars) == 0 and all(c.isalpha() for c in added_chars):
                     if reactant in moleculeSet:
                         is_modification = True
