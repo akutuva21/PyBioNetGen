@@ -5,11 +5,18 @@ from unittest.mock import mock_open, patch, MagicMock
 # This test file ensures testing of bionetgen/atomizer/contactMap.py
 import sys
 
+# Temporarily mock modules to allow importing contactMap
 sys.modules["utils"] = MagicMock()
 sys.modules["utils.consoleCommands"] = MagicMock()
 sys.modules["cPickle"] = MagicMock()
 
 from bionetgen.atomizer.contactMap import main, main2, simpleGraph
+
+# Clean up sys.modules to avoid polluting other tests
+del sys.modules["utils"]
+del sys.modules["utils.consoleCommands"]
+del sys.modules["cPickle"]
+
 import networkx as nx
 
 
