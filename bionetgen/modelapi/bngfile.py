@@ -3,13 +3,15 @@ import os, re
 import shutil
 import tempfile
 
-from bionetgen.core.defaults import BNGDefaults
+from bionetgen.main import BioNetGen
 from bionetgen.core.exc import BNGFileError
 from bionetgen.core.utils.utils import find_BNG_path, run_command, ActionList
 
 # This allows access to the CLIs config setup
-defaults = BNGDefaults()
-def_bng_path = defaults.config["bionetgen"]["bngpath"]
+app = BioNetGen()
+app.setup()
+conf = app.config["bionetgen"]
+def_bng_path = conf["bngpath"]
 
 
 class BNGFile:
@@ -73,15 +75,8 @@ class BNGFile:
             if self.bngexec is None:
                 return self._generate_minimal_xml(xml_file, stripped_bngl)
 
-            conf = BNGDefaults().config["bionetgen"]
             app_stdout = conf.get("stdout")
-            if app_stdout == "STDOUT":
-                app_suppress = False
-            elif app_stdout == "DEVNULL":
-                app_suppress = True
-            else:
-                app_suppress = self.suppress
-
+            app_suppress = False if app_stdout == "STDOUT" else self.suppress
             rc, _ = run_command(
                 ["perl", self.bngexec, "--xml", stripped_bngl], suppress=app_suppress
             )

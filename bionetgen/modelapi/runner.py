@@ -1,12 +1,13 @@
 import os
 import logging
 from tempfile import TemporaryDirectory
-from bionetgen.core.defaults import BNGDefaults
+from bionetgen.main import BioNetGen
 from bionetgen.core.tools import BNGCLI
 
 # This allows access to the CLIs config setup
-defaults = BNGDefaults()
-conf = defaults.config["bionetgen"]
+app = BioNetGen()
+app.setup()
+conf = app.config["bionetgen"]
 
 logger = logging.getLogger(__name__)
 
