@@ -204,11 +204,9 @@ class BNGFile:
         write new BNG-XML or SBML of file by calling BNG2.pl again
         or can take BNGL string in as well.
         """
-        # TODO: Implement the route where this function uses the file itself
-        # for this generation
         if bngl_str is None:
-            # should load in the right str here
-            raise NotImplementedError
+            with open(self.path, "r", encoding="UTF-8") as f:
+                bngl_str = f.read()
 
         cur_dir = os.getcwd()
         # temporary folder to work in
@@ -221,6 +219,8 @@ class BNGFile:
             # run with --xml
             # Output suppression is handled downstream by self.suppress
             if xml_type == "bngxml":
+                if self.bngexec is None:
+                    return self._generate_minimal_xml(open_file, "temp.bngl")
                 rc, _ = run_command(
                     ["perl", self.bngexec, "--xml", "temp.bngl"], suppress=self.suppress
                 )
