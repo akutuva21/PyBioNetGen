@@ -63,7 +63,9 @@ def test_queryBioGridByName_httperror_no_organism():
         )
         assert result is False
 
+
 from bionetgen.atomizer.utils.pathwaycommons import getReactomeBondByUniprot
+
 
 def test_getReactomeBondByUniprot_success():
     with patch("urllib.request.urlopen") as mock_urlopen:
@@ -83,7 +85,7 @@ protein4\txref\tuniprot4"""
         getReactomeBondByUniprot.cache = {}
         result = getReactomeBondByUniprot(uniprot1, uniprot2)
 
-        assert result == [['protein1', 'in-complex-with', 'protein2']]
+        assert result == [["protein1", "in-complex-with", "protein2"]]
 
 
 def test_getReactomeBondByUniprot_httperror():
