@@ -1,4 +1,5 @@
 import os, glob
+from unittest.mock import patch
 from pytest import raises
 import bionetgen as bng
 from bionetgen.main import BioNetGenTest
@@ -52,8 +53,6 @@ def test_bionetgen_info():
         app.run()
         assert app.exit_code == 0
 
-
-from unittest.mock import patch
 
 @patch("bionetgen.core.tools.BNGPlotter")
 def test_plotDAT_valid_input(MockBNGPlotter):
