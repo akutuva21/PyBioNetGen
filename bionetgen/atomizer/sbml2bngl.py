@@ -2502,10 +2502,9 @@ class SBML2BNGL:
                     zRules.remove(rawArule[0])
                 else:
                     for element in parameters:
-                        # TODO: if for whatever reason a rate rule
-                        # was defined as a parameter that is not 0
-                        # remove it. This might not be exact behavior
-                        if re.search("^{0}\s".format(rawArule[0]), element):
+                        # if a rate rule was defined as a parameter that is not 0
+                        # remove it.
+                        if re.search(r"^{0}\s".format(re.escape(rawArule[0])), element):
                             logMess(
                                 "WARNING:SIM106",
                                 "Parameter {0} corresponds both as a non zero parameter \
