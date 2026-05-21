@@ -1,26 +1,31 @@
 import pytest
 import sys
 from unittest.mock import mock_open, patch, MagicMock
-
-# This test file ensures testing of bionetgen/atomizer/contactMap.py
-import sys
-
-# Temporarily mock modules to allow importing contactMap
-sys.modules["utils"] = MagicMock()
-sys.modules["utils.consoleCommands"] = MagicMock()
-sys.modules["cPickle"] = MagicMock()
-
-from bionetgen.atomizer.contactMap import main, main2, simpleGraph
-
-# Clean up sys.modules to avoid polluting other tests
-del sys.modules["utils"]
-del sys.modules["utils.consoleCommands"]
-del sys.modules["cPickle"]
-
 import networkx as nx
 
+# This test file ensures testing of bionetgen/atomizer/contactMap.py
 
-def test_simpleGraph():
+
+@pytest.fixture(scope="module")
+def contactMap_module():
+    """
+    Safely imports bionetgen.atomizer.contactMap by mocking legacy dependencies
+    during import. Returns the imported module.
+    """
+    with patch.dict(
+        "sys.modules",
+        {
+            "utils": MagicMock(),
+            "utils.consoleCommands": MagicMock(),
+            "cPickle": MagicMock(),
+        },
+    ):
+        import bionetgen.atomizer.contactMap as cm
+
+        yield cm
+
+
+def test_simpleGraph(contactMap_module):
     graph = nx.Graph()
 
     comp1 = MagicMock()
@@ -43,7 +48,9 @@ def test_simpleGraph():
 
     observableList = [["spec1(comp1)", "spec2(something)"]]
 
-    nodeDict = simpleGraph(graph, species, observableList, prefix="test", superNode={})
+    nodeDict = contactMap_module.simpleGraph(
+        graph, species, observableList, prefix="test", superNode={}
+    )
 
     assert nodeDict == {1: "test_spec1", 2: "test_spec2"}
 
@@ -60,7 +67,7 @@ def test_simpleGraph():
     assert ("test_spec1(comp1)", "test_spec2(something)") in graph.edges
 
 
-def test_simpleGraph_superNode():
+def test_simpleGraph_superNode(contactMap_module):
     graph = nx.Graph()
 
     comp1 = MagicMock()
@@ -78,7 +85,7 @@ def test_simpleGraph_superNode():
 
     superNode = {"test_spec1": "super1", "super1": 5}
 
-    nodeDict = simpleGraph(
+    nodeDict = contactMap_module.simpleGraph(
         graph, species, observableList, prefix="test", superNode=superNode
     )
 
@@ -104,6 +111,7 @@ def test_main(
     mock_file,
     mock_pickle_load,
     mock_listdir,
+    contactMap_module,
 ):
     # To fix `x.split(".")[0][6:]`, we need the file name to have at least 6 chars before '.'
     # For example: `prefix123.bngl.dict` -> split(".")[0] is `prefix123` -> [6:] is `123`
@@ -120,7 +128,7 @@ def test_main(
 
     mock_parseXML.return_value = ([], [], {}, [])
 
-    main()
+    contactMap_module.main()
 
     assert mock_listdir.called
     assert mock_pickle_load.call_count == 3
@@ -133,10 +141,10 @@ def test_main(
 
 @patch("bionetgen.atomizer.contactMap.readBNGXML.parseXML")
 @patch("bionetgen.atomizer.contactMap.nx.write_gml")
-def test_main2(mock_write_gml, mock_parseXML):
+def test_main2(mock_write_gml, mock_parseXML, contactMap_module):
     mock_parseXML.return_value = ([], [], {}, [])
 
-    main2()
+    contactMap_module.main2()
 
     assert mock_parseXML.called
     assert mock_write_gml.called
