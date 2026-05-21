@@ -178,10 +178,10 @@ class BNGVisualize:
         )
 
         with TemporaryDirectory() as out:
-            os.chdir(out)
-            # instantiate a CLI object with the info
-            cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
             try:
+                os.chdir(out)
+                # instantiate a CLI object with the info
+                cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
                 cli.run()
                 # load vis
                 vis_res = VisResult(
@@ -190,6 +190,9 @@ class BNGVisualize:
                     vtype=self.vtype,
                 )
 
+                # Must restore directory before we dump files because we need original cwd if output is relative
+                # This also fixes Windows PermissionError on tempfile deletion
+                os.chdir(cur_dir)
                 # dump files
                 if self.output is None:
                     vis_res._dump_files(os.getcwd())
