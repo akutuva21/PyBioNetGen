@@ -270,7 +270,7 @@ class ActionList:
             "print_functions",
             "netfile",
             "seed",
-            # TODO: arguments for a method called "psa" that is not documented in
+            # Note: arguments for a method called "psa" that are not documented in
             # https://docs.google.com/spreadsheets/d/1Co0bPgMmOyAFxbYnGCmwKzoEsY2aUCMtJXQNpQCEUag/
             "poplevel",
             "check_product_scale",
