@@ -1179,10 +1179,10 @@ def analyzeHelper(
                         sbmlfunctions[sbml2], sbml, sbmlfunctions[sbml]
                     )
 
-    # TODO: if an observable is defined via artificial obs
-    # we should overwrite it in obs dict
-    for key in observablesDict:
-        if key + "_ar" in artificialObservables:
+    for key in list(observablesDict.keys()):
+        if observablesDict[key] + "_ar" in artificialObservables:
+            observablesDict[key] = observablesDict[key] + "_ar"
+        elif key + "_ar" in artificialObservables:
             observablesDict[key] = key + "_ar"
     #
     functions = reorderFunctions(functions)
