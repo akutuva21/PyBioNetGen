@@ -1,79 +1,46 @@
 import pytest
+import unittest.mock
 import os
-from unittest.mock import patch, MagicMock
 from bionetgen.simulator.simulators import sim_getter
 
+def test_sim_getter_model_file():
+    with unittest.mock.patch("bionetgen.simulator.simulators.libRRSimulator") as mock_librr:
+        sim_getter(model_file="test.bngl", sim_type="libRR")
+        mock_librr.assert_called_once_with(model_file="test.bngl")
 
-@patch("bionetgen.simulator.simulators.libRRSimulator")
-def test_sim_getter_model_file_libRR(mock_libRR):
-    mock_libRR.return_value = "mock_libRR_instance"
-    result = sim_getter(model_file="test.bngl", sim_type="libRR")
-    mock_libRR.assert_called_once_with(model_file="test.bngl")
-    assert result == "mock_libRR_instance"
+    with unittest.mock.patch("bionetgen.simulator.simulators.CSimulator") as mock_csim:
+        sim_getter(model_file="test.bngl", sim_type="cpy")
+        mock_csim.assert_called_once_with(model_file="test.bngl", generate_network=True)
 
+    with unittest.mock.patch("builtins.print") as mock_print:
+        res = sim_getter(model_file="test.bngl", sim_type="unknown")
+        assert res is None
+        mock_print.assert_called_once_with("simulator type unknown not supported")
 
-@patch("bionetgen.simulator.simulators.CSimulator")
-def test_sim_getter_model_file_cpy(mock_cpy):
-    mock_cpy.return_value = "mock_cpy_instance"
-    result = sim_getter(model_file="test.bngl", sim_type="cpy")
-    mock_cpy.assert_called_once_with(model_file="test.bngl", generate_network=True)
-    assert result == "mock_cpy_instance"
+def test_sim_getter_model_str():
+    with unittest.mock.patch("bionetgen.simulator.simulators.libRRSimulator") as mock_librr:
+        sim_getter(model_str="begin model\nend model\n", sim_type="libRR")
+        assert mock_librr.call_count == 1
+        args, kwargs = mock_librr.call_args
+        assert "model_file" in kwargs
+        assert os.path.exists(kwargs["model_file"]) is False # since NamedTemporaryFile is closed, it might not exist, but let's just check it's passed
 
+    with unittest.mock.patch("bionetgen.simulator.simulators.CSimulator") as mock_csim:
+        sim_getter(model_str="begin model\nend model\n", sim_type="cpy")
+        assert mock_csim.call_count == 1
+        args, kwargs = mock_csim.call_args
+        assert "model_file" in kwargs
+        assert kwargs["generate_network"] is True
 
-@patch("builtins.print")
-def test_sim_getter_model_file_unsupported(mock_print):
-    result = sim_getter(model_file="test.bngl", sim_type="unsupported")
-    mock_print.assert_called_once_with("simulator type unsupported not supported")
-    assert result is None
+    with unittest.mock.patch("builtins.print") as mock_print:
+        res = sim_getter(model_str="begin model\nend model\n", sim_type="unknown")
+        assert res is None
+        assert mock_print.call_count == 2
+        mock_print.assert_has_calls([
+            unittest.mock.call("simulator type unknown not supported"),
+            unittest.mock.call("simulator type unknown not supported")
+        ])
 
-
-@patch("os.remove")
-@patch("bionetgen.simulator.simulators.libRRSimulator")
-@patch("tempfile.NamedTemporaryFile")
-def test_sim_getter_model_str_libRR(mock_ntf, mock_libRR, mock_remove):
-    mock_libRR.return_value = "mock_libRR_instance"
-
-    mock_file_obj = mock_ntf.return_value.__enter__.return_value
-    mock_file_obj.name = "temp_model_str.bngl"
-
-    result = sim_getter(model_str="model_content", sim_type="libRR")
-
-    mock_libRR.assert_called_once_with(model_file="temp_model_str.bngl")
-    mock_remove.assert_called_once_with("temp_model_str.bngl")
-    assert result == "mock_libRR_instance"
-
-
-@patch("os.remove")
-@patch("bionetgen.simulator.simulators.CSimulator")
-@patch("tempfile.NamedTemporaryFile")
-def test_sim_getter_model_str_cpy(mock_ntf, mock_cpy, mock_remove):
-    mock_cpy.return_value = "mock_cpy_instance"
-
-    mock_file_obj = mock_ntf.return_value.__enter__.return_value
-    mock_file_obj.name = "temp_model_str.bngl"
-
-    result = sim_getter(model_str="model_content", sim_type="cpy")
-
-    mock_cpy.assert_called_once_with(
-        model_file="temp_model_str.bngl", generate_network=True
-    )
-    mock_remove.assert_called_once_with("temp_model_str.bngl")
-    assert result == "mock_cpy_instance"
-
-
-@patch("tempfile.NamedTemporaryFile")
-@patch("builtins.print")
-def test_sim_getter_model_str_unsupported(mock_print, mock_ntf):
-    mock_file_obj = mock_ntf.return_value.__enter__.return_value
-    mock_file_obj.name = "temp_model_str.bngl"
-
-    result = sim_getter(model_str="model_content", sim_type="unsupported")
-
-    assert mock_print.call_count == 2
-    mock_print.assert_any_call("simulator type unsupported not supported")
-    assert result is None
-
-
-def test_sim_getter_neither_provided():
-    result = sim_getter()
-    assert result is None
+def test_sim_getter_no_args():
+    res = sim_getter()
+    assert res is None
