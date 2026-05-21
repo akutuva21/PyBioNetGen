@@ -32,7 +32,9 @@ def run(inp, out=None, suppress=False, timeout=None):
         with TemporaryDirectory() as out:
             try:
                 # instantiate a CLI object with the info
-                cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
+                cli = BNGCLI(
+                    inp, out, conf["bngpath"], suppress=suppress, timeout=timeout
+                )
                 cli.run()
             except Exception as e:
                 logger.error("Couldn't run the simulation, see error")
