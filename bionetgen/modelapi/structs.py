@@ -1,3 +1,5 @@
+import re
+
 from bionetgen.modelapi.pattern import Molecule, Pattern
 from bionetgen.modelapi.rulemod import RuleMod
 from bionetgen.core.utils.utils import ActionList
@@ -53,11 +55,7 @@ class ModelObj:
 
     @comment.setter
     def comment(self, val) -> None:
-        # TODO: regex handling of # instead
-        if val.startswith("#"):
-            self._comment = val[1:]
-        else:
-            self._comment = val
+        self._comment = re.sub(r"^#", "", val)
 
     @property
     def line_label(self) -> str:
