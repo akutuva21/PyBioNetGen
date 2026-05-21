@@ -28,33 +28,26 @@ def run(inp, out=None, suppress=False, timeout=None):
     """
     # if out is None we make a temp directory
     cur_dir = os.getcwd()
-    if out is None:
-        with TemporaryDirectory() as out:
-            # instantiate a CLI object with the info
-            cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
-            try:
-                cli.run()
-                os.chdir(cur_dir)
-            except Exception as e:
-                os.chdir(cur_dir)
-                logger.error("Couldn't run the simulation, see error")
-                if hasattr(e, "stdout") and e.stdout is not None:
-                    logger.error(f"STDOUT:\n{e.stdout}")
-                if hasattr(e, "stderr") and e.stderr is not None:
-                    logger.error(f"STDERR:\n{e.stderr}")
-                raise e
-    else:
+
+    def _run_cli(run_out):
         # instantiate a CLI object with the info
-        cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
+        cli = BNGCLI(inp, run_out, conf["bngpath"], suppress=suppress, timeout=timeout)
         try:
             cli.run()
-            os.chdir(cur_dir)
         except Exception as e:
-            os.chdir(cur_dir)
             logger.error("Couldn't run the simulation, see error")
             if hasattr(e, "stdout") and e.stdout is not None:
                 logger.error(f"STDOUT:\n{e.stdout}")
             if hasattr(e, "stderr") and e.stderr is not None:
                 logger.error(f"STDERR:\n{e.stderr}")
             raise e
+        finally:
+            os.chdir(cur_dir)
+        return cli
+
+    if out is None:
+        with TemporaryDirectory() as temp_out:
+            cli = _run_cli(temp_out)
+    else:
+        cli = _run_cli(out)
     return cli.result
