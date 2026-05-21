@@ -503,9 +503,9 @@ class bngmodel:
                         )
                 self.actions.clear_actions()
                 # get the simulator
-                import bionetgen as bng
+                from bionetgen.simulator.simulators import sim_getter
 
-                self.simulator = bng.sim_getter(model_file=sbml_name, sim_type=sim_type)
+                self.simulator = sim_getter(model_file=sbml_name, sim_type=sim_type)
                 # let's deal with observables here
                 selections = ["time"] + [obs for obs in self.observables]
                 self.simulator.simulator.timeCourseSelections = selections
@@ -514,9 +514,9 @@ class bngmodel:
             self.actions = curr_actions
         elif sim_type == "cpy":
             # get the simulator
-            import bionetgen as bng
+            from bionetgen.simulator.simulators import sim_getter
 
-            self.simulator = bng.sim_getter(model_file=self, sim_type=sim_type)
+            self.simulator = sim_getter(model_file=self, sim_type=sim_type)
             return self.simulator
         else:
             print('Sim type {} is not recognized, only libroadrunner \
