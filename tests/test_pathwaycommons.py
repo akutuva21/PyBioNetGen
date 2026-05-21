@@ -63,29 +63,47 @@ def test_queryBioGridByName_httperror_no_organism():
         )
         assert result is False
 
+
 from bionetgen.atomizer.utils.pathwaycommons import isInComplexWith
 
+
 def test_isInComplexWith_success():
-    with patch("bionetgen.atomizer.utils.pathwaycommons.getReactomeBondByName") as mock_getReactomeBondByName:
+    with patch(
+        "bionetgen.atomizer.utils.pathwaycommons.getReactomeBondByName"
+    ) as mock_getReactomeBondByName:
         mock_getReactomeBondByName.return_value = [("A", "in-complex-with", "B")]
         name1 = ("GENE1", "uri1")
         name2 = ("GENE2", "uri2")
         result = isInComplexWith(name1, name2, organism=None)
         assert result is True
-        mock_getReactomeBondByName.assert_called_once_with("GENE1", "GENE2", "uri1", "uri2", None)
+        mock_getReactomeBondByName.assert_called_once_with(
+            "GENE1", "GENE2", "uri1", "uri2", None
+        )
+
 
 def test_isInComplexWith_failure():
-    with patch("bionetgen.atomizer.utils.pathwaycommons.getReactomeBondByName") as mock_getReactomeBondByName:
+    with patch(
+        "bionetgen.atomizer.utils.pathwaycommons.getReactomeBondByName"
+    ) as mock_getReactomeBondByName:
         mock_getReactomeBondByName.return_value = [("A", "interacts-with", "B")]
         name1 = ("GENE1", "uri1")
         name2 = ("GENE2", "uri2")
         result = isInComplexWith(name1, name2, organism=None)
         assert result is False
-        mock_getReactomeBondByName.assert_called_once_with("GENE1", "GENE2", "uri1", "uri2", None)
+        mock_getReactomeBondByName.assert_called_once_with(
+            "GENE1", "GENE2", "uri1", "uri2", None
+        )
+
 
 def test_isInComplexWith_retry_success():
-    with patch("bionetgen.atomizer.utils.pathwaycommons.getReactomeBondByName") as mock_getReactomeBondByName:
-        mock_getReactomeBondByName.side_effect = [None, None, [("A", "in-complex-with", "B")]]
+    with patch(
+        "bionetgen.atomizer.utils.pathwaycommons.getReactomeBondByName"
+    ) as mock_getReactomeBondByName:
+        mock_getReactomeBondByName.side_effect = [
+            None,
+            None,
+            [("A", "in-complex-with", "B")],
+        ]
         name1 = ("GENE1", "uri1")
         name2 = ("GENE2", "uri2")
         result = isInComplexWith(name1, name2, organism=None)
