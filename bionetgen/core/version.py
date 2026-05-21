@@ -1,4 +1,5 @@
 import os
+from cement.utils.version import get_version as cement_get_version
 
 # Find VERSION file
 vpath = os.path.dirname(os.path.abspath(__file__))
@@ -17,13 +18,4 @@ VERSION = tuple(vtuple)
 
 
 def get_version(version=VERSION):
-    assert len(version) == 5
-    assert version[3] in ("alpha", "beta", "rc", "final")
-
-    main = ".".join(str(x) for x in version[:3])
-    sub = ""
-    if version[3] != "final":
-        mapping = {"alpha": "a", "beta": "b", "rc": "c"}
-        sub = mapping[version[3]] + str(version[4])
-
-    return main + sub
+    return cement_get_version(version)
