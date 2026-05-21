@@ -33,6 +33,7 @@ def test_bionetgen_input():
 
 def test_bionetgen_plot():
     import bionetgen as bng
+
     if not os.path.exists(os.path.join(*[tfold, "test"])):
         os.makedirs(os.path.join(*[tfold, "test"]))
     try:
