@@ -1,5 +1,4 @@
 from .core.defaults import defaults
-from .modelapi import bngmodel
 from .modelapi.runner import run
 from .simulator.simulators import sim_getter
 
@@ -21,4 +20,8 @@ def __getattr__(name):
         from .modelapi.sympy_odes import SympyOdes, export_sympy_odes
 
         return locals()[name]
+    elif name == "bngmodel":
+        from .modelapi import bngmodel
+
+        return bngmodel
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
