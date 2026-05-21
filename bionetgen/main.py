@@ -30,7 +30,6 @@ class versionAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         import os
-        import bionetgen as bng
         from cement.utils.version import get_version_banner
         from bionetgen.core.defaults import get_latest_bng_version
 
