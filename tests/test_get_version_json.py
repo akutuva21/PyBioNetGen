@@ -85,7 +85,9 @@ class TestGetVersionJson(unittest.TestCase):
 
         stdout_val = mock_stdout.getvalue()
         self.assertIn("failed: 100", stdout_val)
-        self.assertIn("Connection to GitHub couldn't be established, quitting", stdout_val)
+        self.assertIn(
+            "Connection to GitHub couldn't be established, quitting", stdout_val
+        )
 
 
 if __name__ == "__main__":
