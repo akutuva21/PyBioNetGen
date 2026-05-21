@@ -1,6 +1,6 @@
 import copy, tempfile, shutil
 
-from bionetgen.main import BioNetGen
+from bionetgen.core.defaults import defaults
 from bionetgen.core.exc import BNGModelError
 from bionetgen.core.utils.logging import BNGLogger
 
@@ -19,9 +19,7 @@ from .blocks import (
 )
 
 # This allows access to the CLIs config setup
-app = BioNetGen()
-app.setup()
-conf = app.config["bionetgen"]
+conf = defaults.config.get("bionetgen", {})
 def_bng_path = conf["bngpath"]
 
 
@@ -76,7 +74,7 @@ class bngmodel:
     def __init__(
         self, bngl_model, BNGPATH=def_bng_path, generate_network=False, suppress=True
     ):
-        self.logger = BNGLogger(app=app)
+        self.logger = BNGLogger(app=None)
         self.active_blocks = []
         # We want blocks to be printed in the same order every time
         self._block_order = [

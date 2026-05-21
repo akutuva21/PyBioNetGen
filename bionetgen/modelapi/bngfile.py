@@ -3,14 +3,12 @@ import os, re
 import shutil
 import tempfile
 
-from bionetgen.main import BioNetGen
+from bionetgen.core.defaults import defaults
 from bionetgen.core.exc import BNGFileError
 from bionetgen.core.utils.utils import find_BNG_path, run_command, ActionList
 
 # This allows access to the CLIs config setup
-app = BioNetGen()
-app.setup()
-conf = app.config["bionetgen"]
+conf = defaults.config.get("bionetgen", {})
 def_bng_path = conf["bngpath"]
 
 
