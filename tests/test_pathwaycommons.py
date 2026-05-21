@@ -72,8 +72,6 @@ def test_queryBioGridByName_httperror_no_organism():
 def test_getReactomeBondByName_with_uris(
     mock_name2uniprot, mock_getReactomeBondByUniprot
 ):
-    getReactomeBondByName.cache = {}
-
     mock_getReactomeBondByUniprot.return_value = [
         ["P01133", "in-complex-with", "P01112"]
     ]
@@ -98,8 +96,6 @@ def test_getReactomeBondByName_with_uris(
 def test_getReactomeBondByName_without_uris(
     mock_name2uniprot, mock_getReactomeBondByUniprot
 ):
-    getReactomeBondByName.cache = {}
-
     # Mock return values for name2uniprot
     mock_name2uniprot.side_effect = [["P01133"], ["P01112"]]
     mock_getReactomeBondByUniprot.return_value = [
@@ -107,7 +103,7 @@ def test_getReactomeBondByName_without_uris(
     ]
 
     name1 = "EGF"
-    name2 = "EGFR"
+    name2 = "EGFR_no_uri"
     sbmlURI = ()
     sbmlURI2 = ()
     organism = ("tax/9606",)
@@ -128,8 +124,6 @@ def test_getReactomeBondByName_without_uris(
 def test_getReactomeBondByName_fallback_to_names(
     mock_name2uniprot, mock_getReactomeBondByUniprot
 ):
-    getReactomeBondByName.cache = {}
-
     # Return empty list or None from name2uniprot
     mock_name2uniprot.side_effect = [[], []]
     mock_getReactomeBondByUniprot.return_value = []
