@@ -2,6 +2,7 @@ import os, glob
 from pytest import raises
 import bionetgen as bng
 from bionetgen.main import BioNetGenTest
+from bionetgen.modelapi.runner import run
 
 tfold = os.path.dirname(__file__)
 
@@ -188,7 +189,7 @@ def test_model_running_lib():
         if "test_tfun" in model or "isingspin_localfcn" in model:
             continue
         try:
-            bng.run(model)
+            run(model)
             success += 1
             model = os.path.split(model)
             model = model[1]

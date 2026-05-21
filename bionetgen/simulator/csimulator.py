@@ -8,6 +8,7 @@ except ImportError:
 from .bngsimulator import BNGSimulator
 from bionetgen.main import BioNetGen
 from bionetgen.core.exc import BNGCompileError, BNGSimulatorError
+from bionetgen.modelapi.runner import run
 from bionetgen.core.utils.logging import BNGLogger
 
 # This allows access to the CLIs config setup
@@ -202,7 +203,7 @@ class CSimulator(BNGSimulator):
         self.model.actions.add_action("generate_network", {"overwrite": 1})
         self.model.actions.add_action("writeCPYfile", {})
         # for now run and write the .c file in the current folder
-        bionetgen.run(self.model, out=os.path.abspath(os.getcwd()))
+        run(self.model, out=os.path.abspath(os.getcwd()))
         # compile CPY file
         c_file = f"{self.model.model_name}_cvode_py.c"
         obj_file = f"{self.model.model_name}_cvode_py.o"
