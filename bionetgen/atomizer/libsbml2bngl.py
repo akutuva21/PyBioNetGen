@@ -486,7 +486,9 @@ def reorder_and_replace_arules(functions, parser):
             fs = sympy.sympify(f, locals=parser.all_syms)
         except:
             # Can't parse this func
-            logging.warning(f"Cannot parse function {fname} during dependency resolution")
+            logging.warning(
+                f"Cannot parse function {fname} during dependency resolution"
+            )
             if fname.startswith("fRate"):
                 frates.append((fname.strip(), f))
             else:
