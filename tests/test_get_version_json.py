@@ -53,7 +53,6 @@ class TestGetVersionJson(unittest.TestCase):
         self.assertIn("failed: 2", stdout_val)
         self.assertIn("success: 3", stdout_val)
 
-
     @patch("time.sleep")
     @patch("urllib.request.urlopen")
     def test_http_error_quit(self, mock_urlopen, mock_sleep):
@@ -83,7 +82,9 @@ class TestGetVersionJson(unittest.TestCase):
 
         stdout_val = mock_stdout.getvalue()
         self.assertIn("failed: 100", stdout_val)
-        self.assertIn("Connection to GitHub couldn't be established, quitting", stdout_val)
+        self.assertIn(
+            "Connection to GitHub couldn't be established, quitting", stdout_val
+        )
 
 
 if __name__ == "__main__":
