@@ -170,6 +170,7 @@ class CSimulator(BNGSimulator):
             self.model = model_file
             cd = os.getcwd()
             import shutil
+
             tmpdirname = tempfile.mkdtemp(prefix="bngsim_")
             try:
                 os.chdir(tmpdirname)

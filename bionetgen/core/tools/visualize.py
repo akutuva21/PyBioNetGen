@@ -183,6 +183,7 @@ class BNGVisualize:
             # So we create and explicitly clean it up.
             import tempfile
             import shutil
+
             out = tempfile.mkdtemp(prefix="bngviz_")
             os.chdir(out)
 

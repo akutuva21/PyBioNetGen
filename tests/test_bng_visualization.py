@@ -31,6 +31,7 @@ def test_bionetgen_visualize():
 
             # Check if bngexec exists (visualization outputs may not generate locally if missing)
             import bionetgen.core.defaults as defaults
+
             bng_path = defaults.BNGDefaults().bng_path
             if not os.path.exists(os.path.join(bng_path, "BNG2.pl")):
                 continue
@@ -45,12 +46,7 @@ def test_bionetgen_visualize():
                 assert len(graphmls) == 4
         # clean up graphml files
         import shutil
-        try:
-            shutil.rmtree(os.path.join(tfold, "viz"))
-        except:
-            pass
-        # clean up graphml files
-        import shutil
+
         try:
             shutil.rmtree(os.path.join(tfold, "viz"))
         except:

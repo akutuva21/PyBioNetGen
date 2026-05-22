@@ -121,6 +121,7 @@ def test_model_running_lib():
 
 def test_setup_simulator():
     import bionetgen.core.defaults as defaults
+
     fpath = os.path.join(tfold, "test.bngl")
     fpath = os.path.abspath(fpath)
     bng_path = defaults.BNGDefaults().bng_path
