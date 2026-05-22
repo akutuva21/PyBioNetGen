@@ -6,15 +6,15 @@ try:
 except ImportError:
     pass
 from .bngsimulator import BNGSimulator
-from bionetgen.main import BioNetGen
+from bionetgen.core.defaults import BNGDefaults
 from bionetgen.core.exc import BNGCompileError, BNGSimulatorError
 from bionetgen.core.utils.logging import BNGLogger
 
 # This allows access to the CLIs config setup
-app = BioNetGen()
-app.setup()
-conf = app.config["bionetgen"]
-def_bng_path = conf["bngpath"]
+conf = BNGDefaults()
+
+
+def_bng_path = conf.bng_path
 
 
 class RESULT(ctypes.Structure):
