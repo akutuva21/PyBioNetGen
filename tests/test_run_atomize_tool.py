@@ -39,6 +39,8 @@ def test_runAtomizeTool_write_scts(tmp_path):
         mock_atomize_instance.run.return_value = mock_res_arr
 
         orig_cwd = os.getcwd()
+        if not os.path.exists(tmp_path):
+            os.makedirs(tmp_path)
         os.chdir(tmp_path)
 
         try:
@@ -68,6 +70,8 @@ def test_runAtomizeTool_write_scts_and_graphs(tmp_path):
         mock_atomize_instance.run.return_value = mock_res_arr
 
         orig_cwd = os.getcwd()
+        if not os.path.exists(tmp_path):
+            os.makedirs(tmp_path)
         os.chdir(tmp_path)
 
         try:
