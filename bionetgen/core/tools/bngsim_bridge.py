@@ -26,10 +26,10 @@ logger = logging.getLogger("bionetgen.bngsim_bridge")
 # PyBioNetGen routes every simulation through subprocess BNG2.pl /
 # run_network / NFsim (the documented fallback). When BNGsim *is*
 # installed, however, PyBioNetGen depends on specific behaviour that
-# only the modern releases provide — most recently 0.6.0's NFsim
-# global-function support (closes bngsim #40), without which the
-# network-free corpus produces incomplete output. So the contract is
-# "optional, but if present must be recent."
+# only the modern releases provide — the settled, method-independent
+# gdat/scan output schema (bngsim #58, finalized in 0.9.0) that the
+# parity differ normalizes against, plus the validated current release.
+# So the contract is "optional, but if present must be recent."
 #
 # Implementation:
 #   * Not installed → BNGSIM_AVAILABLE=False, reason "not installed",
@@ -47,7 +47,7 @@ logger = logging.getLogger("bionetgen.bngsim_bridge")
 # `if not BNGSIM_AVAILABLE` site (≈8 places) naturally falls back without
 # needing per-site version checks.
 
-MINIMUM_BNGSIM_VERSION = "0.6.0"
+MINIMUM_BNGSIM_VERSION = "0.9.10"
 BNGSIM_UNAVAILABLE_REASON: str | None = None
 _VERSION_FALLBACK_WARNED = False
 

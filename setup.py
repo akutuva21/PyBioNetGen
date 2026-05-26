@@ -203,4 +203,13 @@ setup(
         "pyparsing",
         "packaging",
     ],
+    # bngsim is an OPTIONAL in-process simulation engine. It is never a hard
+    # dependency: absent it, the bridge transparently falls back to the
+    # subprocess BNG2.pl path (see core/tools/bngsim_bridge.py). The extra is
+    # provided for discoverability and pins the version floor that matches
+    # MINIMUM_BNGSIM_VERSION in the bridge. (bngsim is not yet on PyPI, so
+    # `pip install bionetgen[bngsim]` will not resolve until it is published.)
+    extras_require={
+        "bngsim": ["bngsim>=0.9.10"],
+    },
 )

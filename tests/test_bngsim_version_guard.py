@@ -68,7 +68,7 @@ class TestVersionGuardStates:
         assert b.MINIMUM_BNGSIM_VERSION in reason
 
     def test_minimum_version_available(self, monkeypatch):
-        b = _reload_bridge_with_fake_bngsim(monkeypatch, "0.6.0")
+        b = _reload_bridge_with_fake_bngsim(monkeypatch, "0.9.10")
         assert b.is_bngsim_available()
         assert b.get_bngsim_unavailable_reason() is None
 
