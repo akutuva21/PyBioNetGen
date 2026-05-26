@@ -1,0 +1,836 @@
+import json
+import os
+import shutil
+import stat
+import textwrap
+
+import pytest
+
+from bionetgen.core.exc import BNGRunError
+from bionetgen.core.defaults import BNGDefaults
+from bionetgen.core.tools.bngsim_backend_helper import (
+    direct_job_from_backend_job,
+    load_backend_job,
+)
+from bionetgen.core.tools.bngsim_bridge import (
+    BNGSIM_AVAILABLE,
+    run_bngl_with_bngsim_backend_hook,
+)
+from bionetgen.core.utils.utils import find_BNG_path
+
+
+def _write_executable(path, text):
+    path.write_text(textwrap.dedent(text), encoding="utf-8")
+    path.chmod(path.stat().st_mode | stat.S_IXUSR)
+    return path
+
+
+def _write_capture_helper(tmp_path):
+    capture_path = tmp_path / "helper-jobs.jsonl"
+    helper = _write_executable(
+        tmp_path / "fake_backend_helper.py",
+        f"""\
+        #!/usr/bin/env python3
+        import json
+        import os
+        import sys
+
+        job_path = sys.argv[1]
+        with open(job_path, "r", encoding="utf-8") as handle:
+            job = json.load(handle)
+        with open({str(capture_path)!r}, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(job, sort_keys=True) + "\\n")
+        prefix = job.get("output_prefix")
+        if prefix:
+            with open(prefix + ".gdat", "w", encoding="utf-8") as handle:
+                handle.write("# time A\\n0 1\\n1 2\\n")
+            with open(prefix + ".cdat", "w", encoding="utf-8") as handle:
+                handle.write("# time S\\n0 10\\n1 9\\n")
+        if os.environ.get("FAKE_BACKEND_FAIL"):
+            print(json.dumps({{"success": False, "error": "forced helper failure"}}))
+            sys.exit(5)
+        print(json.dumps({{"success": True}}))
+        """,
+    )
+    return helper, capture_path
+
+
+def _patch_real_bng_action(bng_root):
+    action_path = bng_root / "Perl2" / "BNGAction.pm"
+    source = action_path.read_text(encoding="utf-8")
+    if "use JSON::PP;" not in source:
+        source = source.replace("use warnings;\n", "use warnings;\nuse JSON::PP;\n", 1)
+
+    hook = r"""
+    # PyBioNetGen/BNGsim backend hook. BNG2.pl has already normalized the
+    # model state, artifact path, method, options, and output prefix.
+    if ($ENV{'BIONETGEN_BNGSIM_BACKEND'} && $method =~ /^(cvode|ssa|psa)$/)
+    {
+        my @helper_command;
+        if ($ENV{'BIONETGEN_BNGSIM_BACKEND_HELPER'})
+        {
+            # The test helper is a Python script. Run it through the interpreter
+            # (BNGCLI always advertises BIONETGEN_BNGSIM_BACKEND_HELPER_PYTHON)
+            # rather than exec'ing the path directly: a chmod'd shebang script
+            # is not executable on Windows, where system($script, ...) fails.
+            if ($ENV{'BIONETGEN_BNGSIM_BACKEND_HELPER_PYTHON'})
+            {
+                @helper_command = (
+                    $ENV{'BIONETGEN_BNGSIM_BACKEND_HELPER_PYTHON'},
+                    $ENV{'BIONETGEN_BNGSIM_BACKEND_HELPER'},
+                );
+            }
+            else
+            {
+                @helper_command = ($ENV{'BIONETGEN_BNGSIM_BACKEND_HELPER'});
+            }
+        }
+        elsif ($ENV{'BIONETGEN_BNGSIM_BACKEND_HELPER_PYTHON'} && $ENV{'BIONETGEN_BNGSIM_BACKEND_HELPER_MODULE'})
+        {
+            @helper_command = (
+                $ENV{'BIONETGEN_BNGSIM_BACKEND_HELPER_PYTHON'},
+                '-m',
+                $ENV{'BIONETGEN_BNGSIM_BACKEND_HELPER_MODULE'},
+            );
+        }
+        else
+        {
+            return "BIONETGEN_BNGSIM_BACKEND_HELPER is not set.";
+        }
+
+        if ($method eq 'pla')
+        {
+            return '';
+        }
+
+        my $backend_method = ($method eq 'cvode') ? 'ode' : $method;
+        my %sim_options = (
+            t_start => $t_start,
+            t_end => $t_end,
+            n_steps => $n_steps,
+            seed => $seed,
+            print_CDAT => $print_cdat,
+            print_functions => $print_fdat,
+        );
+        if ($method eq 'cvode')
+        {
+            $sim_options{atol} = $atol;
+            $sim_options{rtol} = $rtol;
+            $sim_options{sparse} = $sparse;
+            $sim_options{steady_state} = $steady_state;
+        }
+        if ($method eq 'psa')
+        {
+            $sim_options{poplevel} = $params->{poplevel};
+        }
+
+        my %job = (
+            artifact_path => File::Spec->rel2abs($netfile),
+            artifact_format => 'net',
+            method => $backend_method,
+            simulation_options => \%sim_options,
+            output_prefix => File::Spec->rel2abs($prefix),
+            backend_flags => {
+                interpreted_by => 'BNG2.pl',
+                command => \@command,
+            },
+        );
+        my $job_file = "$prefix.bngsim-job.json";
+        open(my $job_fh, '>', $job_file)
+            or return "Could not open BNGsim backend job file $job_file: $!";
+        print $job_fh encode_json(\%job);
+        close($job_fh);
+
+        print "Running BNGsim backend helper: @helper_command $job_file\n";
+        my $rc = system(@helper_command, $job_file);
+        if ($rc != 0)
+        {
+            return sprintf("BNGsim backend helper failed with status %s.", $rc);
+        }
+
+        if ( $model->RxnList and -e "$prefix.cdat" )
+        {
+            print "Updating species concentrations from $prefix.cdat\n";
+            open CDAT, '<', "$prefix.cdat";
+            my $last_line = '';
+            while (my $line = <CDAT>) {  $last_line = $line;  }
+            close CDAT;
+            my $conc;
+            ($t_end, @$conc) = split ' ', $last_line;
+            my $species = $model->SpeciesList->Array;
+            unless ( $#$conc == $#$species )
+            {
+                return sprintf "Number of species in model (%d) and CDAT file (%d) differ", scalar @$species, scalar @$conc;
+            }
+            $model->Concentrations( $conc );
+            $model->UpdateNet(1);
+        }
+        elsif ( $model->RxnList )
+        {
+            return "CDAT file is missing";
+        }
+        $model->Time($t_end);
+        return '';
+    }
+
+"""
+    needle = "    # Determine index of last rule iteration\n"
+    if "PyBioNetGen/BNGsim backend hook" not in source:
+        source = source.replace(needle, hook + needle, 1)
+    action_path.write_text(source, encoding="utf-8")
+
+
+def _resolve_test_bng_root():
+    override = os.environ.get("PYBNG_TEST_BNG_ROOT")
+    if override:
+        bng_dir, _ = find_BNG_path(os.path.expanduser(override))
+        return bng_dir
+
+    search_path = os.environ.get("BNGPATH") or BNGDefaults().bng_path
+    bng_dir, _ = find_BNG_path(search_path)
+    return bng_dir
+
+
+@pytest.fixture
+def real_bng_backend_runtime(tmp_path):
+    source_root = _resolve_test_bng_root()
+    if source_root is None:
+        pytest.skip(
+            "requires BNG2.pl via PYBNG_TEST_BNG_ROOT, BNGPATH, configured bngpath, or PATH"
+        )
+
+    bng_dir = tmp_path / "BioNetGen-hooked"
+    shutil.copytree(source_root, bng_dir)
+    _patch_real_bng_action(bng_dir)
+    helper, capture_path = _write_capture_helper(tmp_path)
+
+    return {
+        "bng_dir": str(bng_dir),
+        "helper": str(helper),
+        "capture": capture_path,
+    }
+
+
+def _write_model(tmp_path, marker, action_text, protocol_text=""):
+    bngl_path = tmp_path / f"{marker.lower()}.bngl"
+    bngl_path.write_text(
+        textwrap.dedent(f"""\
+            begin model
+            begin parameters
+              k 1
+              A0 10
+            end parameters
+            begin molecule types
+              A()
+            end molecule types
+            begin seed species
+              A() A0
+            end seed species
+            begin observables
+              Molecules A A()
+            end observables
+            begin reaction rules
+              decay: A() -> 0 k
+            end reaction rules
+            end model
+
+            {protocol_text}
+
+            {action_text}
+            """),
+        encoding="utf-8",
+    )
+    return bngl_path
+
+
+def _run_real_hook(tmp_path, runtime, marker, action_text, protocol_text=""):
+    bngl_path = _write_model(tmp_path, marker, action_text, protocol_text=protocol_text)
+    out_dir = tmp_path / f"out-{marker.lower()}"
+    result = run_bngl_with_bngsim_backend_hook(
+        str(bngl_path),
+        str(out_dir),
+        runtime["bng_dir"],
+        suppress=True,
+        bngsim_backend_helper=runtime["helper"],
+    )
+    return out_dir, result
+
+
+def _captured_jobs(path):
+    if not path.exists():
+        return []
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def test_helper_contract_normalizes_single_ode_job():
+    job = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.net",
+            "artifact_format": "net",
+            "method": "cvode",
+            "simulation_options": {
+                "t_start": "0",
+                "t_end": "5",
+                "n_steps": "5",
+                "atol": "1e-8",
+                "print_functions": "1",
+            },
+            "output_prefix": "/tmp/out/model",
+            "backend_flags": {"command": ["run_network"]},
+        }
+    )
+    direct = direct_job_from_backend_job(job)
+
+    assert direct.method == "ode"
+    assert direct.t_span == (0.0, 5.0)
+    assert direct.n_points == 6
+    # output_prefix is abspath'd then split, so derive the expected dir the
+    # same way rather than hardcoding a POSIX path (Windows: D:\tmp\out).
+    assert direct.output_dir == os.path.dirname(os.path.abspath("/tmp/out/model"))
+    assert direct.output_root == "model"
+    assert direct.bngsim_options["atol"] == "1e-8"
+    assert direct.result_options["print_functions"] is True
+
+
+def test_helper_translates_nf_param_flags():
+    """param=>"-ogf -gml N" maps to print_functions + gml (jobs_ground).
+
+    BNG2.pl passes the raw NFsim flag string to the binary; the BNGsim helper
+    has no raw-flag passthrough but translates the common flags to named
+    options so global-function .gdat columns are emitted like BNG2.pl's.
+    """
+    job = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.xml",
+            "artifact_format": "bng-xml",
+            "method": "nf",
+            "simulation_options": {
+                "t_start": "0",
+                "t_end": "50",
+                "n_steps": "50",
+                "param": "-ogf -gml 500000",
+            },
+            "output_prefix": "/tmp/out/model",
+        }
+    )
+    direct = direct_job_from_backend_job(job)
+    assert direct.result_options["print_functions"] is True
+    assert direct.bngsim_options["gml"] == 500000
+    # the raw param string is consumed, not passed through verbatim
+    assert "param" not in direct.bngsim_options
+
+
+def test_helper_param_ogf_overrides_default_print_functions():
+    # BNG2.pl's hook always sends print_functions (defaulting to 0), so it is
+    # indistinguishable from a keyword; param=>"-ogf" is an explicit request
+    # for function output and must win over that auto-sent default. This is the
+    # jobs_ground scenario: the payload carries print_functions=0 AND param.
+    job = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.xml",
+            "artifact_format": "bng-xml",
+            "method": "nf",
+            "simulation_options": {
+                "t_start": "0",
+                "t_end": "50",
+                "n_steps": "50",
+                "param": "-ogf",
+                "print_functions": "0",
+            },
+            "output_prefix": "/tmp/out/model",
+        }
+    )
+    direct = direct_job_from_backend_job(job)
+    assert direct.result_options["print_functions"] is True
+
+    # A param string with no -ogf leaves an explicit print_functions=>1 intact.
+    job2 = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.xml",
+            "artifact_format": "bng-xml",
+            "method": "nf",
+            "simulation_options": {
+                "t_start": "0",
+                "t_end": "50",
+                "n_steps": "50",
+                "param": "-gml 1000",
+                "print_functions": "1",
+            },
+            "output_prefix": "/tmp/out/model",
+        }
+    )
+    direct2 = direct_job_from_backend_job(job2)
+    assert direct2.result_options["print_functions"] is True
+    assert direct2.bngsim_options["gml"] == 1000
+
+
+def test_helper_method_override_restores_rm_from_env(monkeypatch):
+    """BIONETGEN_BNGSIM_BACKEND_METHOD=rm flips an nf job back to rm.
+
+    BNG2.pl has no ``rm`` method, so ``rm`` BNGL is rewritten to ``nf`` and
+    the ``simulate_nf`` hook always sends ``method='nf'``; the env var
+    carries the real method to the helper.
+    """
+    monkeypatch.setenv("BIONETGEN_BNGSIM_BACKEND_METHOD", "rm")
+    job = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.xml",
+            "artifact_format": "bng-xml",
+            "method": "nf",
+            "simulation_options": {"t_start": "0", "t_end": "5", "n_steps": "5"},
+            "output_prefix": "/tmp/out/model",
+        }
+    )
+    assert job.method == "rm"
+    assert direct_job_from_backend_job(job).method == "rm"
+
+
+def test_helper_method_override_leaves_network_jobs_alone(monkeypatch):
+    """The rm override only applies to network-free jobs; ode stays ode."""
+    monkeypatch.setenv("BIONETGEN_BNGSIM_BACKEND_METHOD", "rm")
+    job = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.net",
+            "artifact_format": "net",
+            "method": "cvode",
+            "simulation_options": {"t_start": "0", "t_end": "5", "n_steps": "5"},
+            "output_prefix": "/tmp/out/model",
+        }
+    )
+    assert job.method == "ode"
+
+
+def test_helper_without_method_override_keeps_nf(monkeypatch):
+    monkeypatch.delenv("BIONETGEN_BNGSIM_BACKEND_METHOD", raising=False)
+    job = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.xml",
+            "artifact_format": "bng-xml",
+            "method": "nf",
+            "simulation_options": {"t_start": "0", "t_end": "5", "n_steps": "5"},
+            "output_prefix": "/tmp/out/model",
+        }
+    )
+    assert job.method == "nf"
+
+
+def test_helper_rebases_network_free_segment_time_to_zero():
+    """nf segments with t_start>0 are rebased to start at 0.
+
+    BNG2.pl's ``sub simulate_nf`` reports NFsim timepoints as elapsed time
+    since ``t_start`` (the output axis starts at 0). A multi-segment nf
+    protocol whose later segment carries ``t_start=>10800`` must run over
+    ``(0, duration)`` so the BNGsim output matches BNG2.pl -- both the
+    time column and any ``time()``-dependent rate laws.
+    """
+    job = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.xml",
+            "artifact_format": "bng-xml",
+            "method": "nf",
+            "simulation_options": {
+                "t_start": "10800",
+                "t_end": "12600",
+                "n_steps": "300",
+            },
+            "output_prefix": "/tmp/out/model",
+        }
+    )
+    direct = direct_job_from_backend_job(job)
+
+    assert direct.method == "nf"
+    assert direct.t_span == (0.0, 1800.0)
+    assert direct.n_points == 301
+
+
+def test_helper_rebases_rm_segment_time_to_zero(monkeypatch):
+    """rm is network-free too: BNG2.pl runs rm-rewritten-to-nf BNGL
+    through ``simulate_nf``, so rm segments rebase the same way as nf."""
+    monkeypatch.setenv("BIONETGEN_BNGSIM_BACKEND_METHOD", "rm")
+    job = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.xml",
+            "artifact_format": "bng-xml",
+            "method": "nf",
+            "simulation_options": {
+                "t_start": "100",
+                "t_end": "250",
+                "n_steps": "150",
+            },
+            "output_prefix": "/tmp/out/model",
+        }
+    )
+    direct = direct_job_from_backend_job(job)
+
+    assert direct.method == "rm"
+    assert direct.t_span == (0.0, 150.0)
+
+
+def test_helper_keeps_t_start_for_network_methods():
+    """ode/ssa/psa honor t_start (BNG2.pl passes ``run_network -i``)."""
+    job = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.net",
+            "artifact_format": "net",
+            "method": "ssa",
+            "simulation_options": {
+                "t_start": "10800",
+                "t_end": "12600",
+                "n_steps": "300",
+            },
+            "output_prefix": "/tmp/out/model",
+        }
+    )
+    direct = direct_job_from_backend_job(job)
+
+    assert direct.method == "ssa"
+    assert direct.t_span == (10800.0, 12600.0)
+
+
+def test_helper_network_free_t_start_zero_is_noop():
+    """A network-free segment already at t_start=0 is left unchanged."""
+    job = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.xml",
+            "artifact_format": "bng-xml",
+            "method": "nf",
+            "simulation_options": {"t_start": "0", "t_end": "1800", "n_steps": "300"},
+            "output_prefix": "/tmp/out/model",
+        }
+    )
+    direct = direct_job_from_backend_job(job)
+
+    assert direct.t_span == (0.0, 1800.0)
+
+
+def test_helper_forwards_sample_times_prepending_t_start():
+    """An explicit sample_times array is forwarded to BNGsim with the
+    initial t_start row prepended: BNG2.pl emits the t_start state row
+    then the sample times, whereas BNGsim's sample_times yields exactly
+    the listed times."""
+    job = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.net",
+            "artifact_format": "net",
+            "method": "ode",
+            "simulation_options": {
+                "t_start": "0",
+                "t_end": "36000",
+                "sample_times": [1800, 3600, 7200],
+            },
+            "output_prefix": "/tmp/out/model",
+        }
+    )
+    direct = direct_job_from_backend_job(job)
+
+    assert direct.bngsim_options["sample_times"] == [0.0, 1800.0, 3600.0, 7200.0]
+    assert direct.n_points == 4
+
+
+def test_helper_print_cdat_zero_sets_result_option():
+    """print_CDAT=>0 maps to result_options print_cdat=False so the
+    .cdat is reduced to its initial and final rows (BNG2.pl behavior)."""
+    job = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.net",
+            "artifact_format": "net",
+            "method": "ssa",
+            "simulation_options": {
+                "t_start": "0",
+                "t_end": "30",
+                "n_steps": "30",
+                "print_CDAT": 0,
+            },
+            "output_prefix": "/tmp/out/model",
+        }
+    )
+    direct = direct_job_from_backend_job(job)
+
+    assert direct.result_options.get("print_cdat") is False
+
+
+def test_helper_print_cdat_one_keeps_full_cdat():
+    """print_CDAT=>1 (BNG2.pl's default) leaves print_cdat True."""
+    job = load_backend_job(
+        {
+            "artifact_path": "/tmp/model.net",
+            "artifact_format": "net",
+            "method": "ode",
+            "simulation_options": {
+                "t_start": "0",
+                "t_end": "100",
+                "n_steps": "100",
+                "print_CDAT": 1,
+            },
+            "output_prefix": "/tmp/out/model",
+        }
+    )
+    direct = direct_job_from_backend_job(job)
+
+    assert direct.result_options.get("print_cdat") is True
+
+
+def test_rewrite_rm_method_to_nf_preserves_basename(tmp_path):
+    from bionetgen.core.tools.bngsim_bridge import _rewrite_rm_method_to_nf
+
+    src = tmp_path / "m.bngl"
+    src.write_text(
+        'begin actions\nsimulate({method=>"rm",t_start=>0,t_end=>5,n_steps=>5})\nend actions\n'
+    )
+    run_path, temp_dir = _rewrite_rm_method_to_nf(str(src))
+    try:
+        text = open(run_path).read()
+        assert 'method=>"nf"' in text
+        assert '"rm"' not in text
+        # basename is preserved so BNG2.pl output-file naming is unchanged
+        assert os.path.basename(run_path) == "m.bngl"
+        # the original file is untouched
+        assert '"rm"' in src.read_text()
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def test_bngl_network_free_methods_detects_rm():
+    from types import SimpleNamespace
+
+    from bionetgen.core.tools.bngsim_bridge import _bngl_network_free_methods
+
+    rm = SimpleNamespace(type="simulate", args={"method": '"rm"'})
+    nf = SimpleNamespace(type="simulate_nf", args={})
+    ode = SimpleNamespace(type="simulate_ode", args={})
+    assert _bngl_network_free_methods([rm]) == {"rm"}
+    assert _bngl_network_free_methods([rm, nf]) == {"rm", "nf"}
+    assert _bngl_network_free_methods([ode]) == set()
+
+
+def test_fake_helper_receives_single_normalized_ode_job(
+    tmp_path, real_bng_backend_runtime
+):
+    _run_real_hook(
+        tmp_path,
+        real_bng_backend_runtime,
+        "ODE",
+        "generate_network({overwrite=>1})\nsimulate_ode({t_end=>1,n_steps=>2})",
+    )
+
+    jobs = _captured_jobs(real_bng_backend_runtime["capture"])
+    assert len(jobs) == 1
+    assert jobs[0]["method"] == "ode"
+    assert jobs[0]["artifact_format"] == "net"
+    assert jobs[0]["simulation_options"]["n_steps"] == 2
+    assert jobs[0]["simulation_options"]["atol"] == 1e-08
+    assert jobs[0]["output_prefix"].endswith("ode")
+
+
+def test_fake_helper_receives_psa_as_psa(tmp_path, real_bng_backend_runtime):
+    _run_real_hook(
+        tmp_path,
+        real_bng_backend_runtime,
+        "PSA",
+        "generate_network({overwrite=>1})\nsimulate_ssa({t_end=>1,n_steps=>2,poplevel=>100})",
+    )
+
+    jobs = _captured_jobs(real_bng_backend_runtime["capture"])
+    assert len(jobs) == 1
+    assert jobs[0]["method"] == "psa"
+    assert jobs[0]["simulation_options"]["poplevel"] == 100
+
+
+def test_pla_action_does_not_call_helper(tmp_path, real_bng_backend_runtime):
+    _run_real_hook(
+        tmp_path,
+        real_bng_backend_runtime,
+        "PLA",
+        "generate_network({overwrite=>1})\nsimulate_pla({t_end=>1,n_steps=>1})",
+    )
+
+    assert _captured_jobs(real_bng_backend_runtime["capture"]) == []
+
+
+@pytest.mark.parametrize(
+    ("marker", "action_text", "expected_count"),
+    [
+        (
+            "SET_PARAMETER",
+            'setParameter("k",2)\n'
+            "generate_network({overwrite=>1})\n"
+            "simulate_ode({t_end=>1,n_steps=>2})",
+            1,
+        ),
+        (
+            "SET_CONCENTRATION",
+            'setConcentration("A()",20)\n'
+            "generate_network({overwrite=>1})\n"
+            "simulate_ode({t_end=>1,n_steps=>2})",
+            1,
+        ),
+        (
+            "SAVE_RESET",
+            "saveParameters()\n"
+            'setParameter("k",2)\n'
+            "resetParameters()\n"
+            "generate_network({overwrite=>1})\n"
+            "simulate_ode({t_end=>1,n_steps=>2})",
+            1,
+        ),
+        (
+            "CONTINUE",
+            "generate_network({overwrite=>1})\n"
+            'simulate_ode({suffix=>"setup",t_end=>1,n_steps=>2})\n'
+            'simulate_ode({suffix=>"setup",t_start=>1,t_end=>2,n_steps=>2,continue=>1})',
+            2,
+        ),
+    ],
+)
+def test_stateful_bngl_workflows_are_owned_by_bng2pl_before_backend_jobs(
+    tmp_path,
+    real_bng_backend_runtime,
+    marker,
+    action_text,
+    expected_count,
+):
+    _run_real_hook(tmp_path, real_bng_backend_runtime, marker, action_text)
+
+    jobs = _captured_jobs(real_bng_backend_runtime["capture"])
+    assert len(jobs) == expected_count
+    assert all(job["backend_flags"]["interpreted_by"] == "BNG2.pl" for job in jobs)
+    assert all(job["artifact_format"] == "net" for job in jobs)
+    assert all(job["method"] == "ode" for job in jobs)
+
+
+def test_bngl_numeric_expressions_are_normalized_by_bng2pl_for_backend_job(
+    tmp_path,
+    real_bng_backend_runtime,
+):
+    _run_real_hook(
+        tmp_path,
+        real_bng_backend_runtime,
+        "EXPR",
+        "generate_network({overwrite=>1})\nsimulate_ode({t_end=>1+1,n_steps=>2})",
+    )
+
+    jobs = _captured_jobs(real_bng_backend_runtime["capture"])
+    assert len(jobs) == 1
+    assert jobs[0]["simulation_options"]["t_end"] == 2
+    assert jobs[0]["simulation_options"]["n_steps"] == 2
+
+
+@pytest.mark.parametrize(
+    ("marker", "expected_count", "final_artifact", "action_text", "protocol_text"),
+    [
+        (
+            "SCAN",
+            2,
+            "scan_k.scan",
+            'parameter_scan({method=>"ode",parameter=>"k",par_min=>0.1,par_max=>0.2,n_scan_pts=>2,t_end=>1,n_steps=>2})',
+            "",
+        ),
+        (
+            "PROTOCOL",
+            2,
+            "protocol_k.scan",
+            'parameter_scan({method=>"protocol",parameter=>"k",par_min=>0.1,par_max=>0.2,n_scan_pts=>2})',
+            'begin protocol\nsimulate({method=>"ode",t_end=>1,n_steps=>2})\nend protocol',
+        ),
+        (
+            "BIFURCATE",
+            4,
+            "bifurcate_bifurcation_A.scan",
+            'bifurcate({method=>"ode",parameter=>"k",par_min=>0.1,par_max=>0.2,n_scan_pts=>2,t_end=>1,n_steps=>2})',
+            "",
+        ),
+    ],
+)
+def test_bng2_owned_workflows_delegate_atomic_jobs_and_write_final_artifacts(
+    tmp_path,
+    real_bng_backend_runtime,
+    marker,
+    expected_count,
+    final_artifact,
+    action_text,
+    protocol_text,
+):
+    out_dir, _ = _run_real_hook(
+        tmp_path,
+        real_bng_backend_runtime,
+        marker,
+        action_text,
+        protocol_text=protocol_text,
+    )
+
+    jobs = _captured_jobs(real_bng_backend_runtime["capture"])
+    assert len(jobs) == expected_count
+    assert all(job["method"] in {"ode", "ssa"} for job in jobs)
+    assert (out_dir / final_artifact).is_file()
+
+
+@pytest.mark.skipif(
+    not BNGSIM_AVAILABLE,
+    reason="network-free scan points only dispatch to the backend hook when "
+    "bngsim is available (the routing classifier falls back otherwise), so "
+    "this asserts the bngsim path and can't run without it",
+)
+def test_nf_parameter_scan_clears_model_time_between_scan_points(
+    tmp_path,
+    real_bng_backend_runtime,
+):
+    """The network-free hook must leave ``$model->Time`` cleared on exit, the
+    same as BNG2.pl's normal ``sub simulate_nf``: its trailing
+    ``$model->Time($t_end)`` runs OUTSIDE the inner ``if (defined n_steps)``
+    block, where ``$t_end`` is an unassigned (``undef``) outer declaration --
+    not the inner ``$t_end`` the hook builds. If the hook instead left Time
+    at this run's real ``t_end``, the next nf scan point would inherit it as
+    ``t_start`` and abort with "t_end must be greater than t_start" -- the
+    scaffold.bngl regression.
+
+    A preceding network ``simulate`` leaves model Time set, so scan point 1
+    legitimately inherits a nonzero ``t_start``; every later scan point must
+    fall back to ``t_start=0`` because the nf hook cleared Time. Without the
+    fix, scan point 2 inherits point 1's ``t_end`` and the run aborts.
+    """
+    action = (
+        "generate_network({overwrite=>1})\n"
+        'simulate({method=>"ode",t_start=>0,t_end=>60,n_steps=>6})\n'
+        "saveConcentrations()\n"
+        "resetConcentrations()\n"
+        'parameter_scan({suffix=>"suf",method=>"nf",t_end=>100,n_steps=>10,'
+        'parameter=>"k",par_min=>1,par_max=>5,n_scan_pts=>3})'
+    )
+    out_dir, _ = _run_real_hook(tmp_path, real_bng_backend_runtime, "NFSCAN", action)
+
+    jobs = _captured_jobs(real_bng_backend_runtime["capture"])
+    methods = [job["method"] for job in jobs]
+    assert methods == ["ode", "nf", "nf", "nf"]
+
+    nf_t_starts = [
+        float(job["simulation_options"]["t_start"])
+        for job in jobs
+        if job["method"] == "nf"
+    ]
+    # Scan point 1 inherits Time from the preceding network simulate (proving
+    # Time inheritance is live); points 2 and 3 must default to 0 because the
+    # nf hook cleared Time on exit. (The exact point-1 value depends on the
+    # fake helper's .cdat, so only its nonzero-ness is asserted.)
+    assert nf_t_starts[0] > 0.0
+    assert nf_t_starts[1:] == [0.0, 0.0]
+    assert (out_dir / "nfscan_suf.scan").is_file()
+
+
+def test_helper_failure_propagates_as_bng_run_error(
+    tmp_path,
+    real_bng_backend_runtime,
+    monkeypatch,
+):
+    monkeypatch.setenv("FAKE_BACKEND_FAIL", "1")
+
+    with pytest.raises(BNGRunError):
+        _run_real_hook(
+            tmp_path,
+            real_bng_backend_runtime,
+            "ODE",
+            "generate_network({overwrite=>1})\nsimulate_ode({t_end=>1,n_steps=>2})",
+        )
