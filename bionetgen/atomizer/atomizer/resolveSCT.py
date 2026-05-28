@@ -1667,7 +1667,7 @@ class SCTSolver:
         """
         counter = 1
         for x in path:
-            if isinstance(x, (list, tuple)):
+            if type(x) == list or type(x) == tuple:
                 counter += self.measureGraph(element, x)
             elif x != "0" and x != element:
                 counter += 1
@@ -1683,7 +1683,7 @@ class SCTSolver:
         """
         counter = 1
         if len(path) == 1:
-            if isinstance(path[0], (list, tuple)):
+            if type(path[0]) == list or type(path[0]) == tuple:
                 counter += 1
                 # check inside
                 for x in path[0]:

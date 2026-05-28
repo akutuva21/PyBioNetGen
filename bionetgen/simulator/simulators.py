@@ -31,17 +31,24 @@ def sim_getter(model_file=None, model_str=None, sim_type="libRR"):
     if model_str is not None and model_file is None:
         from tempfile import NamedTemporaryFile
 
-        with NamedTemporaryFile("w+") as model_file_obj:
-            model_file_obj.write(model_str)
-            model_file = model_file_obj.name
-            if sim_type == "libRR":
-                # need to go back to beginning of the file for this to work
-                model_file_obj.seek(0)
-                return libRRSimulator(model_file=model_file)
-            elif sim_type == "cpy":
-                return CSimulator(model_file=model_file, generate_network=True)
-            else:
-                print("simulator type {} not supported".format(sim_type))
+        import os
+
+        with NamedTemporaryFile("w+", delete=False) as model_file_obj:
+            pass
+        with open(model_file_obj.name, "w+") as f:
+            f.write(model_str)
+
+        model_file = model_file_obj.name
+        if sim_type == "libRR":
+            sim = libRRSimulator(model_file=model_file)
+            os.remove(model_file)
+            return sim
+        elif sim_type == "cpy":
+            sim = CSimulator(model_file=model_file, generate_network=True)
+            os.remove(model_file)
+            return sim
+        else:
+            print("simulator type {} not supported".format(sim_type))
     if model_file is not None:
         if sim_type == "libRR":
             return libRRSimulator(model_file=model_file)
