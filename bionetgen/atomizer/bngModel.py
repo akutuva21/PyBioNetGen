@@ -1735,12 +1735,17 @@ class bngModel:
             else:
                 frates.append(fkey)
         # Now reorder accordingly
-        G = nx.DiGraph(dep_dict).reverse()
+        # this ensures we write the independendent functions first
+        G = nx.DiGraph()
+        for k, v in dep_dict.items():
+            G.add_node(k)
+            for dep in v:
+                G.add_edge(k, dep)
         try:
-            ordered_funcs = list(nx.topological_sort(G))
+            ordered_funcs = list(reversed(list(nx.topological_sort(G))))
         except nx.NetworkXUnfeasible:
-            # Fallback if there is a cycle (though in biological models, function deps shouldn't have cycles)
-            ordered_funcs = list(G.nodes())
+            # If a cycle exists, fall back gracefully to ensure no functions are silently dropped.
+            ordered_funcs = list(G.nodes)
         # print ordered functions and return
         ordered_funcs += frates
         self.function_order = ordered_funcs

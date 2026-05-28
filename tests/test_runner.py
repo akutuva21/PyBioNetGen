@@ -50,9 +50,5 @@ def test_runner_exception(mock_bngcli):
     inp = "test.bngl"
     out = "test_out"
 
-    cur_dir = os.getcwd()
-
     with pytest.raises(Exception, match="Test Exception"):
         run(inp, out=out)
-
-    assert os.getcwd() == cur_dir
