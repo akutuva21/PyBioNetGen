@@ -4,7 +4,7 @@ import fnmatch
 import argparse
 import os
 import progressbar
-import json
+import cPickle as pickle
 import numpy as np
 
 # import SBMLparser.utils.characterizeAnnotationLog as cal
@@ -27,17 +27,17 @@ def componentAnalysis(directory):
     bindingCount = []
     stateCount = []
     modelComponentDict = {}
-    with open(os.path.join(directory, "moleculeTypeDataSet.json"), "r") as f:
-        moleculeTypesArray = json.load(f)
+    with open(os.path.join(directory, "moleculeTypeDataSet.dump"), "rb") as f:
+        moleculeTypesArray = pickle.load(f)
     for model in moleculeTypesArray:
-        modelComponentCount = [len(x["components"]) for x in model[0]]
+        modelComponentCount = [len(x.components) for x in model[0]]
 
         bindingComponentCount = [
-            len([y for y in x["components"] if len(y["states"]) == 0]) for x in model[0]
+            len([y for y in x.components if len(y.states) == 0]) for x in model[0]
         ]
 
         modificationComponentCount = [
-            sum([max(1, len(y["states"])) for y in x["components"]]) for x in model[0]
+            sum([max(1, len(y.states)) for y in x.components]) for x in model[0]
         ]
 
         modelComponentDict[model[-2]] = {

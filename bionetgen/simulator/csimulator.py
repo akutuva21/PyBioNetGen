@@ -10,11 +10,11 @@ from bionetgen.main import BioNetGen
 from bionetgen.core.exc import BNGCompileError, BNGSimulatorError
 from bionetgen.core.utils.logging import BNGLogger
 
-from bionetgen.core.defaults import BNGDefaults
-
 # This allows access to the CLIs config setup
-conf = BNGDefaults()
-def_bng_path = conf.bng_path
+app = BioNetGen()
+app.setup()
+conf = app.config["bionetgen"]
+def_bng_path = conf["bngpath"]
 
 
 class RESULT(ctypes.Structure):
@@ -170,16 +170,14 @@ class CSimulator(BNGSimulator):
             self.model = model_file
             cd = os.getcwd()
             with tempfile.TemporaryDirectory() as tmpdirname:
-                try:
-                    os.chdir(tmpdirname)
-                    self.model.actions.clear_actions()
-                    self.model.write_model(f"{self.model.model_name}_cpy.bngl")
-                    self.model = bionetgen.bngmodel(
-                        f"{self.model.model_name}_cpy.bngl",
-                        generate_network=generate_network,
-                    )
-                finally:
-                    os.chdir(cd)
+                os.chdir(tmpdirname)
+                self.model.actions.clear_actions()
+                self.model.write_model(f"{self.model.model_name}_cpy.bngl")
+                self.model = bionetgen.bngmodel(
+                    f"{self.model.model_name}_cpy.bngl",
+                    generate_network=generate_network,
+                )
+            os.chdir(cd)
         else:
             print(f"model format not recognized: {model_file}")
         # set compiler
