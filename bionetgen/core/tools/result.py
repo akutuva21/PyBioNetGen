@@ -27,7 +27,7 @@ class BNGResult:
         numpy.recarray
     """
 
-    def __init__(self, path=None, direct_path=None, app=None):
+    def __init__(self, path=None, direct_path=None, ext=None, app=None):
         self.app = app
         self.logger = BNGLogger(app=self.app)
         self.logger.debug(
@@ -38,6 +38,14 @@ class BNGResult:
         self.output = None
         # TODO Make it so that with path you can supply an
         # extension or a list of extensions to load in
+        if ext is not None:
+            if isinstance(ext, str):
+                self.ext = [ext]
+            else:
+                self.ext = list(ext)
+        else:
+            self.ext = None
+
         self.gdats = {}
         self.cdats = {}
         self.scans = {}
@@ -51,8 +59,10 @@ class BNGResult:
             self.file_name = fnoext
             self.file_extension = fext
             self.gnames[fnoext] = direct_path
-            self.load_results()
+            self.gdats[fnoext] = self.load(direct_path)
         elif path is not None:
+            # TODO change this pattern so that each method
+            # is stand alone and usable.
             self.path = path
             self.find_dat_files()
             self.load_results()
@@ -107,40 +117,48 @@ class BNGResult:
             loc=f"{__file__} : BNGResult.find_dat_files()",
         )
         files = os.listdir(self.path)
-        ext = "gdat"
-        gdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
-        for dat_file in gdat_files:
-            name = dat_file.replace(f".{ext}", "")
-            self.gnames[name] = os.path.join(self.path, dat_file)
 
-        ext = "cdat"
-        cdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
-        for dat_file in cdat_files:
-            name = dat_file.replace(f".{ext}", "")
-            self.cnames[name] = os.path.join(self.path, dat_file)
+        exts_to_load = ["gdat", "cdat", "scan"]
+        if self.ext is not None:
+            exts_to_load = [e for e in self.ext if e in exts_to_load]
 
-        ext = "scan"
-        scan_files = filter(lambda x: x.endswith(f".{ext}"), files)
-        for dat_file in scan_files:
-            name = dat_file.replace(f".{ext}", "")
-            self.snames[name] = os.path.join(self.path, dat_file)
+        if "gdat" in exts_to_load:
+            ext = "gdat"
+            gdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
+            for dat_file in gdat_files:
+                name = dat_file.replace(f".{ext}", "")
+                self.gnames[name] = dat_file
+
+        if "cdat" in exts_to_load:
+            ext = "cdat"
+            cdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
+            for dat_file in cdat_files:
+                name = dat_file.replace(f".{ext}", "")
+                self.cnames[name] = dat_file
+
+        if "scan" in exts_to_load:
+            ext = "scan"
+            scan_files = filter(lambda x: x.endswith(f".{ext}"), files)
+            for dat_file in scan_files:
+                name = dat_file.replace(f".{ext}", "")
+                self.snames[name] = dat_file
 
     def load_results(self):
         self.logger.debug(
-            f"Loading results",
+            f"Loading results from {self.path}",
             loc=f"{__file__} : BNGResult.load_results()",
         )
         # load gdat files
         for name in self.gnames:
-            gdat_path = self.gnames[name]
+            gdat_path = os.path.join(self.path, self.gnames[name])
             self.gdats[name] = self.load(gdat_path)
-        # load cdat files
+        # load gdat files
         for name in self.cnames:
-            cdat_path = self.cnames[name]
+            cdat_path = os.path.join(self.path, self.cnames[name])
             self.cdats[name] = self.load(cdat_path)
         # load scan files
         for name in self.snames:
-            scan_path = self.snames[name]
+            scan_path = os.path.join(self.path, self.snames[name])
             self.scans[name] = self.load(scan_path)
 
     def _load_dat(self, path, dformat="f8"):
