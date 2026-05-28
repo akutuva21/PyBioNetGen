@@ -33,9 +33,19 @@ def test_bionetgen_input():
 
 
 def test_bionetgen_plot():
-    import os
-    from unittest.mock import patch
+    # first run the model to generate the data
+    argv = [
+        "run",
+        "-i",
+        os.path.join(tfold, "test.bngl"),
+        "-o",
+        os.path.join(tfold, "test"),
+    ]
+    with BioNetGenTest(argv=argv) as app:
+        app.run()
+        assert app.exit_code == 0
 
+    # now plot the data
     argv = [
         "plot",
         "-i",
@@ -43,12 +53,13 @@ def test_bionetgen_plot():
         "-o",
         os.path.join(*[tfold, "test", "test.png"]),
     ]
-    with patch("bionetgen.core.tools.plot.BNGPlotter"):
+    if os.path.exists(os.path.join(*[tfold, "test", "test.gdat"])):
         with BioNetGenTest(argv=argv) as app:
-            try:
-                app.run()
-            except Exception as e:
-                pass
+            app.run()
+            assert app.exit_code == 0
+            assert os.path.isfile(os.path.join(*[tfold, "test", "test.png"]))
+            # cleanup
+            os.remove(os.path.join(*[tfold, "test", "test.png"]))
 
 
 def test_bionetgen_info():
@@ -106,11 +117,10 @@ def test_plotDAT_current_folder():
     app_mock.pargs.output = "."
     app_mock.pargs._get_kwargs.return_value = {}.items()
 
-    with patch("bionetgen.core.tools.BNGPlotter") as MockBNGPlotter:
-        plotDAT(app_mock)
+    plotDAT(app_mock)
 
-        expected_out = os.path.join("/path/to", "test.png")
-        MockBNGPlotter.assert_called_once_with(
-            "/path/to/test.cdat", expected_out, app=app_mock
-        )
-        MockBNGPlotter.return_value.plot.assert_called_once()
+    expected_out = os.path.join("/path/to", "test.png")
+    MockBNGPlotter.assert_called_once_with(
+        "/path/to/test.cdat", expected_out, app=app_mock
+    )
+    MockBNGPlotter.return_value.plot.assert_called_once()

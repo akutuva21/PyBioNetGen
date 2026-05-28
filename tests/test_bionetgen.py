@@ -32,8 +32,17 @@ def test_bionetgen_input():
 
 
 def test_bionetgen_plot():
-    import os
-    from unittest.mock import patch
+    # first run the model to generate the data
+    argv = [
+        "run",
+        "-i",
+        os.path.join(tfold, "test.bngl"),
+        "-o",
+        os.path.join(tfold, "test"),
+    ]
+    with BioNetGenTest(argv=argv) as app:
+        app.run()
+        assert app.exit_code == 0
 
     argv = [
         "plot",
@@ -42,12 +51,11 @@ def test_bionetgen_plot():
         "-o",
         os.path.join(*[tfold, "test", "test.png"]),
     ]
-    with patch("bionetgen.core.tools.plot.BNGPlotter"):
+    if os.path.exists(os.path.join(*[tfold, "test", "test.gdat"])):
         with BioNetGenTest(argv=argv) as app:
-            try:
-                app.run()
-            except Exception as e:
-                pass
+            app.run()
+            assert app.exit_code == 0
+            assert os.path.isfile(os.path.join(*[tfold, "test", "test.png"]))
 
 
 def test_bionetgen_model():
@@ -78,16 +86,29 @@ def test_bionetgen_visualize():
         with BioNetGenTest(argv=argv) as app:
             app.run()
             assert app.exit_code == 0
+
+            # Check if bngexec exists (visualization outputs may not generate locally if missing)
+            import bionetgen.core.defaults as defaults
+
+            bng_path = defaults.BNGDefaults().bng_path
+            if not os.path.exists(os.path.join(bng_path, "BNG2.pl")):
+                continue
+
             # gmls = glob.glob("*.gml")
             graphmls = glob.glob(os.path.join(tfold, "viz") + os.sep + "*.graphml")
-            if not graphmls:
-                continue
             if vis_name == "atom_rule":
                 assert any(["regulatory" in i for i in graphmls])
             elif not vis_name == "all":
                 assert any([vis_name in i for i in graphmls])
             else:
                 assert len(graphmls) == 4
+        # clean up graphml files
+        import shutil
+
+        try:
+            shutil.rmtree(os.path.join(tfold, "viz"))
+        except:
+            pass
 
 
 def test_bionetgen_all_model_loading():
@@ -322,20 +343,22 @@ def test_pattern_canonicalization():
 
 
 def test_setup_simulator():
+    import bionetgen.core.defaults as defaults
+
     fpath = os.path.join(tfold, "test.bngl")
     fpath = os.path.abspath(fpath)
-    from unittest.mock import patch
+    bng_path = defaults.BNGDefaults().bng_path
+    bngexec = os.path.join(bng_path, "BNG2.pl")
+    if bngexec is None or not os.path.exists(bngexec):
+        return  # skip if bng2.pl is not installed
 
-    with patch(
-        "bionetgen.simulator.librrsimulator.libroadrunner", create=True
-    ) as mock_librr:
-        try:
-            m = bng.bngmodel(fpath)
-            librr_simulator = m.setup_simulator()
-            res = librr_simulator.simulate(0, 1, 10)
-        except Exception as e:
-            res = None
-        assert res is not None or mock_librr
+    try:
+        m = bng.bngmodel(fpath)
+        librr_simulator = m.setup_simulator()
+        res = librr_simulator.simulate(0, 1, 10)
+    except:
+        res = None
+    assert res is not None
 
 
 def test_graphdiff_matrix():
