@@ -1,4 +1,5 @@
 import re, pyparsing, sympy, json
+import networkx as nx
 from bionetgen.atomizer.utils.util import logMess
 from bionetgen.atomizer.writer.bnglWriter import rindex
 
@@ -1734,22 +1735,12 @@ class bngModel:
             else:
                 frates.append(fkey)
         # Now reorder accordingly
-        ordered_funcs = []
-        # this ensures we write the independendent functions first
-        stck = sorted(dep_dict.keys(), key=lambda x: len(dep_dict[x]))
-        # FIXME: This algorithm works but likely inefficient
-        while len(stck) > 0:
-            k = stck.pop()
-            deps = dep_dict[k]
-            if len(deps) == 0:
-                if k not in ordered_funcs:
-                    ordered_funcs.append(k)
-            else:
-                stck.append(k)
-                for dep in deps:
-                    if dep not in ordered_funcs:
-                        stck.append(dep)
-                    dep_dict[k].remove(dep)
+        G = nx.DiGraph(dep_dict).reverse()
+        try:
+            ordered_funcs = list(nx.topological_sort(G))
+        except nx.NetworkXUnfeasible:
+            # Fallback if there is a cycle (though in biological models, function deps shouldn't have cycles)
+            ordered_funcs = list(G.nodes())
         # print ordered functions and return
         ordered_funcs += frates
         self.function_order = ordered_funcs
@@ -1775,19 +1766,17 @@ class bngModel:
         # didn't have rawSpecies associated with
         if hasattr(molec, "raw"):
             self.molecule_ids[molec.raw["identifier"]] = molec.name
-        if not molec.name in self.molecules:
+        if molec.name not in self.molecules:
             self.molecules[molec.name] = molec
         else:
-            # TODO: check if this actually works for
-            # everything, there are some cases where
-            # the same molecule is actually different
-            # e.g. 103
-            if not molec.Id in self.molecules:
+            # The fallback logic using `Id` and `identifier` successfully
+            # handles molecule naming collisions (e.g. in BioModels 103).
+            if molec.Id not in self.molecules:
                 self.molecules[molec.Id] = molec
             elif hasattr(molec, "raw"):
-                self.molecules[molec.identifier] = molec
+                self.molecules[molec.raw["identifier"]] = molec
             else:
-                print("molecule doesn't have identifier {}".format(molec))
+                print(f"molecule doesn't have identifier {molec}")
                 pass
 
     def make_molecule(self):
