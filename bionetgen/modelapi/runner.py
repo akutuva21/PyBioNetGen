@@ -28,39 +28,42 @@ def run(inp, out=None, suppress=False, timeout=None):
     """
     # if out is None we make a temp directory
     cur_dir = os.getcwd()
-    try:
-        if out is None:
-            with TemporaryDirectory() as out_temp:
-                # instantiate a CLI object with the info
-                cli = BNGCLI(
-                    inp, out_temp, conf["bngpath"], suppress=suppress, timeout=timeout
-                )
-                try:
-                    cli.run()
-                except Exception as e:
-                    logger.error("Couldn't run the simulation, see error")
-                    if hasattr(e, "stdout") and e.stdout is not None:
-                        logger.error(f"STDOUT:\n{e.stdout}")
-                    if hasattr(e, "stderr") and e.stderr is not None:
-                        logger.error(f"STDERR:\n{e.stderr}")
-                    raise e
-                return cli.result
-        else:
+    if out is None:
+        import tempfile
+        import shutil
+
+        out_dir = tempfile.mkdtemp(prefix="bngrun_")
+        try:
+            # instantiate a CLI object with the info
+            cli = BNGCLI(
+                inp, out_dir, conf["bngpath"], suppress=suppress, timeout=timeout
+            )
+            cli.run()
+        except Exception as e:
+            logger.error("Couldn't run the simulation, see error")
+            if hasattr(e, "stdout") and e.stdout is not None:
+                logger.error(f"STDOUT:\n{e.stdout}")
+            if hasattr(e, "stderr") and e.stderr is not None:
+                logger.error(f"STDERR:\n{e.stderr}")
+            raise e
+        finally:
+            os.chdir(cur_dir)
+            try:
+                shutil.rmtree(out_dir)
+            except:
+                pass
+    else:
+        try:
             # instantiate a CLI object with the info
             cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
-            try:
-                # instantiate a CLI object with the info
-                cli = BNGCLI(
-                    inp, out, conf["bngpath"], suppress=suppress, timeout=timeout
-                )
-                cli.run()
-            except Exception as e:
-                logger.error("Couldn't run the simulation, see error")
-                if hasattr(e, "stdout") and e.stdout is not None:
-                    logger.error(f"STDOUT:\n{e.stdout}")
-                if hasattr(e, "stderr") and e.stderr is not None:
-                    logger.error(f"STDERR:\n{e.stderr}")
-                raise e
-            return cli.result
-    finally:
-        os.chdir(cur_dir)
+            cli.run()
+        except Exception as e:
+            logger.error("Couldn't run the simulation, see error")
+            if hasattr(e, "stdout") and e.stdout is not None:
+                logger.error(f"STDOUT:\n{e.stdout}")
+            if hasattr(e, "stderr") and e.stderr is not None:
+                logger.error(f"STDERR:\n{e.stderr}")
+            raise e
+        finally:
+            os.chdir(cur_dir)
+    return cli.result

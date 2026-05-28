@@ -396,6 +396,19 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
         "INSERT into annotation(annotationURI,annotationName) values (?, ?)",
         annotationNames,
     )
+    if annotationNames:
+        # Instead of parameterizing a single massive IN clause that could exceed
+        # SQLite variable limits, we query for the new rows sequentially.
+        # This is still significantly faster than fetching the entire table
+        # for a second time, especially as the database grows.
+        for row in annotationNames:
+            uri = row[0]
+            cursor.execute(
+                "SELECT ROWID FROM annotation WHERE annotationURI == ?", (uri,)
+            )
+            result = cursor.fetchone()
+            if result:
+                annotationIDs[uri] = result[0]
     connection.commit()
     cursor.executemany(
         "INSERT into moleculeNames(fileId,name) values (?, ?)", moleculeNames
@@ -409,9 +422,6 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
                 modelID
             )
         )
-    }
-    annotationIDs = {
-        x[1]: x[0] for x in cursor.execute("select ROWID,annotationURI from annotation")
     }
 
     for molecule in basicModelAnnotations:

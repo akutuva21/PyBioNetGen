@@ -1,4 +1,4 @@
-import copy, tempfile, shutil
+import copy, tempfile, shutil, os
 
 from bionetgen.main import BioNetGen
 from bionetgen.core.exc import BNGModelError
@@ -489,7 +489,7 @@ class bngmodel:
             # with windows
             try:
                 tmp_folder = tempfile.mkdtemp()
-                sbml_name = f"{self.model_name}_sbml.xml"
+                sbml_name = os.path.join(tmp_folder, f"{self.model_name}_sbml.xml")
                 # write the sbml
                 with open(sbml_name, "w+") as f:
                     if not (
@@ -510,7 +510,10 @@ class bngmodel:
                 selections = ["time"] + [obs for obs in self.observables]
                 self.simulator.simulator.timeCourseSelections = selections
             finally:
-                shutil.rmtree(tmp_folder)
+                try:
+                    shutil.rmtree(tmp_folder)
+                except Exception:
+                    pass
             self.actions = curr_actions
         elif sim_type == "cpy":
             # get the simulator

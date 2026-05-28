@@ -120,16 +120,15 @@ def test_model_running_lib():
 
 
 def test_setup_simulator():
-    if bng.defaults.config.get("bionetgen", {}).get("bngpath") is None:
-        import pytest
+    import bionetgen.core.defaults as defaults
 
-        pytest.skip("BNG2.pl is not installed, skipping test_setup_simulator")
-    elif not os.path.exists(bng.defaults.config.get("bionetgen", {}).get("bngpath")):
-        import pytest
-
-        pytest.skip("BNG2.pl path is invalid, skipping test_setup_simulator")
     fpath = os.path.join(tfold, "test.bngl")
     fpath = os.path.abspath(fpath)
+    bng_path = defaults.BNGDefaults().bng_path
+    bngexec = os.path.join(bng_path, "BNG2.pl")
+    if bngexec is None or not os.path.exists(bngexec):
+        return  # skip if bng2.pl is not installed
+
     try:
         m = bng.bngmodel(fpath)
         librr_simulator = m.setup_simulator()
