@@ -108,15 +108,9 @@ def balanceTranslator(reactant, product, translator):
             newTranslator[species[0]] = deepcopy(translator[species[0]])
             pMolecules.extend(newTranslator[species[0]].molecules)
 
-    pMolecules_dict = {}
-    for pMolecule in pMolecules:
-        if pMolecule.name not in pMolecules_dict:
-            pMolecules_dict[pMolecule.name] = []
-        pMolecules_dict[pMolecule.name].append(pMolecule)
-
     for rMolecule in rMolecules:
-        if rMolecule.name in pMolecules_dict:
-            for pMolecule in pMolecules_dict[rMolecule.name]:
+        for pMolecule in pMolecules:
+            if rMolecule.name == pMolecule.name:
                 pMolecule_component_names = {y.name for y in pMolecule.components}
                 rMolecule_component_names = {y.name for y in rMolecule.components}
 

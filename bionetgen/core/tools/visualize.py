@@ -178,10 +178,10 @@ class BNGVisualize:
         )
 
         with TemporaryDirectory() as out:
+            os.chdir(out)
+            # instantiate a CLI object with the info
+            cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
             try:
-                os.chdir(out)
-                # instantiate a CLI object with the info
-                cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
                 cli.run()
                 # load vis
                 vis_res = VisResult(
@@ -190,21 +190,19 @@ class BNGVisualize:
                     vtype=self.vtype,
                 )
 
-                    # dump files
-                    if self.output is None:
-                        vis_res._dump_files(os.getcwd())
-                    else:
-                        if not os.path.isdir(self.output):
-                            os.makedirs(self.output, exist_ok=True)
-                        vis_res._dump_files(os.path.abspath(self.output))
+                # dump files
+                if self.output is None:
+                    vis_res._dump_files(os.getcwd())
+                else:
+                    if not os.path.isdir(self.output):
+                        os.makedirs(self.output, exist_ok=True)
+                    vis_res._dump_files(os.path.abspath(self.output))
 
-                    return vis_res
-                except Exception as e:
-                    self.logger.error(
-                        "Failed to run file",
-                        loc=f"{__file__} : BNGVisualize._normal_mode()",
-                    )
-                    print("Couldn't run the simulation, see error.")
-                    raise e
-            finally:
-                os.chdir(cur_dir)
+                return vis_res
+            except Exception as e:
+                self.logger.error(
+                    "Failed to run file",
+                    loc=f"{__file__} : BNGVisualize._normal_mode()",
+                )
+                print("Couldn't run the simulation, see error.")
+                raise e
