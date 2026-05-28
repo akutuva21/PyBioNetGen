@@ -662,7 +662,8 @@ class BioNetGen(cement.App):
         config_file_suffix = ".conf"
 
         # add current folder to the list of config dirs
-        config_files = ["./.{}.conf".format(label)]
+        # removed './.bionetgen.conf' as it leads to cement caching the original directory and trying to rm it
+        config_files = []
 
         # set the log handler
         log_handler = "colorlog"
