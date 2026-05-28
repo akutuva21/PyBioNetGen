@@ -746,16 +746,37 @@ class RuleBlockXML(XMLObj):
                 rule_mod.name = ratelaw["@name"]
                 rule_mod.call = ratelaw.get("@totalrate", "0")
 
-        # TODO: add support for include/exclude reactants/products
-        if (
-            "ListOfIncludeReactants" in xml
-            or "ListOfIncludeProducts" in xml
-            or "ListOfExcludeReactants" in xml
-            or "ListOfExcludeProducts" in xml
-        ):
-            print(
-                "WARNING: Include/Exclude Reactants/Products not currently supported as rule modifiers"
-            )
+        # add support for include/exclude reactants/products
+        def parse_include_exclude(xml_dict, key, bngl_key):
+            if key in xml_dict:
+                item_key = key.replace("ListOf", "")[:-1]
+                items = xml_dict[key][item_key]
+                if isinstance(items, list):
+                    item_names = [item["@id"] for item in items]
+                else:
+                    item_names = [items["@id"]]
+                return item_names
+            return None
+
+        # Build list of modifiers to be added
+        mods_to_add = []
+        if rule_mod.type is not None:
+            pass  # Keep the first rule_mod
+
+        for xml_k, bngl_k in [
+            ("ListOfIncludeReactants", "IncludeReactants"),
+            ("ListOfIncludeProducts", "IncludeProducts"),
+            ("ListOfExcludeReactants", "ExcludeReactants"),
+            ("ListOfExcludeProducts", "ExcludeProducts"),
+        ]:
+            item_names = parse_include_exclude(xml, xml_k, bngl_k)
+            if item_names is not None:
+                new_mod = RuleMod(bngl_k, {"item_names": item_names})
+                if rule_mod.type is None:
+                    rule_mod = new_mod
+                else:
+                    rule_mod.mods.append(new_mod)
+
         return rule_mod
 
 

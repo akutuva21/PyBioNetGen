@@ -11,6 +11,8 @@ from bionetgen.network.blocks import (
     NetworkPopulationMapBlock,
 )
 
+from bionetgen.core.defaults import BNGDefaults
+
 # This allows access to the CLIs config setup
 conf = BNGDefaults()
 def_bng_path = conf.bng_path

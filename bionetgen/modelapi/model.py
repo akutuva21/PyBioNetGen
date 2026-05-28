@@ -18,6 +18,8 @@ from .blocks import (
     PopulationMapBlock,
 )
 
+from bionetgen.core.defaults import BNGDefaults
+
 # This allows access to the CLIs config setup
 conf = BNGDefaults()
 

@@ -11,6 +11,8 @@ from .xmlparsers import RuleBlockXML, EnergyPatternBlockXML, PopulationMapBlockX
 from .blocks import ActionBlock
 from bionetgen.core.utils.utils import ActionList
 
+from bionetgen.core.defaults import BNGDefaults
+
 # This allows access to the CLIs config setup
 conf = BNGDefaults()
 

@@ -7,6 +7,8 @@ from bionetgen.core.defaults import BNGDefaults
 from bionetgen.core.exc import BNGFileError
 from bionetgen.core.utils.utils import find_BNG_path, run_command, ActionList
 
+from bionetgen.core.defaults import BNGDefaults
+
 # This allows access to the CLIs config setup
 conf = BNGDefaults()
 

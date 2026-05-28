@@ -4,6 +4,8 @@ from tempfile import TemporaryDirectory
 from bionetgen.core.defaults import BNGDefaults
 from bionetgen.core.tools import BNGCLI
 
+from bionetgen.core.defaults import BNGDefaults
+
 # This allows access to the CLIs config setup
 conf = BNGDefaults()
 
