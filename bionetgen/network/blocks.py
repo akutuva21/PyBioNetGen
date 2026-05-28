@@ -125,6 +125,19 @@ class NetworkBlock:
         # for the future, in case we want people to be able
         # to adjust the math
         name, value = item_tpl
+
+        try:
+            import sympy
+
+            if hasattr(value, "value") and isinstance(value.value, str):
+                sval = sympy.sympify(value.value)
+                if sval.is_Number:
+                    value.value = str(float(sval))
+                elif sval.is_constant():
+                    value.value = str(float(sval.evalf()))
+        except Exception:
+            pass
+
         # allow for empty addition, uses index
         if name is None:
             name = len(self.items)
