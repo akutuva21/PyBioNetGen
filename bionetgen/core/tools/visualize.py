@@ -190,13 +190,13 @@ class BNGVisualize:
                     vtype=self.vtype,
                 )
 
-                # dump files
-                if self.output is None:
-                    vis_res._dump_files(os.getcwd())
-                else:
-                    if not os.path.isdir(self.output):
-                        os.makedirs(self.output, exist_ok=True)
-                    vis_res._dump_files(os.path.abspath(self.output))
+                    # dump files
+                    if self.output is None:
+                        vis_res._dump_files(cur_dir)
+                    else:
+                        if not os.path.isdir(self.output):
+                            os.makedirs(self.output, exist_ok=True)
+                        vis_res._dump_files(os.path.abspath(self.output))
 
                 return vis_res
             except Exception as e:
