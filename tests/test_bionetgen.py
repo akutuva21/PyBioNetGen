@@ -32,6 +32,9 @@ def test_bionetgen_input():
 
 
 def test_bionetgen_plot():
+    # setup test data
+    bng.run(os.path.join(tfold, "test.bngl"), out=os.path.join(tfold, "test"))
+
     argv = [
         "plot",
         "-i",
