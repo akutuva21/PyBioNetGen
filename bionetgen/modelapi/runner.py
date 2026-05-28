@@ -27,27 +27,35 @@ def run(inp, out=None, suppress=False, timeout=None):
         into. If it doesn't exist, it will be created.
     """
     # if out is None we make a temp directory
+    cur_dir = os.getcwd()
     if out is None:
-        with TemporaryDirectory() as out:
-            try:
-                # instantiate a CLI object with the info
-                cli = BNGCLI(
-                    inp, out, conf["bngpath"], suppress=suppress, timeout=timeout
-                )
-                cli.run()
-            except Exception as e:
-                logger.error("Couldn't run the simulation, see error")
-                if hasattr(e, "stdout") and e.stdout is not None:
-                    logger.error(f"STDOUT:\n{e.stdout}")
-                if hasattr(e, "stderr") and e.stderr is not None:
-                    logger.error(f"STDERR:\n{e.stderr}")
-                raise e
-            finally:
-                os.chdir(cur_dir)
-    else:
-        # instantiate a CLI object with the info
-        cli = BNGCLI(inp, out, conf.bng_path, suppress=suppress, timeout=timeout)
+        import tempfile
+        import shutil
+
+        out_dir = tempfile.mkdtemp(prefix="bngrun_")
         try:
+            # instantiate a CLI object with the info
+            cli = BNGCLI(
+                inp, out_dir, conf["bngpath"], suppress=suppress, timeout=timeout
+            )
+            cli.run()
+        except Exception as e:
+            logger.error("Couldn't run the simulation, see error")
+            if hasattr(e, "stdout") and e.stdout is not None:
+                logger.error(f"STDOUT:\n{e.stdout}")
+            if hasattr(e, "stderr") and e.stderr is not None:
+                logger.error(f"STDERR:\n{e.stderr}")
+            raise e
+        finally:
+            os.chdir(cur_dir)
+            try:
+                shutil.rmtree(out_dir)
+            except:
+                pass
+    else:
+        try:
+            # instantiate a CLI object with the info
+            cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
             cli.run()
         except Exception as e:
             logger.error("Couldn't run the simulation, see error")

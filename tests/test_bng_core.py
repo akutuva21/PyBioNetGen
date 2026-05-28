@@ -32,9 +32,20 @@ def test_bionetgen_input():
         assert file_list.sort() == to_match.sort()
 
 
-def test_bionetgen_plot(mocker):
-    # Mock plotting since the actual plotting logic might not be necessary,
-    # and bionetgen runner doesn't run properly because there's no actual BNG2.pl configured by default for tests running like this.
+def test_bionetgen_plot():
+    # first run the model to generate the data
+    argv = [
+        "run",
+        "-i",
+        os.path.join(tfold, "test.bngl"),
+        "-o",
+        os.path.join(tfold, "test"),
+    ]
+    with BioNetGenTest(argv=argv) as app:
+        app.run()
+        assert app.exit_code == 0
+
+    # now plot the data
     argv = [
         "plot",
         "-i",
@@ -42,10 +53,13 @@ def test_bionetgen_plot(mocker):
         "-o",
         os.path.join(*[tfold, "test", "test.png"]),
     ]
-    mocker.patch("bionetgen.main.plotDAT")
-    with BioNetGenTest(argv=argv) as app:
-        app.run()
-        assert app.exit_code == 0
+    if os.path.exists(os.path.join(*[tfold, "test", "test.gdat"])):
+        with BioNetGenTest(argv=argv) as app:
+            app.run()
+            assert app.exit_code == 0
+            assert os.path.isfile(os.path.join(*[tfold, "test", "test.png"]))
+            # cleanup
+            os.remove(os.path.join(*[tfold, "test", "test.png"]))
 
 
 def test_bionetgen_info():
@@ -56,8 +70,8 @@ def test_bionetgen_info():
         assert app.exit_code == 0
 
 
-@patch("bionetgen.core.tools.BNGPlotter")
-def test_plotDAT_valid_input(MockBNGPlotter):
+def test_plotDAT_valid_input():
+    from unittest.mock import patch
     from unittest.mock import MagicMock
     from bionetgen.core.main import plotDAT
 
@@ -92,8 +106,8 @@ def test_plotDAT_invalid_input():
     app_mock.log.error.assert_called_once()
 
 
-@patch("bionetgen.core.tools.BNGPlotter")
-def test_plotDAT_current_folder(MockBNGPlotter):
+def test_plotDAT_current_folder():
+    from unittest.mock import patch
     from unittest.mock import MagicMock
     from bionetgen.core.main import plotDAT
     import os

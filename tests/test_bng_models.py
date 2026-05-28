@@ -119,20 +119,19 @@ def test_model_running_lib():
     assert fails == 0
 
 
-def test_setup_simulator(mocker):
-    import sys
+def test_setup_simulator():
+    import bionetgen.core.defaults as defaults
 
-    mock_rr = mocker.MagicMock()
-    mocker.patch.dict(sys.modules, {"roadrunner": mock_rr})
     fpath = os.path.join(tfold, "test.bngl")
     fpath = os.path.abspath(fpath)
+    bng_path = defaults.BNGDefaults().bng_path
+    bngexec = os.path.join(bng_path, "BNG2.pl")
+    if bngexec is None or not os.path.exists(bngexec):
+        return  # skip if bng2.pl is not installed
 
-    m = bng.bngmodel(fpath)
-    mocker.patch.object(m.bngparser.bngfile, "write_xml", return_value=True)
-    mocker.patch("bionetgen.simulator.simulators.libRRSimulator")
-    librr_simulator = m.setup_simulator()
-    librr_simulator.simulate.return_value = "mock_res"
     try:
+        m = bng.bngmodel(fpath)
+        librr_simulator = m.setup_simulator()
         res = librr_simulator.simulate(0, 1, 10)
     except:
         res = None
