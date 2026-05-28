@@ -1,5 +1,5 @@
 import pytest
-from bionetgen.atomizer.sbml2json import factorial
+from bionetgen.atomizer.sbml2json import factorial, comb
 
 
 def test_factorial():
@@ -13,3 +13,10 @@ def test_factorial():
     # Also test negative number just in case
     # Currently the implementation behaves by returning 1 for negative numbers
     assert factorial(-1) == 1
+
+
+def test_comb():
+    assert comb(5, 2) == 10
+    assert comb(5, 5) == 1
+    assert comb(5, 0) == 1
+    assert comb(10, 3) == 120
