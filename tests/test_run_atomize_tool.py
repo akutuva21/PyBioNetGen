@@ -39,14 +39,12 @@ def test_runAtomizeTool_write_scts(tmp_path):
         mock_atomize_instance.run.return_value = mock_res_arr
 
         orig_cwd = os.getcwd()
-<<<<<<< HEAD
         if not os.path.exists(tmp_path):
             os.makedirs(tmp_path)
-=======
->>>>>>> 5fc23e641829730c5cf64fba05cb78ff303c38a2
         os.chdir(tmp_path)
 
         try:
+            os.chdir(tmp_path)
             runAtomizeTool(mock_app)
 
             assert os.path.exists("test_model_scts.json")
@@ -73,14 +71,12 @@ def test_runAtomizeTool_write_scts_and_graphs(tmp_path):
         mock_atomize_instance.run.return_value = mock_res_arr
 
         orig_cwd = os.getcwd()
-<<<<<<< HEAD
         if not os.path.exists(tmp_path):
             os.makedirs(tmp_path)
-=======
->>>>>>> 5fc23e641829730c5cf64fba05cb78ff303c38a2
         os.chdir(tmp_path)
 
         try:
+            os.chdir(tmp_path)
             runAtomizeTool(mock_app)
 
             assert os.path.exists("test_model_scts.json")

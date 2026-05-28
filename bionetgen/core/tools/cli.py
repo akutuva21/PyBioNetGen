@@ -148,11 +148,8 @@ class BNGCLI:
             command = ["perl", self.bng_exec, self.inp_path]
         self.logger.debug("Running command", loc=f"{__file__} : BNGCLI.run()")
         rc, out = run_command(
-            command, suppress=False, timeout=self.timeout, cwd=self.output
+            command, suppress=self.suppress, timeout=self.timeout, cwd=self.output
         )
-        print("BNG2.pl ran with command:", command)
-        print("BNG2.pl output:", out)
-        print("BNG2.pl return code:", rc)
         if self.log_file is not None:
             self.logger.debug("Setting up log file", loc=f"{__file__} : BNGCLI.run()")
 
