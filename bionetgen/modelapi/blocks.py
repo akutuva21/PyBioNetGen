@@ -632,8 +632,7 @@ class ActionBlock(ModelBlock):
     def __delitem__(self, key) -> None:
         try:
             return self.items.pop(key)
-        # TODO: more specific except statements
-        except:
+        except (IndexError, TypeError):
             print("Item {} not found".format(key))
 
     def __iter__(self):
