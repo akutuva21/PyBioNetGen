@@ -51,10 +51,8 @@ class BNGResult:
             self.file_name = fnoext
             self.file_extension = fext
             self.gnames[fnoext] = direct_path
-            self.gdats[fnoext] = self.load(direct_path)
+            self.load_results()
         elif path is not None:
-            # TODO change this pattern so that each method
-            # is stand alone and usable.
             self.path = path
             self.find_dat_files()
             self.load_results()
@@ -113,36 +111,36 @@ class BNGResult:
         gdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
         for dat_file in gdat_files:
             name = dat_file.replace(f".{ext}", "")
-            self.gnames[name] = dat_file
+            self.gnames[name] = os.path.join(self.path, dat_file)
 
         ext = "cdat"
         cdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
         for dat_file in cdat_files:
             name = dat_file.replace(f".{ext}", "")
-            self.cnames[name] = dat_file
+            self.cnames[name] = os.path.join(self.path, dat_file)
 
         ext = "scan"
         scan_files = filter(lambda x: x.endswith(f".{ext}"), files)
         for dat_file in scan_files:
             name = dat_file.replace(f".{ext}", "")
-            self.snames[name] = dat_file
+            self.snames[name] = os.path.join(self.path, dat_file)
 
     def load_results(self):
         self.logger.debug(
-            f"Loading results from {self.path}",
+            f"Loading results",
             loc=f"{__file__} : BNGResult.load_results()",
         )
         # load gdat files
         for name in self.gnames:
-            gdat_path = os.path.join(self.path, self.gnames[name])
+            gdat_path = self.gnames[name]
             self.gdats[name] = self.load(gdat_path)
-        # load gdat files
+        # load cdat files
         for name in self.cnames:
-            cdat_path = os.path.join(self.path, self.cnames[name])
+            cdat_path = self.cnames[name]
             self.cdats[name] = self.load(cdat_path)
         # load scan files
         for name in self.snames:
-            scan_path = os.path.join(self.path, self.snames[name])
+            scan_path = self.snames[name]
             self.scans[name] = self.load(scan_path)
 
     def _load_dat(self, path, dformat="f8"):
