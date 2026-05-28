@@ -4,10 +4,10 @@ from tempfile import TemporaryDirectory
 from bionetgen.main import BioNetGen
 from bionetgen.core.tools import BNGCLI
 
-from bionetgen.core.defaults import BNGDefaults
-
 # This allows access to the CLIs config setup
-conf = BNGDefaults()
+app = BioNetGen()
+app.setup()
+conf = app.config["bionetgen"]
 
 logger = logging.getLogger(__name__)
 
@@ -30,22 +30,25 @@ def run(inp, out=None, suppress=False, timeout=None):
     cur_dir = os.getcwd()
     if out is None:
         with TemporaryDirectory() as out:
-            # instantiate a CLI object with the info
-            cli = BNGCLI(inp, out, conf.bng_path, suppress=suppress, timeout=timeout)
             try:
-                cli.run()
+                # instantiate a CLI object with the info
+                cli = BNGCLI(
+                    inp, out, conf["bngpath"], suppress=suppress, timeout=timeout
+                )
+                try:
+                    cli.run()
+                except Exception as e:
+                    logger.error("Couldn't run the simulation, see error")
+                    if hasattr(e, "stdout") and e.stdout is not None:
+                        logger.error(f"STDOUT:\n{e.stdout}")
+                    if hasattr(e, "stderr") and e.stderr is not None:
+                        logger.error(f"STDERR:\n{e.stderr}")
+                    raise e
+            finally:
                 os.chdir(cur_dir)
-            except Exception as e:
-                os.chdir(cur_dir)
-                logger.error("Couldn't run the simulation, see error")
-                if hasattr(e, "stdout") and e.stdout is not None:
-                    logger.error(f"STDOUT:\n{e.stdout}")
-                if hasattr(e, "stderr") and e.stderr is not None:
-                    logger.error(f"STDERR:\n{e.stderr}")
-                raise e
     else:
         # instantiate a CLI object with the info
-        cli = BNGCLI(inp, out, conf.bng_path, suppress=suppress, timeout=timeout)
+        cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
         try:
             cli.run()
             os.chdir(cur_dir)
