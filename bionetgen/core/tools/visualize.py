@@ -169,7 +169,6 @@ class BNGVisualize:
                 )
             else:
                 model.add_action("visualize", action_args={"type": f"'{self.vtype}'"})
-        cur_dir = os.getcwd()
         from bionetgen.core.main import BNGCLI
 
         self.logger.debug(
@@ -177,6 +176,7 @@ class BNGVisualize:
             loc=f"{__file__} : BNGVisualize._normal_mode()",
         )
 
+        cur_dir = os.getcwd()
         with TemporaryDirectory() as out:
             try:
                 os.chdir(out)
