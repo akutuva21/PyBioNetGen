@@ -60,11 +60,12 @@ def test_csimulator_simulator_property():
 
     csim.model = MockModel()
 
-    with unittest.mock.patch(
-        "os.path.abspath", side_effect=lambda x: x
-    ), unittest.mock.patch(
-        "bionetgen.simulator.csimulator.CSimWrapper"
-    ) as mock_wrapper:
+    with (
+        unittest.mock.patch("os.path.abspath", side_effect=lambda x: x),
+        unittest.mock.patch(
+            "bionetgen.simulator.csimulator.CSimWrapper"
+        ) as mock_wrapper,
+    ):
         csim.simulator = "dummy_lib_file"
         mock_wrapper.assert_called_once()
         args, kwargs = mock_wrapper.call_args
@@ -131,3 +132,52 @@ def test_csimulator_simulate():
     mock_wrapper.simulate.assert_called_once_with(1, 5, 4)
 
     assert res == ("timepoints", "obs_all", "spcs_all")
+
+
+def test_simulator_setter_success():
+    # Bypass init
+    sim = CSimulator.__new__(CSimulator)
+    sim.model = unittest.mock.Mock()
+
+    # Setup mock parameters and species
+    param_mock = unittest.mock.Mock()
+    param_mock.expr = "1.5"
+
+    param_invalid = unittest.mock.Mock()
+    param_invalid.expr = "not_a_float"
+
+    sim.model.parameters = {
+        "param1": param_mock,
+        "_ignored": unittest.mock.Mock(),
+        "param2": param_invalid,
+    }
+    sim.model.species = {"spec1": unittest.mock.Mock(), "spec2": unittest.mock.Mock()}
+
+    with unittest.mock.patch(
+        "bionetgen.simulator.csimulator.CSimWrapper"
+    ) as mock_wrapper:
+        sim.simulator = "dummy_lib"
+
+        # Check that CSimWrapper is instantiated correctly
+        mock_wrapper.assert_called_once()
+        args, kwargs = mock_wrapper.call_args
+        assert "dummy_lib" in args[0]
+        assert kwargs["num_params"] == 1  # only param1 is valid and not ignored
+        assert kwargs["num_spec_init"] == 2  # 2 species
+
+        # Check property getter
+        assert sim.simulator == mock_wrapper.return_value
+
+
+def test_simulator_setter_compile_error():
+    sim = CSimulator.__new__(CSimulator)
+    sim.model = unittest.mock.Mock()
+    sim.model.parameters = {}
+    sim.model.species = {}
+
+    with unittest.mock.patch(
+        "bionetgen.simulator.csimulator.CSimWrapper",
+        side_effect=Exception("Wrapper failed"),
+    ):
+        with pytest.raises(BNGCompileError):
+            sim.simulator = "dummy_lib"
