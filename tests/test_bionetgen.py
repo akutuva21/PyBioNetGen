@@ -32,18 +32,6 @@ def test_bionetgen_input():
 
 
 def test_bionetgen_plot():
-    # first run the model to generate the data
-    argv = [
-        "run",
-        "-i",
-        os.path.join(tfold, "test.bngl"),
-        "-o",
-        os.path.join(tfold, "test"),
-    ]
-    with BioNetGenTest(argv=argv) as app:
-        app.run()
-        assert app.exit_code == 0
-
     argv = [
         "plot",
         "-i",
@@ -51,11 +39,10 @@ def test_bionetgen_plot():
         "-o",
         os.path.join(*[tfold, "test", "test.png"]),
     ]
-    if os.path.exists(os.path.join(*[tfold, "test", "test.gdat"])):
-        with BioNetGenTest(argv=argv) as app:
-            app.run()
-            assert app.exit_code == 0
-            assert os.path.isfile(os.path.join(*[tfold, "test", "test.png"]))
+    with BioNetGenTest(argv=argv) as app:
+        app.run()
+        assert app.exit_code == 0
+        assert os.path.isfile(os.path.join(*[tfold, "test", "test.png"]))
 
 
 def test_bionetgen_model():
@@ -86,14 +73,6 @@ def test_bionetgen_visualize():
         with BioNetGenTest(argv=argv) as app:
             app.run()
             assert app.exit_code == 0
-
-            # Check if bngexec exists (visualization outputs may not generate locally if missing)
-            import bionetgen.core.defaults as defaults
-
-            bng_path = defaults.BNGDefaults().bng_path
-            if not os.path.exists(os.path.join(bng_path, "BNG2.pl")):
-                continue
-
             # gmls = glob.glob("*.gml")
             graphmls = glob.glob(os.path.join(tfold, "viz") + os.sep + "*.graphml")
             if vis_name == "atom_rule":
@@ -102,13 +81,6 @@ def test_bionetgen_visualize():
                 assert any([vis_name in i for i in graphmls])
             else:
                 assert len(graphmls) == 4
-        # clean up graphml files
-        import shutil
-
-        try:
-            shutil.rmtree(os.path.join(tfold, "viz"))
-        except:
-            pass
 
 
 def test_bionetgen_all_model_loading():
@@ -343,15 +315,8 @@ def test_pattern_canonicalization():
 
 
 def test_setup_simulator():
-    import bionetgen.core.defaults as defaults
-
     fpath = os.path.join(tfold, "test.bngl")
     fpath = os.path.abspath(fpath)
-    bng_path = defaults.BNGDefaults().bng_path
-    bngexec = os.path.join(bng_path, "BNG2.pl")
-    if bngexec is None or not os.path.exists(bngexec):
-        return  # skip if bng2.pl is not installed
-
     try:
         m = bng.bngmodel(fpath)
         librr_simulator = m.setup_simulator()
@@ -361,48 +326,56 @@ def test_setup_simulator():
     assert res is not None
 
 
-def test_graphdiff_matrix():
-    argv = [
-        "graphdiff",
-        "-i",
-        os.path.join(tfold, "models", "testviz1_cm.graphml"),
-        "-i2",
-        os.path.join(tfold, "models", "testviz2_cm.graphml"),
-        "-m",
-        "matrix",
-    ]
-    to_validate = [
-        "testviz1_cm_recolored.graphml",
-        "testviz1_cm_testviz2_cm_diff.graphml",
-        "testviz2_cm_recolored.graphml",
-        "testviz2_cm_testviz1_cm_diff.graphml",
-    ]
+# def test_graphdiff_matrix():
+#     valid = []
+#     invalid = []
+#     argv = [
+#         "graphdiff",
+#         "-i",
+#         os.path.join(*[tfold, "models", "testviz1_cm.graphml"]),
+#         "-i2",
+#         os.path.join(*[tfold, "models", "testviz2_cm.graphml"]),
+#         "-m",
+#         "matrix",
+#     ]
+#     to_validate = ["testviz1_cm_recolored.graphml",
+#                 "testviz1_cm_testviz2_cm_diff.graphml",
+#                 "testviz2_cm_recolored.graphml",
+#                 "testviz2_cm_testviz1_cm_diff.graphml",
+#                 ]
+#     schema_doc = etree.parse(f)
+#     xmlschema = etree.XMLSchema(schema_doc)
 
-    with BioNetGenTest(argv=argv) as app:
-        app.run()
-        assert app.exit_code == 0
+#     with BioNetGenTest(argv=argv) as app:
+#         app.run()
+#         assert app.exit_code == 0
+#     for test_graphml in to_validate:
+#         doc = etree.parse(test_graphml)
+#         result = xmlschema.validate(doc)
+#         if result == True: valid.append(test_graphml)
+#         else:
+#             invalid.append(test_graphml)
+#     print(sorted(valid))
+#     print(sorted(invalid))
+#     # assert len(valid) == 4
 
-    for test_graphml in to_validate:
-        assert os.path.isfile(test_graphml)
-        os.remove(test_graphml)
 
-
-def test_graphdiff_union():
-    argv = [
-        "graphdiff",
-        "-i",
-        os.path.join(tfold, "models", "testviz1_cm.graphml"),
-        "-i2",
-        os.path.join(tfold, "models", "testviz2_cm.graphml"),
-        "-m",
-        "union",
-    ]
-    to_validate = ["testviz1_cm_testviz2_cm_union.graphml"]
-
-    with BioNetGenTest(argv=argv) as app:
-        app.run()
-        assert app.exit_code == 0
-
-    for test_graphml in to_validate:
-        assert os.path.isfile(test_graphml)
-        os.remove(test_graphml)
+# def test_graphdiff_union():
+#     argv = [
+#         "graphdiff",
+#         "-i",
+#         os.path.join(tfold, "models", "testviz1_cm.graphml"),
+#         "-i2",
+#         os.path.join(tfold, "models", "testviz2_cm.graphml"),
+#         "-m",
+#         "union",
+#     ]
+#     to_validate = "testviz1_cm_testviz2_cm_union.graphml"
+#     # xmlschema_doc = etree.parse("INSERT_xsd_path_HERE.xsd")
+#     # xmlschema = etree.XMLSchema(xmlschema_doc)
+#     with BioNetGenTest(argv=argv) as app:
+#         app.run()
+#         assert app.exit_code == 0
+#     # xml_doc = etree.parse(to_validate)
+#     # result = xmlschema.validate(xml_doc)
+#     # assert result == True

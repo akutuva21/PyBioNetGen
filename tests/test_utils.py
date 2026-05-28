@@ -125,7 +125,7 @@ def test_perl_missing_path():
     from bionetgen.core.utils.utils import test_perl
     from bionetgen.core.exc import BNGPerlError
 
-    with patch("bionetgen.core.utils.utils.shutil.which") as mock_which:
+    with patch("bionetgen.core.utils.utils.spawn.which") as mock_which:
         mock_which.return_value = None
         with pytest.raises(BNGPerlError):
             test_perl()
@@ -135,7 +135,7 @@ def test_perl_run_error():
     from bionetgen.core.utils.utils import test_perl
     from bionetgen.core.exc import BNGPerlError
 
-    with patch("bionetgen.core.utils.utils.shutil.which") as mock_which:
+    with patch("bionetgen.core.utils.utils.spawn.which") as mock_which:
         mock_which.return_value = "fake_perl"
         with patch("bionetgen.core.utils.utils.run_command") as mock_run_command:
             mock_run_command.return_value = (1, "error")
@@ -147,7 +147,7 @@ def test_perl_success():
     from bionetgen.core.utils.utils import test_perl
     from bionetgen.core.exc import BNGPerlError
 
-    with patch("bionetgen.core.utils.utils.shutil.which") as mock_which:
+    with patch("bionetgen.core.utils.utils.spawn.which") as mock_which:
         mock_which.return_value = "fake_perl"
         with patch("bionetgen.core.utils.utils.run_command") as mock_run_command:
             mock_run_command.return_value = (0, "output")

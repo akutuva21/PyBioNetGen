@@ -21,19 +21,20 @@ def test_runner_with_out(mock_bngcli):
 
 
 @patch("bionetgen.modelapi.runner.BNGCLI")
-@patch("tempfile.mkdtemp")
-def test_runner_without_out(mock_mkdtemp, mock_bngcli):
+@patch("bionetgen.modelapi.runner.TemporaryDirectory")
+def test_runner_without_out(mock_tempdir, mock_bngcli):
     mock_cli_instance = MagicMock()
     mock_bngcli.return_value = mock_cli_instance
     mock_cli_instance.result = "mock_result"
 
-    mock_mkdtemp.return_value = "temp_out"
+    mock_tempdir_instance = MagicMock()
+    mock_tempdir.return_value.__enter__.return_value = "temp_out"
 
     inp = "test.bngl"
 
     result = run(inp, suppress=False, timeout=None)
 
-    mock_mkdtemp.assert_called_once()
+    mock_tempdir.assert_called_once()
     mock_bngcli.assert_called_once_with(
         inp, "temp_out", ANY, suppress=False, timeout=None
     )

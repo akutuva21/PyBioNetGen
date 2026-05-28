@@ -479,6 +479,7 @@ def reorder_and_replace_arules(functions, parser):
     frates = []
     for func in functions:
         splt = func.split("=")
+        # TODO: turn this into warning
         n = splt[0]
         f = "=".join(splt[1:])
         fname = n.rstrip().replace("()", "")
@@ -486,9 +487,6 @@ def reorder_and_replace_arules(functions, parser):
             fs = sympy.sympify(f, locals=parser.all_syms)
         except:
             # Can't parse this func
-            logging.warning(
-                f"Cannot parse function {fname} during dependency resolution"
-            )
             if fname.startswith("fRate"):
                 frates.append((fname.strip(), f))
             else:
@@ -1181,10 +1179,10 @@ def analyzeHelper(
                         sbmlfunctions[sbml2], sbml, sbmlfunctions[sbml]
                     )
 
-    for key in list(observablesDict.keys()):
-        if observablesDict[key] + "_ar" in artificialObservables:
-            observablesDict[key] = observablesDict[key] + "_ar"
-        elif key + "_ar" in artificialObservables:
+    # TODO: if an observable is defined via artificial obs
+    # we should overwrite it in obs dict
+    for key in observablesDict:
+        if key + "_ar" in artificialObservables:
             observablesDict[key] = key + "_ar"
     #
     functions = reorderFunctions(functions)
