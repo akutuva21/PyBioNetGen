@@ -1,4 +1,5 @@
 import os, glob
+from unittest.mock import patch
 from pytest import raises
 import bionetgen as bng
 from bionetgen.main import BioNetGenTest
@@ -80,6 +81,7 @@ def test_plotDAT_valid_input():
     app_mock.pargs._get_kwargs.return_value = {"kwarg1": "val1"}.items()
 
     with patch("bionetgen.core.tools.BNGPlotter") as MockBNGPlotter:
+
         plotDAT(app_mock)
 
         MockBNGPlotter.assert_called_once_with(
@@ -115,11 +117,10 @@ def test_plotDAT_current_folder():
     app_mock.pargs.output = "."
     app_mock.pargs._get_kwargs.return_value = {}.items()
 
-    with patch("bionetgen.core.tools.BNGPlotter") as MockBNGPlotter:
-        plotDAT(app_mock)
+    plotDAT(app_mock)
 
-        expected_out = os.path.join("/path/to", "test.png")
-        MockBNGPlotter.assert_called_once_with(
-            "/path/to/test.cdat", expected_out, app=app_mock
-        )
-        MockBNGPlotter.return_value.plot.assert_called_once()
+    expected_out = os.path.join("/path/to", "test.png")
+    MockBNGPlotter.assert_called_once_with(
+        "/path/to/test.cdat", expected_out, app=app_mock
+    )
+    MockBNGPlotter.return_value.plot.assert_called_once()

@@ -1,6 +1,9 @@
 import urllib.error
 from unittest.mock import patch, MagicMock
-from bionetgen.atomizer.utils.pathwaycommons import queryBioGridByName
+from bionetgen.atomizer.utils.pathwaycommons import (
+    queryBioGridByName,
+    getReactomeBondByName,
+)
 
 
 def test_queryBioGridByName_httperror_with_organism():

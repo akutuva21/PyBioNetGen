@@ -2420,10 +2420,6 @@ class SBML2BNGL:
                     compartments=compartmentList,
                     reactionDict=self.reactionDictionary,
                 )
-                fobj1 = self.bngModel.make_function()
-                fobj1.Id = arate_name
-                fobj1.definition = func_str.split(" = ")[1]
-                self.bngModel.add_function(fobj1)
                 arules.append(func_str)
 
                 if rateLaw2 != "0":
@@ -2436,10 +2432,6 @@ class SBML2BNGL:
                         compartments=compartmentList,
                         reactionDict=self.reactionDictionary,
                     )
-                    fobj2 = self.bngModel.make_function()
-                    fobj2.Id = armrate_name
-                    fobj2.definition = func2_str.split(" = ")[1]
-                    self.bngModel.add_function(fobj2)
                     arules.append(func2_str)
 
                 # ASS2019 - I'm not sure if this is the right place to fix the tags. Basically, up until this point, the artificial reactions don't have tags. This results in the 0 <-> A type reactions to lack a compartment, leading to a non-functional BNGL file. I think the better solution might be during rule (SBML rule, not BNGL rule) parsing and update the parser/SBML2BNGL tags instead.
@@ -2510,9 +2502,10 @@ class SBML2BNGL:
                     zRules.remove(rawArule[0])
                 else:
                     for element in parameters:
-                        # if a rate rule was defined as a parameter that is not 0
-                        # remove it.
-                        if re.search(r"^{0}\s".format(re.escape(rawArule[0])), element):
+                        # TODO: if for whatever reason a rate rule
+                        # was defined as a parameter that is not 0
+                        # remove it. This might not be exact behavior
+                        if re.search("^{0}\s".format(rawArule[0]), element):
                             logMess(
                                 "WARNING:SIM106",
                                 "Parameter {0} corresponds both as a non zero parameter \
@@ -2613,8 +2606,9 @@ class SBML2BNGL:
                         # both situations via renaming.
                         # FIXME: This is very likely broken but
                         # I'm not 100% sure how it breaks things.
-                        # TODO: Check, if we have this in observables we need to adjust the observablesDict because we are writing an assignment rule for this instead
                         name = molecules[rawArule[0]]["returnID"]
+                        if name in observablesDict:
+                            observablesDict[name] = name + "_ar"
                         artificialObservables[name + "_ar"] = writer.bnglFunction(
                             rawArule[1][0],
                             name + "_ar()",
@@ -2624,8 +2618,6 @@ class SBML2BNGL:
                         )
                         self.arule_map[rawArule[0]] = name + "_ar"
                         self.only_assignment_dict[name] = name + "_ar"
-                        if name in observablesDict:
-                            observablesDict[name] = name + "_ar"
                         self.bngModel.add_arule(arule_obj)
                         continue
                 else:

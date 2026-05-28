@@ -44,6 +44,7 @@ def test_runAtomizeTool_write_scts(tmp_path):
         os.chdir(tmp_path)
 
         try:
+            os.chdir(tmp_path)
             runAtomizeTool(mock_app)
 
             assert os.path.exists("test_model_scts.json")
@@ -75,6 +76,7 @@ def test_runAtomizeTool_write_scts_and_graphs(tmp_path):
         os.chdir(tmp_path)
 
         try:
+            os.chdir(tmp_path)
             runAtomizeTool(mock_app)
 
             assert os.path.exists("test_model_scts.json")
