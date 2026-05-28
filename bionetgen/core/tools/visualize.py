@@ -177,13 +177,20 @@ class BNGVisualize:
             loc=f"{__file__} : BNGVisualize._normal_mode()",
         )
 
-        temp_dir = TemporaryDirectory()
-        out = temp_dir.name
-        os.chdir(out)
-        # instantiate a CLI object with the info
-        cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
         try:
+            # We don't use TemporaryDirectory as a context manager because on Windows
+            # os.chdir(out) followed by an exception and cleanup may lead to PermissionError.
+            # So we create and explicitly clean it up.
+            import tempfile
+            import shutil
+
+            out = tempfile.mkdtemp(prefix="bngviz_")
+            os.chdir(out)
+
+            # instantiate a CLI object with the info
+            cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
             cli.run()
+
             # load vis
             vis_res = VisResult(
                 os.path.abspath(out),
@@ -193,9 +200,7 @@ class BNGVisualize:
 
             # dump files
             if self.output is None:
-                vis_res._dump_files(
-                    cur_dir
-                )  # we want to dump to the original folder, not temp folder
+                vis_res._dump_files(cur_dir)
             else:
                 if not os.path.isdir(self.output):
                     os.makedirs(self.output, exist_ok=True)
@@ -212,6 +217,6 @@ class BNGVisualize:
         finally:
             os.chdir(cur_dir)
             try:
-                temp_dir.cleanup()
+                shutil.rmtree(out)
             except:
                 pass

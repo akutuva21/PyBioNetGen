@@ -29,11 +29,15 @@ def run(inp, out=None, suppress=False, timeout=None):
     # if out is None we make a temp directory
     cur_dir = os.getcwd()
     if out is None:
-        temp_dir = TemporaryDirectory()
-        out = temp_dir.name
-        # instantiate a CLI object with the info
-        cli = BNGCLI(inp, out, conf.bng_path, suppress=suppress, timeout=timeout)
+        import tempfile
+        import shutil
+
+        out_dir = tempfile.mkdtemp(prefix="bngrun_")
         try:
+            # instantiate a CLI object with the info
+            cli = BNGCLI(
+                inp, out_dir, conf["bngpath"], suppress=suppress, timeout=timeout
+            )
             cli.run()
         except Exception as e:
             logger.error("Couldn't run the simulation, see error")
@@ -45,13 +49,13 @@ def run(inp, out=None, suppress=False, timeout=None):
         finally:
             os.chdir(cur_dir)
             try:
-                temp_dir.cleanup()
+                shutil.rmtree(out_dir)
             except:
                 pass
     else:
-        # instantiate a CLI object with the info
-        cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
         try:
+            # instantiate a CLI object with the info
+            cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
             cli.run()
         except Exception as e:
             logger.error("Couldn't run the simulation, see error")
