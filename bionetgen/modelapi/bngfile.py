@@ -62,14 +62,12 @@ class BNGFile:
         """
         if model_file is None:
             model_file = self.path
-        cur_dir = os.getcwd()
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
         try:
             # make a stripped copy without actions in the folder
             stripped_bngl = self.strip_actions(model_file, temp_folder)
             # run with --xml
-            os.chdir(temp_folder)
             # If BNG2.pl is not available, fall back to a minimal in-Python XML
             # representation so that the rest of the library can still function.
             if self.bngexec is None:
@@ -80,7 +78,9 @@ class BNGFile:
             app_stdout = conf.get("stdout")
             app_suppress = False if app_stdout == "STDOUT" else self.suppress
             rc, _ = run_command(
-                ["perl", self.bngexec, "--xml", stripped_bngl], suppress=app_suppress
+                ["perl", self.bngexec, "--xml", stripped_bngl],
+                suppress=self.suppress,
+                cwd=temp_folder,
             )
             if rc != 0:
                 return False
@@ -109,7 +109,6 @@ class BNGFile:
             xml_file.seek(0)
             return True
         finally:
-            os.chdir(cur_dir)
             try:
                 shutil.rmtree(temp_folder)
             except Exception:
@@ -211,13 +210,13 @@ class BNGFile:
             with open(self.path, "r", encoding="UTF-8") as f:
                 bngl_str = f.read()
 
-        cur_dir = os.getcwd()
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
         try:
             # write the current model to temp folder
-            os.chdir(temp_folder)
-            with open("temp.bngl", "w", encoding="UTF-8") as f:
+            with open(
+                os.path.join(temp_folder, "temp.bngl"), "w", encoding="UTF-8"
+            ) as f:
                 f.write(bngl_str)
             # run with --xml
             # Output suppression is handled downstream by self.suppress
@@ -227,14 +226,18 @@ class BNGFile:
                         open_file, "temp.bngl"
                     )  # no need to chdir here, handled by finally block
                 rc, _ = run_command(
-                    ["perl", self.bngexec, "--xml", "temp.bngl"], suppress=self.suppress
+                    ["perl", self.bngexec, "--xml", "temp.bngl"],
+                    suppress=self.suppress,
+                    cwd=temp_folder,
                 )
                 if rc != 0:
                     print("XML generation failed")
                     return False
                 else:
                     # we should now have the XML file
-                    with open("temp.xml", "r", encoding="UTF-8") as f:
+                    with open(
+                        os.path.join(temp_folder, "temp.xml"), "r", encoding="UTF-8"
+                    ) as f:
                         content = f.read()
                         open_file.write(content)
                     # go back to beginning
@@ -247,13 +250,17 @@ class BNGFile:
                     )
                     return False
                 command = ["perl", self.bngexec, "temp.bngl"]
-                rc, _ = run_command(command, suppress=self.suppress)
+                rc, _ = run_command(command, suppress=self.suppress, cwd=temp_folder)
                 if rc != 0:
                     print("SBML generation failed")
                     return False
                 else:
                     # we should now have the SBML file
-                    with open("temp_sbml.xml", "r", encoding="UTF-8") as f:
+                    with open(
+                        os.path.join(temp_folder, "temp_sbml.xml"),
+                        "r",
+                        encoding="UTF-8",
+                    ) as f:
                         content = f.read()
                         open_file.write(content)
                     open_file.seek(0)
@@ -262,7 +269,6 @@ class BNGFile:
                 print("XML type {} not recognized".format(xml_type))
                 return False
         finally:
-            os.chdir(cur_dir)
             try:
                 shutil.rmtree(temp_folder)
             except Exception:
