@@ -90,16 +90,11 @@ class NetworkBlock:
                     new_value = float(value)
                     changed = True
                     self.items[name] = new_value
-                except (ValueError, TypeError):
+                except:
                     self.items[name] = value
-                    changed = True
-
                 if changed:
-                    if hasattr(self, "_changes"):
-                        self._changes[name] = self.items[name]
-                    self.__dict__[name] = self.items[name]
-            else:
-                self.__dict__[name] = value
+                    self._changes[name] = new_value
+                    self.__dict__[name] = new_value
         else:
             self.__dict__[name] = value
 
@@ -125,19 +120,6 @@ class NetworkBlock:
         # for the future, in case we want people to be able
         # to adjust the math
         name, value = item_tpl
-
-        try:
-            import sympy
-
-            if hasattr(value, "value") and isinstance(value.value, str):
-                sval = sympy.sympify(value.value)
-                if sval.is_Number:
-                    value.value = str(float(sval))
-                elif sval.is_constant():
-                    value.value = str(float(sval.evalf()))
-        except Exception:
-            pass
-
         # allow for empty addition, uses index
         if name is None:
             name = len(self.items)

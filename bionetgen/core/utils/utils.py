@@ -1,6 +1,6 @@
 import os, subprocess
 from bionetgen.core.exc import BNGPerlError
-import shutil
+import shutil as spawn
 
 from bionetgen.core.utils.logging import BNGLogger
 
@@ -270,8 +270,8 @@ class ActionList:
             "print_functions",
             "netfile",
             "seed",
-            # `poplevel` and `check_product_scale` are arguments for the `psa`
-            # method which is not documented in the Google Spreadsheet specification
+            # TODO: arguments for a method called "psa" that is not documented in
+            # https://docs.google.com/spreadsheets/d/1Co0bPgMmOyAFxbYnGCmwKzoEsY2aUCMtJXQNpQCEUag/
             "poplevel",
             "check_product_scale",
         ]
@@ -611,7 +611,7 @@ def find_BNG_path(BNGPATH=None):
             return hit
 
     # 3) On PATH
-    bng_on_path = shutil.which("BNG2.pl")
+    bng_on_path = spawn.which("BNG2.pl")
     if bng_on_path:
         tried.append(bng_on_path)
         hit = _try_path(bng_on_path)
@@ -639,7 +639,7 @@ def test_perl(app=None, perl_path=None):
     logger.debug("Checking if perl is installed.", loc=f"{__file__} : test_perl()")
     # find path to perl binary
     if perl_path is None:
-        perl_path = shutil.which("perl")
+        perl_path = spawn.which("perl")
     if perl_path is None:
         raise BNGPerlError
     # check if perl is actually working

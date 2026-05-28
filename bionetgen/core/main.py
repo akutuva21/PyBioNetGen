@@ -113,7 +113,13 @@ def runAtomizeTool(app):
         with open(f"{model_name}_scts.json", "w") as f:
             json.dump(resArr.database.scts, f, ensure_ascii=False, indent=4)
         if args.write_sct_graphs:
-            import pyyed
+            try:
+                import pyyed
+            except ImportError:
+                print(
+                    "pyyed is required to write sct graphs. Please install it using `pip install pyyed`."
+                )
+                return
 
             for graph_name in resArr.database.scts:
                 G = pyyed.Graph()
