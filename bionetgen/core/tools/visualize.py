@@ -39,28 +39,29 @@ class VisResult:
         graphfiles = gmls + graphmls
         for gfile in graphfiles:
             if self.name is None:
-                self.files.append(os.path.basename(gfile))
+                self.files.append(gfile)
                 # now load into string
                 with open(gfile, "r") as f:
                     l = f.read()
-                self.file_strs[os.path.basename(gfile)] = l
+                self.file_strs[gfile] = l
             else:
                 # pull GMLs that contain the name
                 if self.name in os.path.basename(gfile):
-                    self.files.append(os.path.basename(gfile))
+                    self.files.append(gfile)
                     # now load into string
                     with open(gfile, "r") as f:
                         l = f.read()
-                    self.file_strs[os.path.basename(gfile)] = l
+                    self.file_strs[gfile] = l
 
     def _dump_files(self, folder) -> None:
         self.logger.debug(
             "Writing graphml/gml files", loc=f"{__file__} : VisResult._dump_files()"
         )
-        for g_name in self.files:
+        for gfile in self.files:
+            g_name = os.path.split(gfile)[-1]
             dest = os.path.join(folder, g_name)
             with open(dest, "w") as f:
-                f.write(self.file_strs[g_name])
+                f.write(self.file_strs[gfile])
 
 
 class BNGVisualize:
@@ -176,35 +177,46 @@ class BNGVisualize:
             loc=f"{__file__} : BNGVisualize._normal_mode()",
         )
 
-        with TemporaryDirectory() as out:
+        try:
+            # We don't use TemporaryDirectory as a context manager because on Windows
+            # os.chdir(out) followed by an exception and cleanup may lead to PermissionError.
+            # So we create and explicitly clean it up.
+            import tempfile
+            import shutil
+
+            out = tempfile.mkdtemp(prefix="bngviz_")
             os.chdir(out)
+
+            # instantiate a CLI object with the info
+            cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
+            cli.run()
+
+            # load vis
+            vis_res = VisResult(
+                os.path.abspath(out),
+                name=model.model_name,
+                vtype=self.vtype,
+            )
+
+            # dump files
+            if self.output is None:
+                vis_res._dump_files(cur_dir)
+            else:
+                if not os.path.isdir(self.output):
+                    os.makedirs(self.output, exist_ok=True)
+                vis_res._dump_files(os.path.abspath(self.output))
+
+            return vis_res
+        except Exception as e:
+            self.logger.error(
+                "Failed to run file",
+                loc=f"{__file__} : BNGVisualize._normal_mode()",
+            )
+            print("Couldn't run the simulation, see error.")
+            raise e
+        finally:
+            os.chdir(cur_dir)
             try:
-                # instantiate a CLI object with the info
-                cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
-                try:
-                    cli.run()
-                    # load vis
-                    vis_res = VisResult(
-                        os.path.abspath(out),
-                        name=model.model_name,
-                        vtype=self.vtype,
-                    )
-
-                    # dump files
-                    if self.output is None:
-                        vis_res._dump_files(cur_dir)
-                    else:
-                        if not os.path.isdir(self.output):
-                            os.makedirs(self.output, exist_ok=True)
-                        vis_res._dump_files(os.path.abspath(self.output))
-
-                    return vis_res
-                except Exception as e:
-                    self.logger.error(
-                        "Failed to run file",
-                        loc=f"{__file__} : BNGVisualize._normal_mode()",
-                    )
-                    print("Couldn't run the simulation, see error.")
-                    raise e
-            finally:
-                os.chdir(cur_dir)
+                shutil.rmtree(out)
+            except:
+                pass
