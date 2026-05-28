@@ -374,7 +374,7 @@ class Species:
                 moleculeStructure.addComponent(componentStructure)
                 speciesStructure.addMolecule(moleculeStructure)
                 # atomicPatterns[str(speciesStructure)] = speciesStructure
-                if not component.bonds:
+                if len(component.bonds) == 0:
                     # if component.activeState == '':
                     atomicPatterns[str(speciesStructure)] = speciesStructure
                 else:
@@ -386,7 +386,7 @@ class Species:
                         bondedPatterns[component.bonds[0]] = speciesStructure
                     elif (
                         "+" not in component.bonds[0]
-                        or not bondedPatterns[component.bonds[0]].molecules
+                        or len(bondedPatterns[component.bonds[0]].molecules) == 0
                     ):
                         bondedPatterns[component.bonds[0]].addMolecule(
                             moleculeStructure
@@ -574,7 +574,7 @@ class Molecule:
     def extend(self, molecule):
         for element in molecule.components:
             comp = [x for x in self.components if x.name == element.name]
-            if not comp:
+            if len(comp) == 0:
                 self.components.append(deepcopy(element))
             else:
                 for bond in element.bonds:
@@ -605,7 +605,7 @@ class Molecule:
         moleculeDictionary[self.idx] = identifier
         return moleculeDictionary
         """
-        if not self.components:
+        if len(self.components) == 0:
             graph.add_node(identifier, label=self.name)
             moleculeDictionary[self.idx] = identifier
         else:
@@ -741,7 +741,7 @@ class Component:
     def graphVizGraph(self, graph, identifier):
         compDictionary = {}
 
-        if not self.states:
+        if len(self.states) == 0:
             graph.add_node(identifier, label=self.name)
         else:
             s1 = graph.subgraph(

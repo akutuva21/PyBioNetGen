@@ -15,7 +15,7 @@ import bionetgen.atomizer.atomizer.moleculeCreation as mc
 import sys
 from os import listdir
 import re
-import json
+import pickle
 import copy
 
 log = {"species": [], "reactions": []}
@@ -127,7 +127,7 @@ def selectReactionDefinitions(bioNumber):
     best reactionDefinitions definition available
     """
     # with open('stats4.npy') as f:
-    #    db = json.load(f)
+    #    db = pickle.load(f)
     fileName = resource_path("config/reactionDefinitions.json")
     useID = True
     naming = resource_path("config/namingConventions.json")
@@ -479,7 +479,6 @@ def reorder_and_replace_arules(functions, parser):
     frates = []
     for func in functions:
         splt = func.split("=")
-        # TODO: turn this into warning
         n = splt[0]
         f = "=".join(splt[1:])
         fname = n.rstrip().replace("()", "")
@@ -487,6 +486,9 @@ def reorder_and_replace_arules(functions, parser):
             fs = sympy.sympify(f, locals=parser.all_syms)
         except:
             # Can't parse this func
+            logging.warning(
+                f"Cannot parse function {fname} during dependency resolution"
+            )
             if fname.startswith("fRate"):
                 frates.append((fname.strip(), f))
             else:
@@ -596,13 +598,10 @@ def postAnalysisHelper(outputFile, bngLocation, database):
     outputDir = os.sep.join(outputFile.split(os.sep)[:-1])
     if outputDir != "":
         retval = os.getcwd()
-        try:
-            os.chdir(outputDir)
-            consoleCommands.bngl2xml(outputFile.split(os.sep)[-1])
-        finally:
-            os.chdir(retval)
-    else:
-        consoleCommands.bngl2xml(outputFile.split(os.sep)[-1])
+        os.chdir(outputDir)
+    consoleCommands.bngl2xml(outputFile.split(os.sep)[-1])
+    if outputDir != "":
+        os.chdir(retval)
     bngxmlFile = ".".join(outputFile.split(".")[:-1]) + "_bngxml.xml"
     # print('Sending BNG-XML file to context analysis engine')
     contextAnalysis = postAnalysis.ModelLearning(bngxmlFile)
@@ -810,8 +809,8 @@ def analyzeFile(
 
     with open(outputFile, "w", encoding="UTF-8") as f:
         f.write(returnArray.finalString)
-    # with open('{0}.dict'.format(outputFile), 'w') as f:
-    #    json.dump(returnArray[-1], f)
+    # with open('{0}.dict'.format(outputFile), 'wb') as f:
+    #    pickle.dump(returnArray[-1], f)
     model = returnArray.model
     if atomize and onlySynDec:
         returnArray = list(returnArray)
@@ -1187,8 +1186,6 @@ def analyzeHelper(
             observablesDict[key] = observablesDict[key] + "_ar"
         elif key + "_ar" in artificialObservables:
             observablesDict[key] = key + "_ar"
-        elif observablesDict[key] + "_ar" in artificialObservables:
-            observablesDict[key] = observablesDict[key] + "_ar"
     #
     functions = reorderFunctions(functions)
     #
@@ -1737,12 +1734,12 @@ def main():
     # print(evaluation2)
     # sortedCurated = [i for i in enumerate(evaluation), key=lambda x:x[1]]
     print([(idx + 1, x) for idx, x in enumerate(rulesLength) if x > 50])
-    with open("sortedD.dump", "w") as f:
-        json.dump(rulesLength, f)
-    with open("annotations.dump", "w") as f:
-        json.dump(rdfArray, f)
-    # with open('classificationDict.dump', 'w') as f:
-    #    json.dump(classificationArray, f)
+    with open("sortedD.dump", "wb") as f:
+        pickle.dump(rulesLength, f)
+    with open("annotations.dump", "wb") as f:
+        pickle.dump(rdfArray, f)
+    # with open('classificationDict.dump', 'wb') as f:
+    #    pickle.dump(classificationArray, f)
     """
     plt.hist(rulesLength, bins=[10, 30, 50, 70, 90, 110, 140, 180, 250, 400])
     plt.xlabel('Number of reactions', fontsize=18)
@@ -1887,8 +1884,8 @@ def statFiles():
         box = []
         box.append(xorBoxDict)
         #box.append(orBoxDict)
-        with open('orBox{0}.dump'.format(bioNumber), 'w') as f:
-            json.dump(box, f)
+        with open('orBox{0}.dump'.format(bioNumber), 'wb') as f:
+            pickle.dump(box, f)
 """
 
 
@@ -1946,8 +1943,8 @@ def processDir(directory, atomize=True):
                 ]
             except:
                 resultDir[xml] = [-1, 0, 0]
-    with open("evalResults.dump", "w") as f:
-        json.dump(resultDir, f)
+    with open("evalResults.dump", "wb") as f:
+        pickle.dump(resultDir, f)
         # except:
         # continue'
 

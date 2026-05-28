@@ -266,10 +266,10 @@ class NamingDatabase:
         # fileSpecies = [[x['name'], len(x['fileName'])] for x in fileSpecies]
         fileSpecies.sort(key=lambda x: len(x["fileName"]), reverse=True)
 
-        # import json
+        # import pickle
 
-        # with open('results.dump','w') as f:
-        #    json.dump(fileSpecies,f)
+        # with open('results.dump','wb') as f:
+        #    pickle.dump(fileSpecies,f)
 
         return fileSpecies
 
@@ -358,14 +358,12 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
     )
 
     connection.commit()
-    annotationID = [
-        x
-        for x in cursor.execute(
-            'select ROWID from annotation WHERE annotationURI == "{0}"'.format(
-                annotationNames[-1][0]
-            )
+    cursor.execute(
+        'select ROWID from annotation WHERE annotationURI == "{0}"'.format(
+            annotationNames[-1][0]
         )
-    ][0][0]
+    )
+    annotationID = cursor.fetchone()[0]
     annotationNames = []
     cursor.executemany(
         "INSERT into biomodels(file,organismID) values (?,?)",
@@ -373,12 +371,8 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
     )
     connection.commit()
 
-    modelID = [
-        x
-        for x in cursor.execute(
-            'select ROWID from biomodels WHERE file == "{0}"'.format(fileName2)
-        )
-    ][0][0]
+    cursor.execute('select ROWID from biomodels WHERE file == "{0}"'.format(fileName2))
+    modelID = cursor.fetchone()[0]
 
     # insert moleculeNames
     for molecule in basicModelAnnotations:
@@ -511,10 +505,10 @@ def query(database, queryType, queryOptions):
         elif Query[queryType] == Query.all:
             result = db.findOverlappingNamespace([])
         # pprint.pprint([[x['name'], len(x['fileName'])] for x in result])
-        import json
+        import pickle
 
-        with open("results2.dump", "w") as f:
-            json.dump(result, f)
+        with open("results2.dump", "wb") as f:
+            pickle.dump(result, f)
     except KeyError:
         print("Query operation not supported")
 

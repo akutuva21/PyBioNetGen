@@ -182,14 +182,13 @@ class BNGVisualize:
                 os.chdir(out)
                 # instantiate a CLI object with the info
                 cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
-                try:
-                    cli.run()
-                    # load vis
-                    vis_res = VisResult(
-                        os.path.abspath(out),
-                        name=model.model_name,
-                        vtype=self.vtype,
-                    )
+                cli.run()
+                # load vis
+                vis_res = VisResult(
+                    os.path.abspath(out),
+                    name=model.model_name,
+                    vtype=self.vtype,
+                )
 
                     # dump files
                     if self.output is None:
