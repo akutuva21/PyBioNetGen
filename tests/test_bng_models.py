@@ -120,15 +120,19 @@ def test_model_running_lib():
 
 
 def test_setup_simulator():
-    import traceback
+    import bionetgen.core.defaults as defaults
 
     fpath = os.path.join(tfold, "test.bngl")
     fpath = os.path.abspath(fpath)
+    bng_path = defaults.BNGDefaults().bng_path
+    bngexec = os.path.join(bng_path, "BNG2.pl")
+    if bngexec is None or not os.path.exists(bngexec):
+        return  # skip if bng2.pl is not installed
+
     try:
         m = bng.bngmodel(fpath)
         librr_simulator = m.setup_simulator()
         res = librr_simulator.simulate(0, 1, 10)
-    except Exception as e:
-        traceback.print_exc()
+    except:
         res = None
     assert res is not None

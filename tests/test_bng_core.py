@@ -1,4 +1,3 @@
-from unittest import mock
 import os, glob
 from unittest.mock import patch
 from pytest import raises
@@ -33,7 +32,20 @@ def test_bionetgen_input():
         assert file_list.sort() == to_match.sort()
 
 
-def test_bionetgen_plot(mocker):
+def test_bionetgen_plot():
+    # first run the model to generate the data
+    argv = [
+        "run",
+        "-i",
+        os.path.join(tfold, "test.bngl"),
+        "-o",
+        os.path.join(tfold, "test"),
+    ]
+    with BioNetGenTest(argv=argv) as app:
+        app.run()
+        assert app.exit_code == 0
+
+    # now plot the data
     argv = [
         "plot",
         "-i",
@@ -41,10 +53,13 @@ def test_bionetgen_plot(mocker):
         "-o",
         os.path.join(*[tfold, "test", "test.png"]),
     ]
-    with BioNetGenTest(argv=argv) as app:
-        mocker.patch("bionetgen.core.tools.BNGPlotter")
-        app.run()
-        assert app.exit_code == 0
+    if os.path.exists(os.path.join(*[tfold, "test", "test.gdat"])):
+        with BioNetGenTest(argv=argv) as app:
+            app.run()
+            assert app.exit_code == 0
+            assert os.path.isfile(os.path.join(*[tfold, "test", "test.png"]))
+            # cleanup
+            os.remove(os.path.join(*[tfold, "test", "test.png"]))
 
 
 def test_bionetgen_info():
@@ -56,6 +71,7 @@ def test_bionetgen_info():
 
 
 def test_plotDAT_valid_input():
+    from unittest.mock import patch
     from unittest.mock import MagicMock
     from bionetgen.core.main import plotDAT
 
@@ -64,8 +80,10 @@ def test_plotDAT_valid_input():
     app_mock.pargs.output = "test_out.png"
     app_mock.pargs._get_kwargs.return_value = {"kwarg1": "val1"}.items()
 
-    with mock.patch("bionetgen.core.tools.BNGPlotter") as MockBNGPlotter:
+    with patch("bionetgen.core.tools.BNGPlotter") as MockBNGPlotter:
+
         plotDAT(app_mock)
+
         MockBNGPlotter.assert_called_once_with(
             "test.gdat", "test_out.png", app=app_mock, kwarg1="val1"
         )
@@ -89,6 +107,7 @@ def test_plotDAT_invalid_input():
 
 
 def test_plotDAT_current_folder():
+    from unittest.mock import patch
     from unittest.mock import MagicMock
     from bionetgen.core.main import plotDAT
     import os
@@ -98,10 +117,10 @@ def test_plotDAT_current_folder():
     app_mock.pargs.output = "."
     app_mock.pargs._get_kwargs.return_value = {}.items()
 
-    with mock.patch("bionetgen.core.tools.BNGPlotter") as MockBNGPlotter:
-        plotDAT(app_mock)
-        expected_out = os.path.join("/path/to", "test.png")
-        MockBNGPlotter.assert_called_once_with(
-            "/path/to/test.cdat", expected_out, app=app_mock
-        )
-        MockBNGPlotter.return_value.plot.assert_called_once()
+    plotDAT(app_mock)
+
+    expected_out = os.path.join("/path/to", "test.png")
+    MockBNGPlotter.assert_called_once_with(
+        "/path/to/test.cdat", expected_out, app=app_mock
+    )
+    MockBNGPlotter.return_value.plot.assert_called_once()

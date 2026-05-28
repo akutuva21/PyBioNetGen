@@ -177,28 +177,26 @@ class BNGVisualize:
             loc=f"{__file__} : BNGVisualize._normal_mode()",
         )
 
-        with TemporaryDirectory() as out:
-            out_abs = os.path.abspath(out)
-            try:
-                os.chdir(out_abs)
-                # instantiate a CLI object with the info
-                cli = BNGCLI(model, out_abs, self.bngpath, suppress=self.suppress)
-                cli.run()
-                # load vis
-                vis_res = VisResult(
-                    out_abs,
-                    name=model.model_name,
-                    vtype=self.vtype,
-                )
-            except Exception as e:
-                self.logger.error(
-                    "Failed to run file",
-                    loc=f"{__file__} : BNGVisualize._normal_mode()",
-                )
-                print("Couldn't run the simulation, see error.")
-                raise e
-            finally:
-                os.chdir(cur_dir)
+        try:
+            # We don't use TemporaryDirectory as a context manager because on Windows
+            # os.chdir(out) followed by an exception and cleanup may lead to PermissionError.
+            # So we create and explicitly clean it up.
+            import tempfile
+            import shutil
+
+            out = tempfile.mkdtemp(prefix="bngviz_")
+            os.chdir(out)
+
+            # instantiate a CLI object with the info
+            cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
+            cli.run()
+
+            # load vis
+            vis_res = VisResult(
+                os.path.abspath(out),
+                name=model.model_name,
+                vtype=self.vtype,
+            )
 
             # dump files
             if self.output is None:
@@ -209,3 +207,16 @@ class BNGVisualize:
                 vis_res._dump_files(os.path.abspath(self.output))
 
             return vis_res
+        except Exception as e:
+            self.logger.error(
+                "Failed to run file",
+                loc=f"{__file__} : BNGVisualize._normal_mode()",
+            )
+            print("Couldn't run the simulation, see error.")
+            raise e
+        finally:
+            os.chdir(cur_dir)
+            try:
+                shutil.rmtree(out)
+            except:
+                pass
