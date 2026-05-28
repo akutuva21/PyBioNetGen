@@ -65,10 +65,11 @@ class ModelObj:
 
     @line_label.setter
     def line_label(self, val) -> None:
+        # TODO: specific error handling
         try:
             ll = int(val)
             self._line_label = "{} ".format(ll)
-        except (ValueError, TypeError):
+        except:
             self._line_label = "{}: ".format(val)
 
     def print_line(self) -> str:
