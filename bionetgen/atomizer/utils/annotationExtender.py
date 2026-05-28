@@ -440,10 +440,12 @@ def createDataStructures(bnglContent):
     with open(pointer[1], "w") as f:
         f.write(bnglContent)
     retval = os.getcwd()
-    os.chdir(tempfile.tempdir)
-    consoleCommands.bngl2xml(pointer[1])
-    xmlfilename = ".".join(pointer[1].split(".")[0:-1]) + "_bngxml.xml"
-    os.chdir(retval)
+    try:
+        os.chdir(tempfile.tempdir)
+        consoleCommands.bngl2xml(pointer[1])
+        xmlfilename = ".".join(pointer[1].split(".")[0:-1]) + "_bngxml.xml"
+    finally:
+        os.chdir(retval)
     return readBNGXML.parseXML(xmlfilename)
 
 
