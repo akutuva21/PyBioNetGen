@@ -26,20 +26,31 @@ def test_bionetgen_visualize():
             vis_name,
         ]
         with BioNetGenTest(argv=argv) as app:
-            try:
-                app.run()
-                assert app.exit_code == 0
-                graphmls = glob.glob(os.path.join(tfold, "viz") + os.sep + "*.graphml")
-                if len(graphmls) > 0:
-                    if vis_name == "atom_rule":
-                        assert any(["regulatory" in i for i in graphmls])
-                    elif not vis_name == "all":
-                        assert any([vis_name in i for i in graphmls])
-                    else:
-                        assert len(graphmls) == 4
-            except FileNotFoundError:
-                # Ignore the missing BNG2.pl engine error, just tests parsing arguments
-                pass
+            app.run()
+            assert app.exit_code == 0
+
+            # Check if bngexec exists (visualization outputs may not generate locally if missing)
+            import bionetgen.core.defaults as defaults
+
+            bng_path = defaults.BNGDefaults().bng_path
+            if not os.path.exists(os.path.join(bng_path, "BNG2.pl")):
+                continue
+
+            # gmls = glob.glob("*.gml")
+            graphmls = glob.glob(os.path.join(tfold, "viz") + os.sep + "*.graphml")
+            if vis_name == "atom_rule":
+                assert any(["regulatory" in i for i in graphmls])
+            elif not vis_name == "all":
+                assert any([vis_name in i for i in graphmls])
+            else:
+                assert len(graphmls) == 4
+        # clean up graphml files
+        import shutil
+
+        try:
+            shutil.rmtree(os.path.join(tfold, "viz"))
+        except:
+            pass
 
 
 # def test_graphdiff_matrix():

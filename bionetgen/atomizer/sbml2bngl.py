@@ -458,9 +458,22 @@ class SBML2BNGL:
         remainderPatterns = []
         highStoichoiMetryFactor = 1
         processedReactants = self.preProcessStoichiometry(reactants)
+        # ASS: I'm doing a hack, this is a flag to indicate
+        # that a species appears on both sides of a reaction
+        bothSides = False
         for x in processedReactants:
             # this is the symmtery factor for the rate constant
             highStoichoiMetryFactor *= factorial(x[1])
+            y = [i[1] for i in products if i[0] == x[0]]
+            if len(y) > 0:
+                bothSides = True
+            y = y[0] if len(y) > 0 else 0
+            # TODO: check if this actually keeps the correct dynamics
+            # this is basically there to address the case where theres more products
+            # than reactants (synthesis)
+            if x[1] > y:
+                highStoichoiMetryFactor /= comb(int(x[1]), int(y), exact=True)
+            # print("HSMF comb: {}".format(highStoichoiMetryFactor))
             for counter in range(0, int(x[1])):
                 remainderPatterns.append(x[0])
 
@@ -498,7 +511,22 @@ class SBML2BNGL:
             logMess(
                 "ERROR:SIM204", 'Found usage of "inf" inside function {0}'.format(rateR)
             )
+        elif highStoichoiMetryFactor != 1 and bothSides:
+            # ASS
+            # there is something wrong here, this multiplies regular
+            # rate constant by the highStoichiometry value and it's simply
+            # incorrect.
+            # Update: I think not multiplying is correct for most cases,
+            # I think this changes when we have a species on both sides
+            # of the reaction. Then, and only then, this parsing is relevant
+            # I believe.
+            # Update: hence the "bothSides" flag
 
+            rateR = "{0} * {1}".format(rateR, int(highStoichoiMetryFactor))
+
+            # we are adding a factor to the rate so we need to account for it when
+            # we are constructing the bngl equation (we dont want constrant expressions in there)
+            numFactors = max(1, numFactors)
         # print("reactants and products: {} \n {} \n".format(reactants, products))
         # print("HSMF: {}".format(highStoichoiMetryFactor))
         # print("rateR: {}".format(rateR))
@@ -520,9 +548,18 @@ class SBML2BNGL:
         remainderPatterns = []
         highStoichoiMetryFactor = 1
         processedReactants = self.preProcessStoichiometry(react)
+        # ASS: I'm doing a hack, this is a flag to indicate
+        # that a species appears on both sides of a reaction
+        bothSides = False
         for x in processedReactants:
             # this is the symmtery factor for the rate constant
             highStoichoiMetryFactor *= factorial(x[1])
+            y = [i[1] for i in prod if i[0] == x[0]]
+            if len(y) > 0:
+                bothSides = True
+            y = y[0] if len(y) > 0 else 0
+            if x[1] > y:
+                highStoichoiMetryFactor /= comb(int(x[1]), int(y), exact=True)
             for counter in range(0, int(x[1])):
                 remainderPatterns.append(x[0])
 
@@ -542,7 +579,8 @@ class SBML2BNGL:
                 "ERROR:SIM204",
                 'Found usage of "inf" inside function. This might be due to non-integer stoichiometry as well.',
             )
-
+        elif highStoichoiMetryFactor != 1 and bothSides:
+            numFactors = max(1, numFactors)
         return numFactors
 
     def find_all_symbols(self, math, reactionID):

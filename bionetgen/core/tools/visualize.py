@@ -169,6 +169,7 @@ class BNGVisualize:
                 )
             else:
                 model.add_action("visualize", action_args={"type": f"'{self.vtype}'"})
+        cur_dir = os.getcwd()
         from bionetgen.core.main import BNGCLI
 
         self.logger.debug(
@@ -176,35 +177,46 @@ class BNGVisualize:
             loc=f"{__file__} : BNGVisualize._normal_mode()",
         )
 
-        cur_dir = os.getcwd()
-        with TemporaryDirectory() as out:
+        try:
+            # We don't use TemporaryDirectory as a context manager because on Windows
+            # os.chdir(out) followed by an exception and cleanup may lead to PermissionError.
+            # So we create and explicitly clean it up.
+            import tempfile
+            import shutil
+
+            out = tempfile.mkdtemp(prefix="bngviz_")
+            os.chdir(out)
+
+            # instantiate a CLI object with the info
+            cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
+            cli.run()
+
+            # load vis
+            vis_res = VisResult(
+                os.path.abspath(out),
+                name=model.model_name,
+                vtype=self.vtype,
+            )
+
+            # dump files
+            if self.output is None:
+                vis_res._dump_files(cur_dir)
+            else:
+                if not os.path.isdir(self.output):
+                    os.makedirs(self.output, exist_ok=True)
+                vis_res._dump_files(os.path.abspath(self.output))
+
+            return vis_res
+        except Exception as e:
+            self.logger.error(
+                "Failed to run file",
+                loc=f"{__file__} : BNGVisualize._normal_mode()",
+            )
+            print("Couldn't run the simulation, see error.")
+            raise e
+        finally:
+            os.chdir(cur_dir)
             try:
-                os.chdir(out)
-                # instantiate a CLI object with the info
-                cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
-                cli.run()
-                # load vis
-                vis_res = VisResult(
-                    os.path.abspath(out),
-                    name=model.model_name,
-                    vtype=self.vtype,
-                )
-
-                # dump files
-                if self.output is None:
-                    vis_res._dump_files(cur_dir)
-                else:
-                    if not os.path.isdir(self.output):
-                        os.makedirs(self.output, exist_ok=True)
-                    vis_res._dump_files(os.path.abspath(self.output))
-
-                return vis_res
-            except Exception as e:
-                self.logger.error(
-                    "Failed to run file",
-                    loc=f"{__file__} : BNGVisualize._normal_mode()",
-                )
-                print("Couldn't run the simulation, see error.")
-                raise e
-            finally:
-                os.chdir(cur_dir)
+                shutil.rmtree(out)
+            except:
+                pass
