@@ -291,9 +291,8 @@ class TestRunNfsim:
     def test_raises_when_nfsim_unavailable(self):
         from bionetgen.core.tools.bngsim_bridge import run_nfsim
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", False),
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.BNGSIM_HAS_NFSIM", False
         ):
             with pytest.raises(BNGSimError, match="not available"):
                 run_nfsim("/dummy.xml", "/output")
@@ -303,12 +302,11 @@ class TestRunNfsim:
 
         mock_bngsim, session = _make_mock_bngsim_with_nfsim_session()
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+        ), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             # Create a dummy xml file
             xml_path = os.path.join(tmpdir, "model.xml")
             with open(xml_path, "w") as f:
@@ -328,12 +326,11 @@ class TestRunNfsim:
 
         mock_bngsim, session = _make_mock_bngsim_with_nfsim_session()
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+        ), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             xml_path = os.path.join(tmpdir, "model.xml")
             with open(xml_path, "w") as f:
                 f.write("<model/>")
@@ -347,12 +344,11 @@ class TestRunNfsim:
 
         mock_bngsim, session = _make_mock_bngsim_with_nfsim_session()
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+        ), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             xml_path = os.path.join(tmpdir, "model.xml")
             with open(xml_path, "w") as f:
                 f.write("<model/>")
@@ -368,12 +364,11 @@ class TestRunNfsim:
 
         mock_bngsim, session = _make_mock_bngsim_with_nfsim_session()
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+        ), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             xml_path = os.path.join(tmpdir, "model.xml")
             with open(xml_path, "w") as f:
                 f.write("<model/>")
@@ -389,12 +384,11 @@ class TestRunNfsim:
 
         mock_bngsim, session = _make_mock_bngsim_with_nfsim_session()
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+        ), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             xml_path = os.path.join(tmpdir, "model.xml")
             with open(xml_path, "w") as f:
                 f.write("<model/>")
@@ -416,12 +410,11 @@ class TestRunNfsim:
 
         mock_bngsim, session = _make_mock_bngsim_with_nfsim_session()
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+        ), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             xml_path = os.path.join(tmpdir, "model.xml")
             with open(xml_path, "w") as f:
                 f.write("<model/>")
@@ -443,12 +436,11 @@ class TestRunNfsim:
 
         mock_bngsim, session = _make_mock_bngsim_with_nfsim_session()
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+        ), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             xml_path = os.path.join(tmpdir, "model.xml")
             with open(xml_path, "w") as f:
                 f.write("<model/>")
@@ -468,12 +460,11 @@ class TestRunNfsim:
 
         mock_bngsim, session = _make_mock_bngsim_with_nfsim_session()
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+        ), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             xml_path = os.path.join(tmpdir, "model.xml")
             with open(xml_path, "w") as f:
                 f.write("<model/>")
@@ -524,12 +515,11 @@ class TestRunNfsim:
 
         mock_bngsim, session = _make_mock_bngsim_with_nfsim_session()
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+        ), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             xml_path = os.path.join(tmpdir, "model.xml")
             with open(xml_path, "w") as f:
                 f.write("<model/>")
@@ -545,12 +535,11 @@ class TestRunNfsim:
         mock_bngsim = MagicMock()
         mock_bngsim.NfsimSession.side_effect = RuntimeError("boom")
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+        ), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             xml_path = os.path.join(tmpdir, "model.xml")
             with open(xml_path, "w") as f:
                 f.write("<model/>")
@@ -563,12 +552,11 @@ class TestRunNfsim:
 
         mock_bngsim, _ = _make_mock_bngsim_with_nfsim_session()
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+        ), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             xml_path = os.path.join(tmpdir, "model.xml")
             with open(xml_path, "w") as f:
                 f.write("<model/>")
@@ -594,9 +582,8 @@ class TestRunWithBngsim:
         from bionetgen.core.tools.bngsim_bridge import run_with_bngsim
 
         mock_run_nfsim = MagicMock()
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.run_nfsim", mock_run_nfsim),
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.run_nfsim", mock_run_nfsim
         ):
             run_with_bngsim("/model.xml", "/output", fmt="bng-xml", method="nf")
             mock_run_nfsim.assert_called_once()
@@ -605,9 +592,8 @@ class TestRunWithBngsim:
         from bionetgen.core.tools.bngsim_bridge import run_with_bngsim
 
         mock_run_nfsim = MagicMock()
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.run_nfsim", mock_run_nfsim),
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.run_nfsim", mock_run_nfsim
         ):
             run_with_bngsim("/model.xml", "/output", fmt="bng-xml", method=None)
             mock_run_nfsim.assert_called_once()
@@ -637,11 +623,9 @@ class TestRunWithBngsim:
         mock_sim.run.return_value = mock_result
         mock_bngsim.Simulator.return_value = mock_sim
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             run_with_bngsim("/model.net", tmpdir, fmt="net", method="ode")
             mock_bngsim.Model.from_net.assert_called_once()
 
@@ -656,11 +640,9 @@ class TestRunWithBngsim:
         mock_sim.run.return_value = mock_result
         mock_bngsim.Simulator.return_value = mock_sim
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             run_with_bngsim("/model.xml", tmpdir, fmt="sbml", method="ode")
             mock_bngsim.Model.from_sbml.assert_called_once()
 
@@ -673,11 +655,9 @@ class TestRunWithBngsim:
         mock_sim.run.return_value = _make_mock_result()
         mock_bngsim.Simulator.return_value = mock_sim
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), tempfile.TemporaryDirectory() as tmpdir:
             run_with_bngsim("/model.ant", tmpdir, fmt="antimony", method="ode")
             mock_bngsim.Model.from_antimony.assert_called_once()
 
@@ -692,9 +672,8 @@ class TestRunWithBngsim:
         from bionetgen.core.tools.bngsim_bridge import run_with_bngsim
 
         mock_run_nfsim = MagicMock()
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.run_nfsim", mock_run_nfsim),
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.run_nfsim", mock_run_nfsim
         ):
             run_with_bngsim(
                 "/model.net",
@@ -709,9 +688,8 @@ class TestRunWithBngsim:
         from bionetgen.core.tools.bngsim_bridge import run_with_bngsim
 
         mock_bngsim = MagicMock()
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
         ):
             with pytest.raises(BNGSimError, match="Unsupported format"):
                 run_with_bngsim("/model.bngl", "/output", fmt="bngl", method="ode")
@@ -722,9 +700,8 @@ class TestRunWithBngsim:
         mock_bngsim = MagicMock()
         mock_bngsim.Model.from_net.side_effect = RuntimeError("boom")
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
         ):
             with pytest.raises(BNGSimError, match="BNGsim simulation failed"):
                 run_with_bngsim("/model.net", "/output", fmt="net")
@@ -755,9 +732,8 @@ class TestTryPrepareCodegen:
         mock_bngsim = MagicMock()
         mock_bngsim.prepare_codegen.return_value = "/path/to/lib.so"
 
-        with (
-            patch.dict(os.environ, {}, clear=False),
-            patch.dict("sys.modules", {"bngsim": mock_bngsim}),
+        with patch.dict(os.environ, {}, clear=False), patch.dict(
+            "sys.modules", {"bngsim": mock_bngsim}
         ):
             os.environ.pop("BIONETGEN_NO_CODEGEN", None)
             result = _try_prepare_codegen("/dummy.net")

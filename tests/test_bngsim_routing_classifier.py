@@ -374,17 +374,15 @@ def test_library_complex_bngl_uses_bngsim_route_not_subprocess_classifier(
     out_dir = tmp_path / "out"
     sentinel = object()
 
-    with (
-        patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-        patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-        patch(
-            f"{BRIDGE}.run_bngl_with_bngsim", return_value=sentinel
-        ) as mock_bngsim_run,
-        patch(
-            "bionetgen.modelapi.runner.get_conf", return_value={"bngpath": "/fake/bng"}
-        ),
-        patch("bionetgen.modelapi.runner.BNGCLI") as mock_bngcli,
-    ):
+    with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+        f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+    ), patch(
+        f"{BRIDGE}.run_bngl_with_bngsim", return_value=sentinel
+    ) as mock_bngsim_run, patch(
+        "bionetgen.modelapi.runner.get_conf", return_value={"bngpath": "/fake/bng"}
+    ), patch(
+        "bionetgen.modelapi.runner.BNGCLI"
+    ) as mock_bngcli:
         result = run(str(bngl_path), out=str(out_dir))
 
     assert result is sentinel
@@ -408,14 +406,12 @@ def test_run_bngl_with_bngsim_complex_action_uses_backend_hook_without_executor(
     )
     sentinel = object()
 
-    with (
-        patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-        patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-        patch(
-            f"{BRIDGE}.run_bngl_with_bngsim_backend_hook",
-            return_value=sentinel,
-        ) as mock_hook,
-    ):
+    with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+        f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+    ), patch(
+        f"{BRIDGE}.run_bngl_with_bngsim_backend_hook",
+        return_value=sentinel,
+    ) as mock_hook:
         result = run_bngl_with_bngsim(
             str(bngl_path), str(tmp_path / "out"), "/fake/bng"
         )
@@ -485,14 +481,12 @@ def test_run_bngl_with_bngsim_protocol_uses_backend_hook_without_python_parser(
     )
     sentinel = object()
 
-    with (
-        patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-        patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-        patch(
-            f"{BRIDGE}.run_bngl_with_bngsim_backend_hook",
-            return_value=sentinel,
-        ) as mock_hook,
-    ):
+    with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+        f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+    ), patch(
+        f"{BRIDGE}.run_bngl_with_bngsim_backend_hook",
+        return_value=sentinel,
+    ) as mock_hook:
         result = run_bngl_with_bngsim(
             str(bngl_path), str(tmp_path / "out"), "/fake/bng"
         )
@@ -512,14 +506,12 @@ def test_run_bngl_with_bngsim_scan_uses_backend_hook_without_python_scan_outputs
     )
     sentinel = object()
 
-    with (
-        patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-        patch(f"{BRIDGE}.BNGSIM_HAS_NFSIM", True),
-        patch(
-            f"{BRIDGE}.run_bngl_with_bngsim_backend_hook",
-            return_value=sentinel,
-        ) as mock_hook,
-    ):
+    with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+        f"{BRIDGE}.BNGSIM_HAS_NFSIM", True
+    ), patch(
+        f"{BRIDGE}.run_bngl_with_bngsim_backend_hook",
+        return_value=sentinel,
+    ) as mock_hook:
         result = run_bngl_with_bngsim(
             str(bngl_path), str(tmp_path / "out"), "/fake/bng"
         )
@@ -540,16 +532,13 @@ def test_library_subprocess_route_uses_bngcli(tmp_path):
     mock_cli = MagicMock()
     mock_cli.result = sentinel
 
-    with (
-        patch(f"{BRIDGE}.detect_input_format", return_value="bngl"),
-        patch(
-            f"{BRIDGE}.classify_bngsim_route",
-            return_value=BngsimRouteDecision(ROUTE_SUBPROCESS, "complex BNGL"),
-        ),
-        patch(
-            "bionetgen.modelapi.runner.get_conf", return_value={"bngpath": "/fake/bng"}
-        ),
-        patch("bionetgen.modelapi.runner.BNGCLI", return_value=mock_cli),
+    with patch(f"{BRIDGE}.detect_input_format", return_value="bngl"), patch(
+        f"{BRIDGE}.classify_bngsim_route",
+        return_value=BngsimRouteDecision(ROUTE_SUBPROCESS, "complex BNGL"),
+    ), patch(
+        "bionetgen.modelapi.runner.get_conf", return_value={"bngpath": "/fake/bng"}
+    ), patch(
+        "bionetgen.modelapi.runner.BNGCLI", return_value=mock_cli
     ):
         result = run("model.bngl", out=str(tmp_path))
 

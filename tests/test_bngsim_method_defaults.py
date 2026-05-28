@@ -16,14 +16,10 @@ class TestLibraryMethodDefaults:
 
         sentinel = object()
 
-        with (
-            patch(f"{BRIDGE}.detect_input_format", return_value="bngl"),
-            patch(
-                f"{BRIDGE}.classify_bngsim_route",
-                return_value=BngsimRouteDecision(ROUTE_BNGL_BNGSIM, "atomic BNGL"),
-            ),
-            patch(f"{BRIDGE}.run_bngl_with_bngsim", return_value=sentinel) as mock_run,
-        ):
+        with patch(f"{BRIDGE}.detect_input_format", return_value="bngl"), patch(
+            f"{BRIDGE}.classify_bngsim_route",
+            return_value=BngsimRouteDecision(ROUTE_BNGL_BNGSIM, "atomic BNGL"),
+        ), patch(f"{BRIDGE}.run_bngl_with_bngsim", return_value=sentinel) as mock_run:
             result = run("model.bngl", out="/tmp/out")
 
         assert result is sentinel
@@ -38,14 +34,10 @@ class TestLibraryMethodDefaults:
 
         sentinel = object()
 
-        with (
-            patch(f"{BRIDGE}.detect_input_format", return_value="bngl"),
-            patch(
-                f"{BRIDGE}.classify_bngsim_route",
-                return_value=BngsimRouteDecision(ROUTE_BNGL_BNGSIM, "atomic BNGL"),
-            ),
-            patch(f"{BRIDGE}.run_bngl_with_bngsim", return_value=sentinel) as mock_run,
-        ):
+        with patch(f"{BRIDGE}.detect_input_format", return_value="bngl"), patch(
+            f"{BRIDGE}.classify_bngsim_route",
+            return_value=BngsimRouteDecision(ROUTE_BNGL_BNGSIM, "atomic BNGL"),
+        ), patch(f"{BRIDGE}.run_bngl_with_bngsim", return_value=sentinel) as mock_run:
             result = run("model.bngl", out="/tmp/out", method="ode")
 
         assert result is sentinel
@@ -60,16 +52,13 @@ class TestCliMethodDefaults:
         )
         from bionetgen.main import BioNetGenTest
 
-        with (
-            patch(f"{BRIDGE}.detect_input_format", return_value="bngl"),
-            patch(
-                f"{BRIDGE}.classify_bngsim_route",
-                return_value=BngsimRouteDecision(ROUTE_BNGL_BNGSIM, "atomic BNGL"),
-            ),
-            patch(
-                f"{BRIDGE}.run_bngl_with_bngsim", return_value=MagicMock()
-            ) as mock_run,
-            patch("bionetgen.main.test_perl"),
+        with patch(f"{BRIDGE}.detect_input_format", return_value="bngl"), patch(
+            f"{BRIDGE}.classify_bngsim_route",
+            return_value=BngsimRouteDecision(ROUTE_BNGL_BNGSIM, "atomic BNGL"),
+        ), patch(
+            f"{BRIDGE}.run_bngl_with_bngsim", return_value=MagicMock()
+        ) as mock_run, patch(
+            "bionetgen.main.test_perl"
         ):
             with BioNetGenTest(
                 argv=["run", "-i", "model.bngl", "-o", "/tmp/out"]
@@ -86,16 +75,13 @@ class TestCliMethodDefaults:
         )
         from bionetgen.main import BioNetGenTest
 
-        with (
-            patch(f"{BRIDGE}.detect_input_format", return_value="bngl"),
-            patch(
-                f"{BRIDGE}.classify_bngsim_route",
-                return_value=BngsimRouteDecision(ROUTE_BNGL_BNGSIM, "atomic BNGL"),
-            ),
-            patch(
-                f"{BRIDGE}.run_bngl_with_bngsim", return_value=MagicMock()
-            ) as mock_run,
-            patch("bionetgen.main.test_perl"),
+        with patch(f"{BRIDGE}.detect_input_format", return_value="bngl"), patch(
+            f"{BRIDGE}.classify_bngsim_route",
+            return_value=BngsimRouteDecision(ROUTE_BNGL_BNGSIM, "atomic BNGL"),
+        ), patch(
+            f"{BRIDGE}.run_bngl_with_bngsim", return_value=MagicMock()
+        ) as mock_run, patch(
+            "bionetgen.main.test_perl"
         ):
             with BioNetGenTest(
                 argv=["run", "-i", "model.bngl", "-o", "/tmp/out", "--method", "ode"]
@@ -111,16 +97,13 @@ class TestCliMethodDefaults:
         )
         from bionetgen.main import BioNetGenTest
 
-        with (
-            patch(f"{BRIDGE}.detect_input_format", return_value="bngl"),
-            patch(
-                f"{BRIDGE}.classify_bngsim_route",
-                return_value=BngsimRouteDecision(ROUTE_BNGL_BNGSIM, "atomic BNGL"),
-            ),
-            patch(
-                f"{BRIDGE}.run_bngl_with_bngsim", return_value=MagicMock()
-            ) as mock_run,
-            patch("bionetgen.main.test_perl"),
+        with patch(f"{BRIDGE}.detect_input_format", return_value="bngl"), patch(
+            f"{BRIDGE}.classify_bngsim_route",
+            return_value=BngsimRouteDecision(ROUTE_BNGL_BNGSIM, "atomic BNGL"),
+        ), patch(
+            f"{BRIDGE}.run_bngl_with_bngsim", return_value=MagicMock()
+        ) as mock_run, patch(
+            "bionetgen.main.test_perl"
         ):
             with BioNetGenTest(
                 argv=["run", "-i", "model.bngl", "-o", "/tmp/out", "--timeout", "17"]
@@ -146,12 +129,11 @@ class TestDirectInputMethodDefaults:
         )
         mock_bngsim.Simulator.return_value = mock_sim
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.bngsim", mock_bngsim),
-            patch(f"{BRIDGE}._make_bng_result", return_value=MagicMock()),
-            tempfile.TemporaryDirectory() as tmpdir,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.bngsim", mock_bngsim
+        ), patch(
+            f"{BRIDGE}._make_bng_result", return_value=MagicMock()
+        ), tempfile.TemporaryDirectory() as tmpdir:
             run_with_bngsim("/model.net", tmpdir, fmt="net", method=None)
 
         mock_bngsim.Simulator.assert_called_once_with(mock_model, method="ode")
@@ -161,10 +143,9 @@ class TestDirectInputMethodDefaults:
 
         sentinel = object()
 
-        with (
-            patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True),
-            patch(f"{BRIDGE}.run_nfsim", return_value=sentinel) as mock_run,
-        ):
+        with patch(f"{BRIDGE}.BNGSIM_AVAILABLE", True), patch(
+            f"{BRIDGE}.run_nfsim", return_value=sentinel
+        ) as mock_run:
             result = run_with_bngsim(
                 "/model.xml", "/tmp/out", fmt="bng-xml", method=None
             )
