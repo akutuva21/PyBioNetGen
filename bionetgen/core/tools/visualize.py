@@ -190,16 +190,13 @@ class BNGVisualize:
                     vtype=self.vtype,
                 )
 
-                # Must restore directory before we dump files because we need original cwd if output is relative
-                # This also fixes Windows PermissionError on tempfile deletion
-                os.chdir(cur_dir)
-                # dump files
-                if self.output is None:
-                    vis_res._dump_files(os.getcwd())
-                else:
-                    if not os.path.isdir(self.output):
-                        os.makedirs(self.output, exist_ok=True)
-                    vis_res._dump_files(os.path.abspath(self.output))
+                    # dump files
+                    if self.output is None:
+                        vis_res._dump_files(os.getcwd())
+                    else:
+                        if not os.path.isdir(self.output):
+                            os.makedirs(self.output, exist_ok=True)
+                        vis_res._dump_files(os.path.abspath(self.output))
 
                     return vis_res
                 except Exception as e:

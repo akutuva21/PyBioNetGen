@@ -64,13 +64,15 @@ def test_plotDAT_valid_input(MockBNGPlotter):
     app_mock.pargs.output = "test_out.png"
     app_mock.pargs._get_kwargs.return_value = {"kwarg1": "val1"}.items()
 
-    plotDAT(app_mock)
+    with patch("bionetgen.core.tools.BNGPlotter") as MockBNGPlotter:
 
-    MockBNGPlotter.assert_called_once_with(
-        "test.gdat", "test_out.png", app=app_mock, kwarg1="val1"
-    )
-    MockBNGPlotter.return_value.plot.assert_called_once()
-    app_mock.log.debug.assert_called()
+        plotDAT(app_mock)
+
+        MockBNGPlotter.assert_called_once_with(
+            "test.gdat", "test_out.png", app=app_mock, kwarg1="val1"
+        )
+        MockBNGPlotter.return_value.plot.assert_called_once()
+        app_mock.log.debug.assert_called()
 
 
 def test_plotDAT_invalid_input():
