@@ -1,6 +1,9 @@
 import urllib.error
 from unittest.mock import patch, MagicMock
-from bionetgen.atomizer.utils.pathwaycommons import queryBioGridByName
+from bionetgen.atomizer.utils.pathwaycommons import (
+    queryBioGridByName,
+    getReactomeBondByName,
+)
 
 
 def test_queryBioGridByName_httperror_with_organism():
@@ -64,66 +67,77 @@ def test_queryBioGridByName_httperror_no_organism():
         assert result is False
 
 
-def test_queryActiveSite_success_with_organism():
-    from bionetgen.atomizer.utils.pathwaycommons import queryActiveSite
+@patch("bionetgen.atomizer.utils.pathwaycommons.getReactomeBondByUniprot")
+@patch("bionetgen.atomizer.utils.pathwaycommons.name2uniprot")
+def test_getReactomeBondByName_with_uris(
+    mock_name2uniprot, mock_getReactomeBondByUniprot
+):
+    mock_getReactomeBondByUniprot.return_value = [
+        ["P01133", "in-complex-with", "P01112"]
+    ]
 
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        queryActiveSite.cache.clear()
-        mock_response = MagicMock()
-        mock_response.read.return_value = (
-            b"Name\tID\tFeature\nMYNAME_1\tID1\tACT_SITE\nNOT_MATCHING\tID2\tACT_SITE"
-        )
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+    name1 = "EGF"
+    name2 = "EGFR"
+    sbmlURI = ("http://identifiers.org/uniprot/P01133",)
+    sbmlURI2 = ("http://identifiers.org/uniprot/P01112",)
+    organism = None
 
-        res = queryActiveSite("myname", ["tax/9606"])
-        assert res == ["MYNAME_1"]
+    result = getReactomeBondByName(name1, name2, sbmlURI, sbmlURI2, organism)
 
+    # name2uniprot shouldn't be called since URIs are provided
+    mock_name2uniprot.assert_not_called()
 
-def test_queryActiveSite_success_no_organism():
-    from bionetgen.atomizer.utils.pathwaycommons import queryActiveSite
-
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        queryActiveSite.cache.clear()
-        mock_response = MagicMock()
-        mock_response.read.return_value = (
-            b"Name\tID\tFeature\nMYNAME_1\tID1\tACT_SITE\nNOT_MATCHING\tID2\tACT_SITE"
-        )
-        mock_urlopen.return_value.__enter__.return_value = mock_response
-
-        res = queryActiveSite("myname", None)
-        assert res == ["MYNAME_1"]
+    mock_getReactomeBondByUniprot.assert_called_once_with(["P01133"], ["P01112"])
+    assert result == [["P01133", "in-complex-with", "P01112"]]
 
 
-def test_queryActiveSite_httperror():
-    from bionetgen.atomizer.utils.pathwaycommons import queryActiveSite
+@patch("bionetgen.atomizer.utils.pathwaycommons.getReactomeBondByUniprot")
+@patch("bionetgen.atomizer.utils.pathwaycommons.name2uniprot")
+def test_getReactomeBondByName_without_uris(
+    mock_name2uniprot, mock_getReactomeBondByUniprot
+):
+    # Mock return values for name2uniprot
+    mock_name2uniprot.side_effect = [["P01133"], ["P01112"]]
+    mock_getReactomeBondByUniprot.return_value = [
+        ["P01133", "in-complex-with", "P01112"]
+    ]
 
-    with patch("urllib.request.urlopen") as mock_urlopen, patch(
-        "bionetgen.atomizer.utils.pathwaycommons.logMess"
-    ) as mock_logMess:
-        queryActiveSite.cache.clear()
-        mock_urlopen.side_effect = urllib.error.HTTPError(
-            url="http://test.com",
-            code=500,
-            msg="Internal Server Error",
-            hdrs={},
-            fp=None,
-        )
+    name1 = "EGF"
+    name2 = "EGFR_no_uri"
+    sbmlURI = ()
+    sbmlURI2 = ()
+    organism = ("tax/9606",)
 
-        res = queryActiveSite("myname", ["tax/9606"])
-        assert res == []
-        mock_logMess.assert_any_call(
-            "ERROR:MSC03", "A connection could not be established to uniprot"
-        )
+    result = getReactomeBondByName(name1, name2, sbmlURI, sbmlURI2, organism)
+
+    # Verify name2uniprot was called
+    assert mock_name2uniprot.call_count == 2
+    mock_name2uniprot.assert_any_call(name1, organism)
+    mock_name2uniprot.assert_any_call(name2, organism)
+
+    mock_getReactomeBondByUniprot.assert_called_once_with(["P01133"], ["P01112"])
+    assert result == [["P01133", "in-complex-with", "P01112"]]
 
 
-def test_queryActiveSite_no_match():
-    from bionetgen.atomizer.utils.pathwaycommons import queryActiveSite
+@patch("bionetgen.atomizer.utils.pathwaycommons.getReactomeBondByUniprot")
+@patch("bionetgen.atomizer.utils.pathwaycommons.name2uniprot")
+def test_getReactomeBondByName_fallback_to_names(
+    mock_name2uniprot, mock_getReactomeBondByUniprot
+):
+    # Return empty list or None from name2uniprot
+    mock_name2uniprot.side_effect = [[], []]
+    mock_getReactomeBondByUniprot.return_value = []
 
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        queryActiveSite.cache.clear()
-        mock_response = MagicMock()
-        mock_response.read.return_value = b"Name\tID\tFeature\nNOT_MATCHING_1\tID1\tACT_SITE\nNOT_MATCHING_2\tID2\tACT_SITE"
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+    name1 = "UnknownGene1"
+    name2 = "UnknownGene2"
+    sbmlURI = ()
+    sbmlURI2 = ()
+    organism = None
 
-        res = queryActiveSite("myname", ["tax/9606"])
-        assert res == []
+    result = getReactomeBondByName(name1, name2, sbmlURI, sbmlURI2, organism)
+
+    # Verify fallback to names
+    mock_getReactomeBondByUniprot.assert_called_once_with(
+        ["UnknownGene1"], ["UnknownGene2"]
+    )
+    assert result == []

@@ -51,6 +51,10 @@ def run(inp, out=None, suppress=False, timeout=None):
             # instantiate a CLI object with the info
             cli = BNGCLI(inp, out, conf.bng_path, suppress=suppress, timeout=timeout)
             try:
+                # instantiate a CLI object with the info
+                cli = BNGCLI(
+                    inp, out, conf["bngpath"], suppress=suppress, timeout=timeout
+                )
                 cli.run()
             except Exception as e:
                 logger.error("Couldn't run the simulation, see error")

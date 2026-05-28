@@ -1012,7 +1012,7 @@ class SBMLAnalyzer:
         >>> sa.processAdHocNamingConventions('EGF_EGFR_2','EGF_EGFR_2_P', {}, False, ['EGF','EGFR', 'EGF_EGFR_2'])
         [[[['EGF_EGFR_2'], ['EGF_EGFR_2_P']], '_p', ('+ _', '+ p')]]
         >>> sa.processAdHocNamingConventions('A', 'A_P', {}, False,['A','A_P']) #changes neeed to be at least 3 characters long
-        [[[['A'], ['A_P']], '_p', ('+ _', '+ p')]]
+        [[[['A'], ['A_P']], None, None]]
         >>> sa.processAdHocNamingConventions('Ras_GDP', 'Ras_GTP', {}, False,['Ras_GDP','Ras_GTP', 'Ras'])
         [[[['Ras'], ['Ras_GDP']], '_gdp', ('+ _', '+ g', '+ d', '+ p')], [[['Ras'], ['Ras_GTP']], '_gtp', ('+ _', '+ g', '+ t', '+ p')]]
         >>> sa.processAdHocNamingConventions('cRas_GDP', 'cRas_GTP', {}, False,['cRas_GDP','cRas_GTP'])
@@ -1039,28 +1039,10 @@ class SBMLAnalyzer:
         # is long enough, and the changes from a to be are all about modification
         longEnough = 3
 
-        is_modification = False
-        if len(differenceList) > 0:
-            diff = differenceList[0]
-            added_chars = [x[-1] for x in diff if "+" in x]
-            removed_chars = [x[-1] for x in diff if "-" in x]
-
-            if any(not c.isalnum() for c in added_chars + removed_chars):
-                is_modification = True
-            elif added_chars == ["p"] and len(removed_chars) == 0:
-                is_modification = True
-            elif len(removed_chars) > 0:
-                is_modification = True
-            elif (
-                len(reactant) >= longEnough and len(reactant) >= len(diff)
-            ) or reactant in moleculeSet:
-                if len(removed_chars) == 0 and all(c.isalpha() for c in added_chars):
-                    if reactant in moleculeSet:
-                        is_modification = True
-                else:
-                    is_modification = True
-
-        if is_modification:
+        if len(differenceList) > 0 and (
+            (len(reactant) >= longEnough and len(reactant) >= len(differenceList[0]))
+            or reactant in moleculeSet
+        ):
             # one is strictly a subset of the other a,a_b
             if len([x for x in differenceList[0] if "-" in x]) == 0:
                 return [

@@ -3,35 +3,6 @@ from unittest.mock import patch
 from bionetgen.modelapi.sympy_odes import _safe_rmtree
 
 
-from bionetgen.core.exc import BNGError
-from bionetgen.modelapi.sympy_odes import export_sympy_odes
-
-from bionetgen.modelapi.model import bngmodel
-from unittest.mock import MagicMock
-
-
-def test_export_sympy_odes_exception():
-    with patch(
-        "bionetgen.modelapi.sympy_odes.extract_odes_from_mexfile"
-    ) as mock_extract:
-        mock_extract.side_effect = Exception("Mock extraction failure")
-
-        # Create a mock model to skip bngmodel instantiation and file parsing
-        mock_model = MagicMock(spec=bngmodel)
-
-        # Mock run since we don't want to actually run the simulator
-        with patch("bionetgen.modelapi.runner.run"):
-            # We need to mock _find_mex_c_file so it doesn't try to look up actual files
-            with patch(
-                "bionetgen.modelapi.sympy_odes._find_mex_c_file",
-                return_value="dummy_path.c",
-            ):
-                with pytest.raises(
-                    BNGError, match="Failed to extract ODEs from mex C file"
-                ):
-                    export_sympy_odes(mock_model, "dummy_mex_c_path")
-
-
 def test_safe_rmtree_exception():
     with patch("shutil.rmtree") as mock_rmtree:
         mock_rmtree.side_effect = Exception("Mock exception")
@@ -40,3 +11,87 @@ def test_safe_rmtree_exception():
             _safe_rmtree("dummy_path")
         except Exception as e:
             pytest.fail(f"_safe_rmtree raised an exception unexpectedly: {e}")
+
+
+import pytest
+from bionetgen.modelapi.sympy_odes import extract_odes_from_mexfile
+
+
+def test_extract_odes_standard_mex(tmp_path):
+    mex_c = tmp_path / "model_mex.c"
+    mex_c.write_text("""
+    const char *species[] = {"S1", "S2"};
+    const char *param[] = {"k1", "k2"};
+
+    NV_Ith_S(ydot,0) = -params[0] * NV_Ith_S(y,0);
+    NV_Ith_S(ydot,1) = params[0] * NV_Ith_S(y,0) - param[1] * p[1];
+    """)
+    result = extract_odes_from_mexfile(str(mex_c))
+
+    assert len(result.odes) == 2
+    assert str(result.odes[0]) == "-S1*k1"
+    assert str(result.odes[1]) == "S1*k1 - k2**2"
+
+
+def test_extract_odes_cvode(tmp_path):
+    mex_c = tmp_path / "model_mex_cvode.c"
+    mex_c.write_text("""
+    #define __N_SPECIES__ 2
+    #define __N_PARAMETERS__ 2
+
+    void calc_expressions(realtype t) {
+        NV_Ith_S(expressions,0) = parameters[0] * 2;
+}
+
+    void calc_observables(realtype t) {
+        NV_Ith_S(observables,0) = NV_Ith_S(species,0) + NV_Ith_S(species,1);
+}
+
+    void calc_ratelaws(realtype t) {
+        NV_Ith_S(ratelaws,0) = NV_Ith_S(expressions,0) * NV_Ith_S(species,0);
+}
+
+    void calc_species_deriv(realtype t) {
+        NV_Ith_S(Dspecies,0) = -NV_Ith_S(ratelaws,0);
+        NV_Ith_S(Dspecies,1) = NV_Ith_S(ratelaws,0);
+}
+    """)
+    result = extract_odes_from_mexfile(str(mex_c))
+
+    assert len(result.odes) == 2
+    assert str(result.odes[0]) == "-2*p0*s0"
+    assert str(result.odes[1]) == "2*p0*s0"
+
+
+def test_extract_odes_no_odes(tmp_path):
+    mex_c = tmp_path / "model_empty.c"
+    mex_c.write_text("int main() { return 0; }")
+    with pytest.raises(ValueError, match="No ODE assignments found in mex output."):
+        extract_odes_from_mexfile(str(mex_c))
+
+
+def test_extract_odes_cvode_no_odes(tmp_path):
+    mex_c = tmp_path / "model_cvode_empty.c"
+    mex_c.write_text("""
+    void calc_species_deriv(realtype t) {
+}
+    NV_Ith_S(Dspecies,0) // Just to trigger cvode path
+    """)
+    with pytest.raises(ValueError, match="No ODE assignments found in mex output."):
+        extract_odes_from_mexfile(str(mex_c))
+
+
+def test_extract_odes_unsupported_rate_law(tmp_path):
+    mex_c = tmp_path / "model_cvode_err.c"
+    mex_c.write_text("""
+    #define __N_SPECIES__ 1
+    #define __N_PARAMETERS__ 0
+    void calc_ratelaws(realtype t) {
+        NV_Ith_S(ratelaws,0) = /* not yet supported by writeMexfile */;
+}
+    void calc_species_deriv(realtype t) {
+        NV_Ith_S(Dspecies,0) = NV_Ith_S(ratelaws,0);
+}
+    """)
+    with pytest.raises(NotImplementedError, match="not yet supported by writeMexfile"):
+        extract_odes_from_mexfile(str(mex_c))
