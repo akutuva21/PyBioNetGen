@@ -67,77 +67,74 @@ def test_queryBioGridByName_httperror_no_organism():
         assert result is False
 
 
-@patch("bionetgen.atomizer.utils.pathwaycommons.getReactomeBondByUniprot")
-@patch("bionetgen.atomizer.utils.pathwaycommons.name2uniprot")
-def test_getReactomeBondByName_with_uris(
-    mock_name2uniprot, mock_getReactomeBondByUniprot
-):
-    mock_getReactomeBondByUniprot.return_value = [
-        ["P01133", "in-complex-with", "P01112"]
-    ]
-
-    name1 = "EGF"
-    name2 = "EGFR"
-    sbmlURI = ("http://identifiers.org/uniprot/P01133",)
-    sbmlURI2 = ("http://identifiers.org/uniprot/P01112",)
-    organism = None
-
-    result = getReactomeBondByName(name1, name2, sbmlURI, sbmlURI2, organism)
-
-    # name2uniprot shouldn't be called since URIs are provided
-    mock_name2uniprot.assert_not_called()
-
-    mock_getReactomeBondByUniprot.assert_called_once_with(["P01133"], ["P01112"])
-    assert result == [["P01133", "in-complex-with", "P01112"]]
+from bionetgen.atomizer.utils.pathwaycommons import name2uniprot
 
 
-@patch("bionetgen.atomizer.utils.pathwaycommons.getReactomeBondByUniprot")
-@patch("bionetgen.atomizer.utils.pathwaycommons.name2uniprot")
-def test_getReactomeBondByName_without_uris(
-    mock_name2uniprot, mock_getReactomeBondByUniprot
-):
-    # Mock return values for name2uniprot
-    mock_name2uniprot.side_effect = [["P01133"], ["P01112"]]
-    mock_getReactomeBondByUniprot.return_value = [
-        ["P01133", "in-complex-with", "P01112"]
-    ]
+def test_name2uniprot_with_organism_success():
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_response = MagicMock()
+        mock_response.read.return_value = "Entry name\tEntry\nEGFR_HUMAN\tP00533\n"
+        mock_urlopen.return_value = mock_response
 
-    name1 = "EGF"
-    name2 = "EGFR_no_uri"
-    sbmlURI = ()
-    sbmlURI2 = ()
-    organism = ("tax/9606",)
-
-    result = getReactomeBondByName(name1, name2, sbmlURI, sbmlURI2, organism)
-
-    # Verify name2uniprot was called
-    assert mock_name2uniprot.call_count == 2
-    mock_name2uniprot.assert_any_call(name1, organism)
-    mock_name2uniprot.assert_any_call(name2, organism)
-
-    mock_getReactomeBondByUniprot.assert_called_once_with(["P01133"], ["P01112"])
-    assert result == [["P01133", "in-complex-with", "P01112"]]
+        name2uniprot.cache.clear()
+        result = name2uniprot("EGFR", ["tax/9606"])
+        assert result == ["P00533"]
 
 
-@patch("bionetgen.atomizer.utils.pathwaycommons.getReactomeBondByUniprot")
-@patch("bionetgen.atomizer.utils.pathwaycommons.name2uniprot")
-def test_getReactomeBondByName_fallback_to_names(
-    mock_name2uniprot, mock_getReactomeBondByUniprot
-):
-    # Return empty list or None from name2uniprot
-    mock_name2uniprot.side_effect = [[], []]
-    mock_getReactomeBondByUniprot.return_value = []
+def test_name2uniprot_with_organism_http_error():
+    with patch("urllib.request.urlopen") as mock_urlopen, patch(
+        "bionetgen.atomizer.utils.pathwaycommons.logMess"
+    ) as mock_logMess:
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            url="http://test.com", code=500, msg="Error", hdrs={}, fp=None
+        )
 
-    name1 = "UnknownGene1"
-    name2 = "UnknownGene2"
-    sbmlURI = ()
-    sbmlURI2 = ()
-    organism = None
+        name2uniprot.cache.clear()
+        result = name2uniprot("EGFR", ["tax/9606"])
+        mock_logMess.assert_any_call(
+            "ERROR:MSC03", "A connection could not be established to uniprot"
+        )
+        assert result is None
 
-    result = getReactomeBondByName(name1, name2, sbmlURI, sbmlURI2, organism)
 
-    # Verify fallback to names
-    mock_getReactomeBondByUniprot.assert_called_once_with(
-        ["UnknownGene1"], ["UnknownGene2"]
-    )
-    assert result == []
+def test_name2uniprot_fallback_success():
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_response = MagicMock()
+        # Fallback uses the second URL open, we can mock it with a list of responses
+        mock_response.read.side_effect = ["", "Entry name\tEntry\nEGFR_HUMAN\tP00533\n"]
+        mock_urlopen.return_value = mock_response
+
+        name2uniprot.cache.clear()
+        result = name2uniprot("EGFR", ["tax/9606"])
+        assert result == ["P00533"]
+
+
+def test_name2uniprot_fallback_http_error():
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_response = MagicMock()
+        mock_response.read.return_value = ""
+
+        def side_effect(*args, **kwargs):
+            if mock_urlopen.call_count == 1:
+                return mock_response
+            raise urllib.error.HTTPError(
+                url="http://test.com", code=500, msg="Error", hdrs={}, fp=None
+            )
+
+        mock_urlopen.side_effect = side_effect
+
+        name2uniprot.cache.clear()
+        result = name2uniprot("EGFR", ["tax/9606"])
+        assert result is None
+
+
+def test_name2uniprot_no_organism():
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_response = MagicMock()
+        mock_response.read.return_value = "Entry name\tEntry\nEGFR_HUMAN\tP00533\n"
+        mock_urlopen.return_value = mock_response
+
+        name2uniprot.cache.clear()
+        # Provide empty organism list, should skip to fallback
+        result = name2uniprot("EGFR", [])
+        assert result == ["P00533"]

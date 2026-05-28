@@ -37,6 +37,7 @@ def run(inp, out=None, suppress=False, timeout=None):
                 )
                 cli.run()
             except Exception as e:
+
                 logger.error("Couldn't run the simulation, see error")
                 if hasattr(e, "stdout") and e.stdout is not None:
                     logger.error(f"STDOUT:\n{e.stdout}")
