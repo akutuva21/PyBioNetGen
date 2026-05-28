@@ -4,10 +4,10 @@ from tempfile import TemporaryDirectory
 from bionetgen.main import BioNetGen
 from bionetgen.core.tools import BNGCLI
 
+from bionetgen.core.defaults import BNGDefaults
+
 # This allows access to the CLIs config setup
-app = BioNetGen()
-app.setup()
-conf = app.config["bionetgen"]
+conf = BNGDefaults()
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +29,11 @@ def run(inp, out=None, suppress=False, timeout=None):
     # if out is None we make a temp directory
     if out is None:
         with TemporaryDirectory() as out:
-            # instantiate a CLI object with the info
-            cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
             try:
+                # instantiate a CLI object with the info
+                cli = BNGCLI(
+                    inp, out, conf["bngpath"], suppress=suppress, timeout=timeout
+                )
                 cli.run()
             except Exception as e:
                 logger.error("Couldn't run the simulation, see error")
@@ -40,9 +42,11 @@ def run(inp, out=None, suppress=False, timeout=None):
                 if hasattr(e, "stderr") and e.stderr is not None:
                     logger.error(f"STDERR:\n{e.stderr}")
                 raise e
+            finally:
+                os.chdir(cur_dir)
     else:
         # instantiate a CLI object with the info
-        cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
+        cli = BNGCLI(inp, out, conf.bng_path, suppress=suppress, timeout=timeout)
         try:
             cli.run()
         except Exception as e:
@@ -52,4 +56,6 @@ def run(inp, out=None, suppress=False, timeout=None):
             if hasattr(e, "stderr") and e.stderr is not None:
                 logger.error(f"STDERR:\n{e.stderr}")
             raise e
+        finally:
+            os.chdir(cur_dir)
     return cli.result

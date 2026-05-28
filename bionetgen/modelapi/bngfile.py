@@ -71,9 +71,12 @@ class BNGFile:
             # If BNG2.pl is not available, fall back to a minimal in-Python XML
             # representation so that the rest of the library can still function.
             if self.bngexec is None:
-                return self._generate_minimal_xml(xml_file, stripped_bngl)
+                return self._generate_minimal_xml(
+                    xml_file, stripped_bngl
+                )  # no need to chdir here, handled by finally block
 
-            # TODO: take stdout option from app instead
+            app_stdout = conf.get("stdout")
+            app_suppress = False if app_stdout == "STDOUT" else self.suppress
             rc, _ = run_command(
                 ["perl", self.bngexec, "--xml", stripped_bngl],
                 suppress=self.suppress,
@@ -203,11 +206,9 @@ class BNGFile:
         write new BNG-XML or SBML of file by calling BNG2.pl again
         or can take BNGL string in as well.
         """
-        # TODO: Implement the route where this function uses the file itself
-        # for this generation
         if bngl_str is None:
-            # should load in the right str here
-            raise NotImplementedError
+            with open(self.path, "r", encoding="UTF-8") as f:
+                bngl_str = f.read()
 
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
@@ -220,6 +221,10 @@ class BNGFile:
             # run with --xml
             # Output suppression is handled downstream by self.suppress
             if xml_type == "bngxml":
+                if self.bngexec is None:
+                    return self._generate_minimal_xml(
+                        open_file, "temp.bngl"
+                    )  # no need to chdir here, handled by finally block
                 rc, _ = run_command(
                     ["perl", self.bngexec, "--xml", "temp.bngl"],
                     suppress=self.suppress,

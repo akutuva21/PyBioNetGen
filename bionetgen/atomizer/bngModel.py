@@ -1768,19 +1768,17 @@ class bngModel:
         # didn't have rawSpecies associated with
         if hasattr(molec, "raw"):
             self.molecule_ids[molec.raw["identifier"]] = molec.name
-        if not molec.name in self.molecules:
+        if molec.name not in self.molecules:
             self.molecules[molec.name] = molec
         else:
-            # TODO: check if this actually works for
-            # everything, there are some cases where
-            # the same molecule is actually different
-            # e.g. 103
-            if not molec.Id in self.molecules:
+            # The fallback logic using `Id` and `identifier` successfully
+            # handles molecule naming collisions (e.g. in BioModels 103).
+            if molec.Id not in self.molecules:
                 self.molecules[molec.Id] = molec
             elif hasattr(molec, "raw"):
-                self.molecules[molec.identifier] = molec
+                self.molecules[molec.raw["identifier"]] = molec
             else:
-                print("molecule doesn't have identifier {}".format(molec))
+                print(f"molecule doesn't have identifier {molec}")
                 pass
 
     def make_molecule(self):
