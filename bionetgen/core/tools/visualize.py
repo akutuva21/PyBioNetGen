@@ -178,35 +178,37 @@ class BNGVisualize:
         )
 
         orig_dir = os.getcwd()
-        try:
-            with TemporaryDirectory() as out:
+        if self.output is not None:
+            self.output = os.path.abspath(self.output)
+
+        with TemporaryDirectory() as out:
+            try:
                 os.chdir(out)
                 # instantiate a CLI object with the info
                 cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
-                try:
-                    cli.run()
-                    # load vis
-                    vis_res = VisResult(
-                        os.path.abspath(out),
-                        name=model.model_name,
-                        vtype=self.vtype,
-                    )
+                cli.run()
+                # load vis
+                vis_res = VisResult(
+                    os.path.abspath(out),
+                    name=model.model_name,
+                    vtype=self.vtype,
+                )
 
-                    # dump files
-                    if self.output is None:
-                        vis_res._dump_files(os.getcwd())
-                    else:
-                        if not os.path.isdir(self.output):
-                            os.makedirs(self.output, exist_ok=True)
-                        vis_res._dump_files(os.path.abspath(self.output))
+                # dump files
+                if self.output is None:
+                    vis_res._dump_files(orig_dir)
+                else:
+                    if not os.path.isdir(self.output):
+                        os.makedirs(self.output, exist_ok=True)
+                    vis_res._dump_files(self.output)
 
-                    return vis_res
-                except Exception as e:
-                    self.logger.error(
-                        "Failed to run file",
-                        loc=f"{__file__} : BNGVisualize._normal_mode()",
-                    )
-                    print("Couldn't run the simulation, see error.")
-                    raise e
-        finally:
-            os.chdir(orig_dir)
+                return vis_res
+            except Exception as e:
+                self.logger.error(
+                    "Failed to run file",
+                    loc=f"{__file__} : BNGVisualize._normal_mode()",
+                )
+                print("Couldn't run the simulation, see error.")
+                raise e
+            finally:
+                os.chdir(orig_dir)
