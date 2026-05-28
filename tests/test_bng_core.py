@@ -1,5 +1,6 @@
 from unittest import mock
 import os, glob
+from unittest.mock import patch
 from pytest import raises
 import bionetgen as bng
 from bionetgen.main import BioNetGenTest
