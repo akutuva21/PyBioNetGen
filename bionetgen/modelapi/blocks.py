@@ -108,16 +108,11 @@ class ModelBlock:
                     new_value = float(value)
                     changed = True
                     self.items[name] = new_value
-                except (ValueError, TypeError):
+                except:
                     self.items[name] = value
-                    changed = True
-
                 if changed:
-                    if hasattr(self, "_changes"):
-                        self._changes[name] = self.items[name]
-                    self.__dict__[name] = self.items[name]
-            else:
-                self.__dict__[name] = value
+                    self._changes[name] = new_value
+                    self.__dict__[name] = new_value
         else:
             self.__dict__[name] = value
 
@@ -637,7 +632,8 @@ class ActionBlock(ModelBlock):
     def __delitem__(self, key) -> None:
         try:
             return self.items.pop(key)
-        except (IndexError, TypeError):
+        # TODO: more specific except statements
+        except:
             print("Item {} not found".format(key))
 
     def __iter__(self):

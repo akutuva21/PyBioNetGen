@@ -258,6 +258,13 @@ time	 second	 second
         highStoichoiMetryFactor = 1
         for x in reactants:
             highStoichoiMetryFactor *= factorial(x[1])
+            y = [i[1] for i in products if i[0] == x[0]]
+            y = y[0] if len(y) > 0 else 0
+            # TODO: check if this actually keeps the correct dynamics
+            # this is basically there to address the case where theres more products
+            # than reactants (synthesis)
+            if x[1] > y:
+                highStoichoiMetryFactor /= comb(int(x[1]), int(y), exact=True)
             for counter in range(0, int(x[1])):
                 remainderPatterns.append(x[0])
         # for x in products:

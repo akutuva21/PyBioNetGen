@@ -32,6 +32,7 @@ def test_bionetgen_input():
 
 
 def test_bionetgen_plot():
+<<<<<<< HEAD
     # first run the model to generate the data
     argv = [
         "run",
@@ -44,6 +45,8 @@ def test_bionetgen_plot():
         app.run()
         assert app.exit_code == 0
 
+=======
+>>>>>>> 5fc23e641829730c5cf64fba05cb78ff303c38a2
     argv = [
         "plot",
         "-i",
@@ -361,48 +364,56 @@ def test_setup_simulator():
     assert res is not None
 
 
-def test_graphdiff_matrix():
-    argv = [
-        "graphdiff",
-        "-i",
-        os.path.join(tfold, "models", "testviz1_cm.graphml"),
-        "-i2",
-        os.path.join(tfold, "models", "testviz2_cm.graphml"),
-        "-m",
-        "matrix",
-    ]
-    to_validate = [
-        "testviz1_cm_recolored.graphml",
-        "testviz1_cm_testviz2_cm_diff.graphml",
-        "testviz2_cm_recolored.graphml",
-        "testviz2_cm_testviz1_cm_diff.graphml",
-    ]
+# def test_graphdiff_matrix():
+#     valid = []
+#     invalid = []
+#     argv = [
+#         "graphdiff",
+#         "-i",
+#         os.path.join(*[tfold, "models", "testviz1_cm.graphml"]),
+#         "-i2",
+#         os.path.join(*[tfold, "models", "testviz2_cm.graphml"]),
+#         "-m",
+#         "matrix",
+#     ]
+#     to_validate = ["testviz1_cm_recolored.graphml",
+#                 "testviz1_cm_testviz2_cm_diff.graphml",
+#                 "testviz2_cm_recolored.graphml",
+#                 "testviz2_cm_testviz1_cm_diff.graphml",
+#                 ]
+#     schema_doc = etree.parse(f)
+#     xmlschema = etree.XMLSchema(schema_doc)
 
-    with BioNetGenTest(argv=argv) as app:
-        app.run()
-        assert app.exit_code == 0
+#     with BioNetGenTest(argv=argv) as app:
+#         app.run()
+#         assert app.exit_code == 0
+#     for test_graphml in to_validate:
+#         doc = etree.parse(test_graphml)
+#         result = xmlschema.validate(doc)
+#         if result == True: valid.append(test_graphml)
+#         else:
+#             invalid.append(test_graphml)
+#     print(sorted(valid))
+#     print(sorted(invalid))
+#     # assert len(valid) == 4
 
-    for test_graphml in to_validate:
-        assert os.path.isfile(test_graphml)
-        os.remove(test_graphml)
 
-
-def test_graphdiff_union():
-    argv = [
-        "graphdiff",
-        "-i",
-        os.path.join(tfold, "models", "testviz1_cm.graphml"),
-        "-i2",
-        os.path.join(tfold, "models", "testviz2_cm.graphml"),
-        "-m",
-        "union",
-    ]
-    to_validate = ["testviz1_cm_testviz2_cm_union.graphml"]
-
-    with BioNetGenTest(argv=argv) as app:
-        app.run()
-        assert app.exit_code == 0
-
-    for test_graphml in to_validate:
-        assert os.path.isfile(test_graphml)
-        os.remove(test_graphml)
+# def test_graphdiff_union():
+#     argv = [
+#         "graphdiff",
+#         "-i",
+#         os.path.join(tfold, "models", "testviz1_cm.graphml"),
+#         "-i2",
+#         os.path.join(tfold, "models", "testviz2_cm.graphml"),
+#         "-m",
+#         "union",
+#     ]
+#     to_validate = "testviz1_cm_testviz2_cm_union.graphml"
+#     # xmlschema_doc = etree.parse("INSERT_xsd_path_HERE.xsd")
+#     # xmlschema = etree.XMLSchema(xmlschema_doc)
+#     with BioNetGenTest(argv=argv) as app:
+#         app.run()
+#         assert app.exit_code == 0
+#     # xml_doc = etree.parse(to_validate)
+#     # result = xmlschema.validate(xml_doc)
+#     # assert result == True

@@ -2606,9 +2606,8 @@ class SBML2BNGL:
                         # both situations via renaming.
                         # FIXME: This is very likely broken but
                         # I'm not 100% sure how it breaks things.
+                        # TODO: Check, if we have this in observables we need to adjust the observablesDict because we are writing an assignment rule for this instead
                         name = molecules[rawArule[0]]["returnID"]
-                        if name in observablesDict:
-                            observablesDict[name] = name + "_ar"
                         artificialObservables[name + "_ar"] = writer.bnglFunction(
                             rawArule[1][0],
                             name + "_ar()",
@@ -2618,6 +2617,8 @@ class SBML2BNGL:
                         )
                         self.arule_map[rawArule[0]] = name + "_ar"
                         self.only_assignment_dict[name] = name + "_ar"
+                        if name in observablesDict:
+                            observablesDict[name] = name + "_ar"
                         self.bngModel.add_arule(arule_obj)
                         continue
                 else:
