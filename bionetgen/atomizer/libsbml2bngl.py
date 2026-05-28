@@ -596,10 +596,13 @@ def postAnalysisHelper(outputFile, bngLocation, database):
     outputDir = os.sep.join(outputFile.split(os.sep)[:-1])
     if outputDir != "":
         retval = os.getcwd()
-        os.chdir(outputDir)
-    consoleCommands.bngl2xml(outputFile.split(os.sep)[-1])
-    if outputDir != "":
-        os.chdir(retval)
+        try:
+            os.chdir(outputDir)
+            consoleCommands.bngl2xml(outputFile.split(os.sep)[-1])
+        finally:
+            os.chdir(retval)
+    else:
+        consoleCommands.bngl2xml(outputFile.split(os.sep)[-1])
     bngxmlFile = ".".join(outputFile.split(".")[:-1]) + "_bngxml.xml"
     # print('Sending BNG-XML file to context analysis engine')
     contextAnalysis = postAnalysis.ModelLearning(bngxmlFile)
@@ -1179,11 +1182,13 @@ def analyzeHelper(
                         sbmlfunctions[sbml2], sbml, sbmlfunctions[sbml]
                     )
 
-    # TODO: if an observable is defined via artificial obs
+    # if an observable is defined via artificial obs
     # we should overwrite it in obs dict
     for key in observablesDict:
         if key + "_ar" in artificialObservables:
             observablesDict[key] = key + "_ar"
+        elif observablesDict[key] + "_ar" in artificialObservables:
+            observablesDict[key] = observablesDict[key] + "_ar"
     #
     functions = reorderFunctions(functions)
     #
