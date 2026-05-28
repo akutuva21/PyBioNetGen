@@ -108,11 +108,16 @@ class ModelBlock:
                     new_value = float(value)
                     changed = True
                     self.items[name] = new_value
-                except:
+                except (ValueError, TypeError):
                     self.items[name] = value
+                    changed = True
+
                 if changed:
-                    self._changes[name] = new_value
-                    self.__dict__[name] = new_value
+                    if hasattr(self, "_changes"):
+                        self._changes[name] = self.items[name]
+                    self.__dict__[name] = self.items[name]
+            else:
+                self.__dict__[name] = value
         else:
             self.__dict__[name] = value
 
