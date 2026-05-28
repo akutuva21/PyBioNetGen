@@ -57,4 +57,6 @@ def run(inp, out=None, suppress=False, timeout=None):
             if hasattr(e, "stderr") and e.stderr is not None:
                 logger.error(f"STDERR:\n{e.stderr}")
             raise e
+        finally:
+            os.chdir(cur_dir)
     return cli.result
