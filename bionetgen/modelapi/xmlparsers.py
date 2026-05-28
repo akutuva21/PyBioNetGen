@@ -56,6 +56,22 @@ class XMLObj:
         """ """
         raise NotImplementedError
 
+    def resolve_ratelaw(self, xml):
+        rate_type = xml.get("@type")
+        if rate_type == "Ele":
+            return xml["ListOfRateConstants"]["RateConstant"]["@value"]
+        if rate_type == "Function":
+            return xml["@name"]
+        if rate_type in {"MM", "Sat", "Hill", "Arrhenius"}:
+            args = xml["ListOfRateConstants"]["RateConstant"]
+            if isinstance(args, list):
+                arg_values = ",".join(arg["@value"] for arg in args)
+            else:
+                arg_values = args["@value"]
+            return f"{rate_type}({arg_values})"
+        print("don't recognize rate law type")
+        return ""
+
 
 ###### Fundamental parsing objects ######
 # This is for handling bond XMLs
@@ -592,34 +608,6 @@ class RuleBlockXML(XMLObj):
         block.consolidate_rules()
         return block
 
-    def resolve_ratelaw(self, xml):
-        rate_type = xml["@type"]
-        if rate_type == "Ele":
-            rate_cts_xml = xml["ListOfRateConstants"]
-            rate_cts = rate_cts_xml["RateConstant"]["@value"]
-        elif rate_type == "Function":
-            rate_cts = xml["@name"]
-        elif (
-            rate_type == "MM"
-            or rate_type == "Sat"
-            or rate_type == "Hill"
-            or rate_type == "Arrhenius"
-        ):
-            # A function type
-            rate_cts = rate_type + "("
-            args = xml["ListOfRateConstants"]["RateConstant"]
-            if isinstance(args, list):
-                for iarg, arg in enumerate(args):
-                    if iarg > 0:
-                        rate_cts += ","
-                    rate_cts += arg["@value"]
-            else:
-                rate_cts += args["@value"]
-            rate_cts += ")"
-        else:
-            print("don't recognize rate law type")
-        return rate_cts
-
     def resolve_rxn_side(self, xml):
         # this is either reactant or product
         if xml is None:
@@ -840,34 +828,6 @@ class PopulationMapBlockXML(XMLObj):
             block.add_population_map(pmid, struct_spec, pop_spec, rate_constant)
 
         return block
-
-    def resolve_ratelaw(self, xml):
-        rate_type = xml["@type"]
-        if rate_type == "Ele":
-            rate_cts_xml = xml["ListOfRateConstants"]
-            rate_cts = rate_cts_xml["RateConstant"]["@value"]
-        elif rate_type == "Function":
-            rate_cts = xml["@name"]
-        elif (
-            rate_type == "MM"
-            or rate_type == "Sat"
-            or rate_type == "Hill"
-            or rate_type == "Arrhenius"
-        ):
-            # A function type
-            rate_cts = rate_type + "("
-            args = xml["ListOfRateConstants"]["RateConstant"]
-            if isinstance(args, list):
-                for iarg, arg in enumerate(args):
-                    if iarg > 0:
-                        rate_cts += ","
-                    rate_cts += arg["@value"]
-            else:
-                rate_cts += args["@value"]
-            rate_cts += ")"
-        else:
-            print("don't recognize rate law type")
-        return rate_cts
 
 
 # TODO: Store operations!

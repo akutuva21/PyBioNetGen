@@ -27,7 +27,7 @@ class BNGResult:
         numpy.recarray
     """
 
-    def __init__(self, path=None, direct_path=None, app=None):
+    def __init__(self, path=None, direct_path=None, ext=None, app=None):
         self.app = app
         self.logger = BNGLogger(app=self.app)
         self.logger.debug(
@@ -38,6 +38,14 @@ class BNGResult:
         self.output = None
         # TODO Make it so that with path you can supply an
         # extension or a list of extensions to load in
+        if ext is not None:
+            if isinstance(ext, str):
+                self.ext = [ext]
+            else:
+                self.ext = list(ext)
+        else:
+            self.ext = None
+
         self.gdats = {}
         self.cdats = {}
         self.scans = {}
