@@ -169,7 +169,6 @@ class BNGVisualize:
                 )
             else:
                 model.add_action("visualize", action_args={"type": f"'{self.vtype}'"})
-        cur_dir = os.getcwd()
         from bionetgen.core.main import BNGCLI
 
         self.logger.debug(
@@ -177,6 +176,7 @@ class BNGVisualize:
             loc=f"{__file__} : BNGVisualize._normal_mode()",
         )
 
+        cur_dir = os.getcwd()
         with TemporaryDirectory() as out:
             try:
                 os.chdir(out)
@@ -190,21 +190,21 @@ class BNGVisualize:
                     vtype=self.vtype,
                 )
 
-                    # dump files
-                    if self.output is None:
-                        vis_res._dump_files(os.getcwd())
-                    else:
-                        if not os.path.isdir(self.output):
-                            os.makedirs(self.output, exist_ok=True)
-                        vis_res._dump_files(os.path.abspath(self.output))
+                # dump files
+                if self.output is None:
+                    vis_res._dump_files(cur_dir)
+                else:
+                    if not os.path.isdir(self.output):
+                        os.makedirs(self.output, exist_ok=True)
+                    vis_res._dump_files(os.path.abspath(self.output))
 
-                    return vis_res
-                except Exception as e:
-                    self.logger.error(
-                        "Failed to run file",
-                        loc=f"{__file__} : BNGVisualize._normal_mode()",
-                    )
-                    print("Couldn't run the simulation, see error.")
-                    raise e
+                return vis_res
+            except Exception as e:
+                self.logger.error(
+                    "Failed to run file",
+                    loc=f"{__file__} : BNGVisualize._normal_mode()",
+                )
+                print("Couldn't run the simulation, see error.")
+                raise e
             finally:
                 os.chdir(cur_dir)

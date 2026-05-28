@@ -35,28 +35,35 @@ def run(inp, out=None, suppress=False, timeout=None):
                 cli = BNGCLI(
                     inp, out, conf["bngpath"], suppress=suppress, timeout=timeout
                 )
+                try:
+                    cli.run()
+                except Exception as e:
+                    logger.error("Couldn't run the simulation, see error")
+                    if hasattr(e, "stdout") and e.stdout is not None:
+                        logger.error(f"STDOUT:\n{e.stdout}")
+                    if hasattr(e, "stderr") and e.stderr is not None:
+                        logger.error(f"STDERR:\n{e.stderr}")
+                    raise e
+            finally:
+                os.chdir(cur_dir)
+    else:
+        try:
+            # instantiate a CLI object with the info
+            cli = BNGCLI(inp, out, conf.bng_path, suppress=suppress, timeout=timeout)
+            try:
+                # instantiate a CLI object with the info
+                cli = BNGCLI(
+                    inp, out, conf["bngpath"], suppress=suppress, timeout=timeout
+                )
                 cli.run()
             except Exception as e:
+
                 logger.error("Couldn't run the simulation, see error")
                 if hasattr(e, "stdout") and e.stdout is not None:
                     logger.error(f"STDOUT:\n{e.stdout}")
                 if hasattr(e, "stderr") and e.stderr is not None:
                     logger.error(f"STDERR:\n{e.stderr}")
                 raise e
-            finally:
-                os.chdir(cur_dir)
-    else:
-        # instantiate a CLI object with the info
-        cli = BNGCLI(inp, out, conf.bng_path, suppress=suppress, timeout=timeout)
-        try:
-            cli.run()
-        except Exception as e:
-            logger.error("Couldn't run the simulation, see error")
-            if hasattr(e, "stdout") and e.stdout is not None:
-                logger.error(f"STDOUT:\n{e.stdout}")
-            if hasattr(e, "stderr") and e.stderr is not None:
-                logger.error(f"STDERR:\n{e.stderr}")
-            raise e
         finally:
             os.chdir(cur_dir)
     return cli.result

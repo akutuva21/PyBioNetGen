@@ -76,7 +76,7 @@ def test_plotDAT_valid_input(MockBNGPlotter):
 
 
 def test_plotDAT_invalid_input():
-    from unittest.mock import MagicMock
+    from unittest.mock import MagicMock, patch
     from bionetgen.core.main import plotDAT
     from bionetgen.core.exc import BNGFileError
     import pytest
@@ -85,7 +85,8 @@ def test_plotDAT_invalid_input():
     app_mock.pargs.input = "test.txt"
 
     with pytest.raises(BNGFileError):
-        plotDAT(app_mock)
+        with patch("bionetgen.core.tools.BNGPlotter"):
+            plotDAT(app_mock)
 
     app_mock.log.error.assert_called_once()
 

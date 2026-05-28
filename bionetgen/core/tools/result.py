@@ -27,7 +27,7 @@ class BNGResult:
         numpy.recarray
     """
 
-    def __init__(self, path=None, direct_path=None, ext=None, app=None):
+    def __init__(self, path=None, direct_path=None, app=None, ext=None):
         self.app = app
         self.logger = BNGLogger(app=self.app)
         self.logger.debug(
@@ -36,16 +36,7 @@ class BNGResult:
         # defaults
         self.process_return = None
         self.output = None
-        # TODO Make it so that with path you can supply an
-        # extension or a list of extensions to load in
-        if ext is not None:
-            if isinstance(ext, str):
-                self.ext = [ext]
-            else:
-                self.ext = list(ext)
-        else:
-            self.ext = None
-
+        self.ext = ext
         self.gdats = {}
         self.cdats = {}
         self.scans = {}
@@ -118,25 +109,28 @@ class BNGResult:
         )
         files = os.listdir(self.path)
 
-        exts_to_load = ["gdat", "cdat", "scan"]
+        allowed_exts = ["gdat", "cdat", "scan"]
         if self.ext is not None:
-            exts_to_load = [e for e in self.ext if e in exts_to_load]
+            if isinstance(self.ext, str):
+                allowed_exts = [self.ext]
+            else:
+                allowed_exts = list(self.ext)
 
-        if "gdat" in exts_to_load:
+        if "gdat" in allowed_exts:
             ext = "gdat"
             gdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
             for dat_file in gdat_files:
                 name = dat_file.replace(f".{ext}", "")
                 self.gnames[name] = dat_file
 
-        if "cdat" in exts_to_load:
+        if "cdat" in allowed_exts:
             ext = "cdat"
             cdat_files = filter(lambda x: x.endswith(f".{ext}"), files)
             for dat_file in cdat_files:
                 name = dat_file.replace(f".{ext}", "")
                 self.cnames[name] = dat_file
 
-        if "scan" in exts_to_load:
+        if "scan" in allowed_exts:
             ext = "scan"
             scan_files = filter(lambda x: x.endswith(f".{ext}"), files)
             for dat_file in scan_files:
