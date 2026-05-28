@@ -1251,25 +1251,22 @@ class bngModel:
                         # this should be guaranteed
                         molec = self.molecules.pop(mname)
 
-                        # we should also remove this from species
-                        # and/or observables, this checks for
+                        # we should also remove this from species,
+                        # observables, and parameters to prevent
                         # namespace collisions.
-                        # TODO: We might want to
-                        # remove parameters as well
                         if getattr(molec, "name", None) in self.observables:
                             obs = self.observables.pop(molec.name)
                             self.obs_map[obs.get_obs_name()] = molec.Id + "()"
                         elif molec.Id in self.observables:
                             obs = self.observables.pop(molec.Id)
                             self.obs_map[obs.get_obs_name()] = molec.Id + "()"
-                        # for spec in self.species:
-                        #     sobj = self.species[spec]
-                        #     # if molec.name == sobj.Id or molec
                         if getattr(molec, "name", None) in self.species:
                             spec = self.species.pop(molec.name)
                         elif molec.Id in self.species:
                             spec = self.species.pop(molec.Id)
-                        if molec.Id in self.parameters:
+                        if getattr(molec, "name", None) in self.parameters:
+                            param = self.parameters.pop(molec.name)
+                        elif molec.Id in self.parameters:
                             param = self.parameters.pop(molec.Id)
 
                         # this will be a function
