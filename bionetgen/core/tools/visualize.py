@@ -178,10 +178,10 @@ class BNGVisualize:
         )
 
         with TemporaryDirectory() as out:
-            os.chdir(out)
-            # instantiate a CLI object with the info
-            cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
             try:
+                os.chdir(out)
+                # instantiate a CLI object with the info
+                cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
                 cli.run()
                 # load vis
                 vis_res = VisResult(
