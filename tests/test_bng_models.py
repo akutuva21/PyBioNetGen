@@ -7,7 +7,7 @@ tfold = os.path.dirname(__file__)
 
 
 def test_bionetgen_model():
-    fpath = os.path.join(tfold, "test.bngl")
+    fpath = os.path.join(tfold, "test_synthesis_simple.bngl")
     fpath = os.path.abspath(fpath)
     m = bng.bngmodel(fpath)
 
@@ -120,7 +120,7 @@ def test_model_running_lib():
 
 
 def test_setup_simulator():
-    fpath = os.path.join(tfold, "test.bngl")
+    fpath = os.path.join(tfold, "test_synthesis_simple.bngl")
     fpath = os.path.abspath(fpath)
     try:
         m = bng.bngmodel(fpath)

@@ -1,4 +1,5 @@
 import os, glob
+from unittest.mock import patch
 from pytest import raises
 import bionetgen as bng
 from bionetgen.main import BioNetGenTest
@@ -67,11 +68,11 @@ def test_plotDAT_valid_input(MockBNGPlotter):
 
     plotDAT(app_mock)
 
-    MockBNGPlotter.assert_called_once_with(
-        "test.gdat", "test_out.png", app=app_mock, kwarg1="val1"
-    )
-    MockBNGPlotter.return_value.plot.assert_called_once()
-    app_mock.log.debug.assert_called()
+        MockBNGPlotter.assert_called_once_with(
+            "test.gdat", "test_out.png", app=app_mock, kwarg1="val1"
+        )
+        MockBNGPlotter.return_value.plot.assert_called_once()
+        app_mock.log.debug.assert_called()
 
 
 def test_plotDAT_invalid_input():
