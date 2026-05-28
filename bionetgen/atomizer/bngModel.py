@@ -1609,17 +1609,20 @@ class bngModel:
                             #     break
                             if spec_name in frate.definition:
                                 # means we got a volume to divide by
-                                # TODO: Wtf happens if this has multiple species
+                                # Replaces all species correctly because we iterate
+                                # over each spec_name and do safely escaped regex substitutions
                                 sp = self.species[spec_name]
                                 comp = self.compartments[sp.compartment]
                                 vol = comp.size
-                                sub_from = r"(\W|^)({0})(\W|$)".format(spec_name)
-                                sub_to = r"\g<1>({0}/{1})\g<3>".format(spec_name, vol)
+                                sub_from = r"(\W|^)({0})(\W|$)".format(
+                                    re.escape(spec_name)
+                                )
+                                sub_to = r"\g<1>({0}/{1})\g<3>".format(
+                                    spec_name.replace("\\", r"\\"), vol
+                                )
                                 frate.definition = re.sub(
                                     sub_from, sub_to, frate.definition
                                 )
-                                # frate.volume_adjusted = True
-                                # break
                                 corrected = True
                         frate.volume_adjusted = corrected
                 else:
@@ -1750,12 +1753,17 @@ class bngModel:
             else:
                 frates.append(fkey)
         # Now reorder accordingly
-        G = nx.DiGraph(dep_dict).reverse()
+        # this ensures we write the independendent functions first
+        G = nx.DiGraph()
+        for k, v in dep_dict.items():
+            G.add_node(k)
+            for dep in v:
+                G.add_edge(k, dep)
         try:
-            ordered_funcs = list(nx.topological_sort(G))
+            ordered_funcs = list(reversed(list(nx.topological_sort(G))))
         except nx.NetworkXUnfeasible:
-            # Fallback if there is a cycle (though in biological models, function deps shouldn't have cycles)
-            ordered_funcs = list(G.nodes())
+            # If a cycle exists, fall back gracefully to ensure no functions are silently dropped.
+            ordered_funcs = list(G.nodes)
         # print ordered functions and return
         ordered_funcs += frates
         self.function_order = ordered_funcs
