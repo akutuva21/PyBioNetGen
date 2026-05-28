@@ -207,11 +207,9 @@ class BNGFile:
         write new BNG-XML or SBML of file by calling BNG2.pl again
         or can take BNGL string in as well.
         """
-        # TODO: Implement the route where this function uses the file itself
-        # for this generation
         if bngl_str is None:
-            # should load in the right str here
-            raise NotImplementedError
+            with open(self.path, "r", encoding="UTF-8") as f:
+                bngl_str = f.read()
 
         cur_dir = os.getcwd()
         # temporary folder to work in
