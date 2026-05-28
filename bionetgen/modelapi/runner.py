@@ -1,15 +1,13 @@
 import os
 import logging
 from tempfile import TemporaryDirectory
-from bionetgen.core.defaults import BNGDefaults
+from bionetgen.main import BioNetGen
 from bionetgen.core.tools import BNGCLI
 
-from bionetgen.core.defaults import BNGDefaults
-
 # This allows access to the CLIs config setup
-conf = BNGDefaults()
-
-
+app = BioNetGen()
+app.setup()
+conf = app.config["bionetgen"]
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +31,7 @@ def run(inp, out=None, suppress=False, timeout=None):
     if out is None:
         with TemporaryDirectory() as out:
             # instantiate a CLI object with the info
-            cli = BNGCLI(inp, out, conf.bng_path, suppress=suppress, timeout=timeout)
+            cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
             try:
                 cli.run()
                 os.chdir(cur_dir)
@@ -47,7 +45,7 @@ def run(inp, out=None, suppress=False, timeout=None):
                 raise e
     else:
         # instantiate a CLI object with the info
-        cli = BNGCLI(inp, out, conf.bng_path, suppress=suppress, timeout=timeout)
+        cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
         try:
             cli.run()
             os.chdir(cur_dir)

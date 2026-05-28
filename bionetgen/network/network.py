@@ -1,4 +1,4 @@
-from bionetgen.core.defaults import BNGDefaults
+from bionetgen.main import BioNetGen
 from bionetgen.network.networkparser import BNGNetworkParser
 from bionetgen.core.exc import BNGModelError
 from bionetgen.core.utils.logging import BNGLogger
@@ -13,13 +13,11 @@ from bionetgen.network.blocks import (
     NetworkPopulationMapBlock,
 )
 
-from bionetgen.core.defaults import BNGDefaults
-
 # This allows access to the CLIs config setup
-conf = BNGDefaults()
-
-
-def_bng_path = conf.bng_path
+app = BioNetGen()
+app.setup()
+conf = app.config["bionetgen"]
+def_bng_path = conf["bngpath"]
 logger = BNGLogger(app=None)
 
 
