@@ -27,17 +27,17 @@ def componentAnalysis(directory):
     bindingCount = []
     stateCount = []
     modelComponentDict = {}
-    with open(os.path.join(directory, "moleculeTypeDataSet.dump"), "r") as f:
+    with open(os.path.join(directory, "moleculeTypeDataSet.json"), "r") as f:
         moleculeTypesArray = json.load(f)
     for model in moleculeTypesArray:
-        modelComponentCount = [len(x.components) for x in model[0]]
+        modelComponentCount = [len(x["components"]) for x in model[0]]
 
         bindingComponentCount = [
-            len([y for y in x.components if len(y.states) == 0]) for x in model[0]
+            len([y for y in x["components"] if len(y["states"]) == 0]) for x in model[0]
         ]
 
         modificationComponentCount = [
-            sum([max(1, len(y.states)) for y in x.components]) for x in model[0]
+            sum([max(1, len(y["states"])) for y in x["components"]]) for x in model[0]
         ]
 
         modelComponentDict[model[-2]] = {
