@@ -36,7 +36,7 @@ def run(inp, out=None, suppress=False, timeout=None):
         try:
             # instantiate a CLI object with the info
             cli = BNGCLI(
-                inp, out_dir, conf["bngpath"], suppress=suppress, timeout=timeout
+                inp, out_dir, conf.config["bionetgen"]["bngpath"], suppress=suppress, timeout=timeout
             )
             cli.run()
         except Exception as e:
@@ -55,7 +55,7 @@ def run(inp, out=None, suppress=False, timeout=None):
     else:
         try:
             # instantiate a CLI object with the info
-            cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
+            cli = BNGCLI(inp, out, conf.config["bionetgen"]["bngpath"], suppress=suppress, timeout=timeout)
             cli.run()
         except Exception as e:
             logger.error("Couldn't run the simulation, see error")

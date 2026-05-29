@@ -47,64 +47,72 @@ def getFiles(directory, extension):
 class NamingDatabase:
     def __init__(self, databaseName):
         self.databaseName = databaseName
-        self.connection = sqlite3.connect(self.databaseName)
-
-    def __del__(self):
-        if hasattr(self, "connection") and self.connection:
-            self.connection.close()
 
     def getAnnotationsFromSpecies(self, speciesName):
-        cursor = self.connection.cursor()
+        connection = sqlite3.connect(self.databaseName)
+        cursor = connection.cursor()
         queryStatement = 'SELECT annotationURI,annotationName from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID join annotation as A on A.ROWID == I.annotationID and M.name == "{0}"'.format(
             speciesName
         )
         queryResult = [x[0] for x in cursor.execute(queryStatement)]
+        connection.close()
         return queryResult
 
     def getFileNameFromSpecies(self, speciesName):
         """
         species name refers to a molecular species
         """
-        cursor = self.connection.cursor()
+        connection = sqlite3.connect(self.databaseName)
+        cursor = connection.cursor()
         queryStatement = 'SELECT B.file,M.name from moleculeNames as M join biomodels as B on B.ROWID == M.fileID WHERE M.name == "{0}"'.format(
             speciesName
         )
         queryResult = [x[0] for x in cursor.execute(queryStatement)]
+        connection.close()
         return queryResult
 
     def getFileNameFromOrganism(self, organismName):
         """
         pass
         """
-        cursor = self.connection.cursor()
+        connection = sqlite3.connect(self.databaseName)
+        cursor = connection.cursor()
         queryStatement = 'SELECT B.file,A.annotationName from biomodels as B join annotation as A on B.organismID == A.ROWID WHERE A.annotationName == "{0}"'.format(
             organismName
         )
         queryResult = [x[0] for x in cursor.execute(queryStatement)]
+        connection.close()
         return queryResult
 
     def getOrganismNames(self):
-        cursor = self.connection.cursor()
+        connection = sqlite3.connect(self.databaseName)
+        cursor = connection.cursor()
         queryStatement = "SELECT DISTINCT A.annotationName from biomodels as B join annotation as A on B.organismID == A.ROWID"
         queryResult = [x[0] for x in cursor.execute(queryStatement)]
+        connection.close()
         return queryResult
 
     def getSpeciesFromAnnotations(self, annotation):
-        cursor = self.connection.cursor()
+        connection = sqlite3.connect(self.databaseName)
+        cursor = connection.cursor()
         queryStatement = 'SELECT name,A.annotationURI from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID join annotation as A on A.ROWID == I.annotationID and A.annotationURI == "{0}"'.format(
             annotation
         )
         queryResult = [x[0] for x in cursor.execute(queryStatement)]
+        connection.close()
         return queryResult
 
     def getFilesInDatabase(self):
-        cursor = self.connection.cursor()
+        connection = sqlite3.connect(self.databaseName)
+        cursor = connection.cursor()
         queryStatement = "SELECT file from biomodels"
         queryResult = [x[0] for x in cursor.execute(queryStatement)]
+        connection.close()
         return queryResult
 
     def getSpeciesFromFileName(self, fileName):
-        cursor = self.connection.cursor()
+        connection = sqlite3.connect(self.databaseName)
+        cursor = connection.cursor()
         queryStatement = 'SELECT B.file,name,A.annotationURI,A.annotationName,qualifier from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID \
                             join annotation as A on A.ROWID == I.annotationID join biomodels as B on B.ROWID == M.fileID and B.file == "{0}"'.format(
             fileName
@@ -145,7 +153,8 @@ class NamingDatabase:
         if not fileList:
             return []
 
-        cursor = self.connection.cursor()
+        connection = sqlite3.connect(self.databaseName)
+        cursor = connection.cursor()
 
         all_results = []
 
@@ -159,6 +168,8 @@ class NamingDatabase:
 
             results = [x for x in cursor.execute(queryStatement, chunk)]
             all_results.extend(results)
+
+        connection.close()
 
         from collections import defaultdict
 
