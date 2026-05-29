@@ -586,10 +586,6 @@ class Function:
         fdef = re.sub(r"(\W|^)log\(", r"\1 ln(", fdef)
         # reserved keyword: e
         fdef = re.sub(r"(\W|^)(e)(\W|$)", r"\g<1>__e__\g<3>", fdef)
-        # TODO: Check if we need to replace local parameters
-        # change references to local parameters
-        # for parameter in parameterDict:
-        #     finalString = re.sub(r'(\W|^)({0})(\W|$)'.format(parameter),r'\g<1>{0}\g<3>'.format(parameterDict[parameter]),finalString)
         # doing simplification
         try:
             sdef = sympy.sympify(fdef, locals=self.all_syms)
