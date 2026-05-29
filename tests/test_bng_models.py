@@ -37,6 +37,38 @@ def test_bionetgen_all_model_loading():
     assert fails == 0
 
 
+def test_action_argument_type_check():
+    import bionetgen
+    from bionetgen.core.exc import BNGParseError
+
+    # Test invalid dict argument
+    try:
+        a = bionetgen.modelapi.structs.Action(
+            "generate_network", {"max_stoich": "not_a_dict"}
+        )
+        assert False, "Should have raised BNGParseError for invalid dict argument"
+    except BNGParseError as e:
+        assert (
+            "Expected dictionary for action argument max_stoich, got str instead."
+            in str(e)
+        )
+
+    # Test invalid list argument
+    try:
+        a = bionetgen.modelapi.structs.Action(
+            "simulate", {"sample_times": "not_a_list"}
+        )
+        assert False, "Should have raised BNGParseError for invalid list argument"
+    except BNGParseError as e:
+        assert (
+            "Expected list for action argument sample_times, got str instead." in str(e)
+        )
+
+    # Test valid arguments don't raise
+    bionetgen.modelapi.structs.Action("generate_network", {"max_stoich": {"A": 5}})
+    bionetgen.modelapi.structs.Action("simulate", {"sample_times": [1, 2, 3]})
+
+
 def test_action_loading():
     # tests a BNGL file containing all BNG actions
     all_action_model = os.path.join(*[tfold, "models", "actions", "all_actions.bngl"])
