@@ -165,13 +165,13 @@ def getRestrictedChemicalStates(labelArray, products, contexts, doubleAction):
                     for idx2, componentState2 in enumerate(pDict[molecule]):
                         if idx1 == idx2:
                             continue
-                        isActive1 = componentState[1] == 1 or componentState[2] not in [
+                        isActive1 = componentState[1] == 1 or componentState[2] not in (
                             "",
                             "0",
-                        ]
+                        )
                         isActive2 = componentState2[1] == 1 or componentState2[
                             2
-                        ] not in ["", "0"]
+                        ] not in ("", "0")
                         moleculeName = molecule.split("%")[0]
                         doubleActionDict[moleculeName][componentState[0]][isActive1][
                             componentState2[0]
@@ -221,7 +221,7 @@ def sortChemicalStates(chemicalStates):
 
 
 def isActive(state):
-    if state[0] == 1 or state[1] not in ["", "0"]:
+    if state[0] == 1 or state[1] not in ("", "0"):
         return True
     return False
 
@@ -738,11 +738,11 @@ def reverseContextDict(dependencies):
         for dependencyType in dependencies[molecule]:
             if dependencyType == "independent":
                 for relationship in dependencies[molecule][dependencyType]:
-                    if relationship[0][1] == 1 or relationship[0][2] not in [
+                    if relationship[0][1] == 1 or relationship[0][2] not in (
                         "0",
                         0,
                         "",
-                    ]:
+                    ):
                         reverseDependencies[molecule][
                             (relationship[0][0], relationship[1])
                         ] = "independent"
