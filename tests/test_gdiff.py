@@ -3,6 +3,7 @@ import copy
 from unittest.mock import patch, mock_open
 from bionetgen.core.tools.gdiff import BNGGdiff
 
+
 mock_xml = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:java="http://www.yworks.com/xml/yfiles-common/1.0/java" xmlns:sys="http://www.yworks.com/xml/yfiles-common/markup/primitives/2.0" xmlns:x="http://www.yworks.com/xml/yfiles-common/markup/2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:y="http://www.yworks.com/xml/graphml" xmlns:yed="http://www.yworks.com/xml/yed/3" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd">
   <key id="d0" for="node" yfiles.type="nodegraphics"/>
@@ -60,8 +61,7 @@ def test_gdiff_run_matrix(tmp_path):
         out2 = str(tmp_path / "out2.graphml")
 
         gdiff = BNGGdiff(inp1, inp2, out=out1, out2=out2, mode="matrix")
-        with patch("bionetgen.core.tools.gdiff.open", mock_open()):
-            graphs = gdiff.run()
+        graphs = gdiff.run()
 
         assert out1 in graphs
         assert out2 in graphs
@@ -80,8 +80,7 @@ def test_gdiff_run_union(tmp_path):
         out1 = str(tmp_path / "out_union.graphml")
 
         gdiff = BNGGdiff(inp1, inp2, out=out1, mode="union")
-        with patch("bionetgen.core.tools.gdiff.open", mock_open()):
-            graphs = gdiff.run()
+        graphs = gdiff.run()
 
         assert out1 in graphs
         assert len(graphs) == 1
