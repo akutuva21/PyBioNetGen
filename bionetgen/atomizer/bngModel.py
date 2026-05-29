@@ -311,15 +311,13 @@ class Function:
     def adjust_func_def(self, fdef):
         # if this function is related to a rule, we'll pull all the
         # relevant info
-        # TODO: Add sbml function resolution here
         if self.sbmlFunctions is not None:
             fdef = self.resolve_sbmlfuncs(fdef)
 
         if self.rule_ptr is not None:
             # pull info
-            # react/prod/comp
+            # react/comp
             reactants = self.rule_ptr.reactants
-            products = self.rule_ptr.products
 
             for reactant in reactants:
                 fdef = re.sub(r"(\W|^)({0}\s*\*)".format(reactant[0]), r"\1", fdef)
