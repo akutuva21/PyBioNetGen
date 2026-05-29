@@ -73,3 +73,13 @@ def test_pattern_canonicalization():
             break
     # assert that everything matched up
     assert res is True
+
+
+def test_pattern_zero_molecule():
+    from bionetgen.modelapi.pattern_reader import BNGPatternReader
+
+    pat_obj = BNGPatternReader("0").pattern
+    assert len(pat_obj.molecules) == 1
+    assert pat_obj.molecules[0].name == "0"
+    assert len(pat_obj.molecules[0].components) == 0
+    assert str(pat_obj) == "0"
