@@ -436,15 +436,24 @@ def createDataStructures(bnglContent):
     bng information
     """
 
-    pointer = tempfile.mkstemp(suffix=".bngl", text=True)
-    with open(pointer[1], "w") as f:
-        f.write(bnglContent)
-    retval = os.getcwd()
-    os.chdir(tempfile.tempdir)
-    consoleCommands.bngl2xml(pointer[1])
-    xmlfilename = ".".join(pointer[1].split(".")[0:-1]) + "_bngxml.xml"
-    os.chdir(retval)
-    return readBNGXML.parseXML(xmlfilename)
+    pointer = tempfile.NamedTemporaryFile(suffix=".bngl", mode="w", delete=False)
+    xmlfilename = None
+    try:
+        pointer.write(bnglContent)
+        pointer.close()
+        retval = os.getcwd()
+        try:
+            os.chdir(tempfile.tempdir)
+            consoleCommands.bngl2xml(pointer.name)
+            xmlfilename = ".".join(pointer.name.split(".")[0:-1]) + "_bngxml.xml"
+            return readBNGXML.parseXML(xmlfilename)
+        finally:
+            os.chdir(retval)
+            if xmlfilename and os.path.exists(xmlfilename):
+                os.remove(xmlfilename)
+    finally:
+        if os.path.exists(pointer.name):
+            os.remove(pointer.name)
 
 
 def expandAnnotation(fileName, bnglFile):
