@@ -111,7 +111,6 @@ class NetworkParameter(NetworkObj):
         return s
 
 
-# TODO:
 class NetworkCompartment(NetworkObj):
     """
     Class for all compartments in the network, subclass of NetworkObj.
@@ -204,7 +203,6 @@ class NetworkSpecies(NetworkObj):
         return s
 
 
-# TODO:
 class NetworkFunction(NetworkObj):
     """
     Class for all functions in the network, subclass of NetworkObj.
@@ -236,7 +234,6 @@ class NetworkFunction(NetworkObj):
         return s
 
 
-# TODO:
 class NetworkReaction(NetworkObj):
     """
     Class for all reactions in the network, subclass of NetworkObj.
@@ -276,7 +273,6 @@ class NetworkReaction(NetworkObj):
         return s
 
 
-# TODO:
 class NetworkEnergyPattern(NetworkObj):
     """
     Class for all energy patterns in the network, subclass of NetworkObj.
@@ -305,7 +301,6 @@ class NetworkEnergyPattern(NetworkObj):
         return s
 
 
-# TODO:
 class NetworkPopulationMap(NetworkObj):
     """
     Class for all population maps in the model, subclass of ModelObj.
