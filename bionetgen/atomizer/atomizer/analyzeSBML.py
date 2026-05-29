@@ -865,8 +865,8 @@ class SBMLAnalyzer:
         """
         result = []
         for idx, element in enumerate(reactionDefinition["reactions"]):
-            tmp1 = rule[0] if rule[0] not in ["0", ["0"]] else []
-            tmp2 = rule[1] if rule[1] not in ["0", ["0"]] else []
+            tmp1 = rule[0] if rule[0] not in ("0", ["0"]) else []
+            tmp2 = rule[1] if rule[1] not in ("0", ["0"]) else []
             if len(tmp1) == len(element[0]) and len(tmp2) == len(element[1]):
                 result.append(1)
             #            for (el1,el2) in (element[0],rule[0]):
