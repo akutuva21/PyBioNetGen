@@ -172,7 +172,7 @@ def solveComplexBinding(totalComplex, pathwaycommonsFlag, parser, compositionEnt
             array,
             key=lambda molecule: (
                 len(molecule.components),
-                len([x for x in molecule.components if x.activeState not in [0, "0"]]),
+                len([x for x in molecule.components if x.activeState not in (0, "0")]),
                 len(str(molecule)),
                 str(molecule),
             ),
@@ -343,7 +343,7 @@ def getComplexationComponents2(
             array,
             key=lambda molecule: (
                 len(molecule.components),
-                len([x for x in molecule.components if x.activeState not in [0, "0"]]),
+                len([x for x in molecule.components if x.activeState not in (0, "0")]),
                 len(str(molecule)),
                 str(molecule),
             ),

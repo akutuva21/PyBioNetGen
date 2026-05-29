@@ -288,7 +288,7 @@ class Species:
                     + [999]
                 ),
                 -len([x for x in molecule.components if len(x.bonds) > 0]),
-                -len([x for x in molecule.components if x.activeState not in [0, "0"]]),
+                -len([x for x in molecule.components if x.activeState not in (0, "0")]),
                 len(str(molecule)),
                 str(molecule),
             ),
