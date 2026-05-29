@@ -311,7 +311,7 @@ class Function:
     def adjust_func_def(self, fdef):
         # if this function is related to a rule, we'll pull all the
         # relevant info
-        # TODO: Add sbml function resolution here
+        # SBML function resolution
         if self.sbmlFunctions is not None:
             fdef = self.resolve_sbmlfuncs(fdef)
 
