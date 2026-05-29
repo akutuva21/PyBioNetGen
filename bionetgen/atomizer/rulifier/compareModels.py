@@ -139,7 +139,7 @@ class ModelComparison:
                             ][component][component2]:
                                 if context[1] == 1 and (
                                     activationStatus[0] == 1
-                                    or activationStatus[1] not in ["", "0"]
+                                    or activationStatus[1] not in ("", "0")
                                 ):
                                     relevantRules = relevantRules.union(
                                         set(
@@ -150,7 +150,7 @@ class ModelComparison:
                                     )
                                 elif context[1] == 0 and (
                                     activationStatus[0] == 0
-                                    and activationStatus[1] in ["", "0"]
+                                    and activationStatus[1] in ("", "0")
                                 ):
                                     relevantRules = relevantRules.union(
                                         set(

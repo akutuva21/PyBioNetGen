@@ -1790,7 +1790,7 @@ def main2():
 
 
 def isActivated(statusVector):
-    if statusVector[0] != "" or statusVector[1] not in ["", "0"]:
+    if statusVector[0] != "" or statusVector[1] not in ("", "0"):
         return True
     return False
 
