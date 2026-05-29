@@ -353,7 +353,7 @@ class Species:
                     moleculeStructure.addComponent(componentStructure)
                     speciesStructure.addMolecule(moleculeStructure)
                     if (
-                        componentStructure.idx in [site1, site2]
+                        componentStructure.idx in (site1, site2)
                         and action == "StateChange"
                     ):
                         reactionCenter.append((speciesStructure))
@@ -391,7 +391,7 @@ class Species:
                         bondedPatterns[component.bonds[0]].addMolecule(
                             moleculeStructure
                         )
-                if componentStructure.idx in [site1, site2] and action != "StateChange":
+                if componentStructure.idx in (site1, site2) and action != "StateChange":
                     reactionCenter.append((speciesStructure))
                 elif len(component.bonds) > 0 or component.activeState == "":
                     context.append((speciesStructure))
