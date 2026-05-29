@@ -1223,10 +1223,10 @@ class bngModel:
                     # this means that one of our parameters
                     # is _not_ a constant and is modified by
                     # an assignment rule
-                    # TODO: Not sure if anything else
+                    # Note: Not sure if anything else
                     # can happen here. Confirm via SBML spec
                     a_param = self.parameters.pop(arule.Id)
-                    # TODO: check if an initial value to
+                    # Note: check if an initial value to
                     # a non-constant parameter is relevant?
                     # I think the only thing we need is to
                     # turn this into a function
