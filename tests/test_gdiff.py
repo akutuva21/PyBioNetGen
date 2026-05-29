@@ -2,12 +2,17 @@ import pytest
 import os
 from bionetgen.core.tools.gdiff import BNGGdiff
 
+
 def test_get_node_from_keylist(tmp_path):
     # Create dummy graphml files needed for instantiation
     dummy1 = tmp_path / "dummy1.graphml"
     dummy2 = tmp_path / "dummy2.graphml"
-    dummy1.write_text('<?xml version="1.0" encoding="UTF-8"?><graphml xmlns="http://graphml.graphdrawing.org/xmlns" />')
-    dummy2.write_text('<?xml version="1.0" encoding="UTF-8"?><graphml xmlns="http://graphml.graphdrawing.org/xmlns" />')
+    dummy1.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?><graphml xmlns="http://graphml.graphdrawing.org/xmlns" />'
+    )
+    dummy2.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?><graphml xmlns="http://graphml.graphdrawing.org/xmlns" />'
+    )
 
     gdiff = BNGGdiff(str(dummy1), str(dummy2))
 
@@ -24,25 +29,14 @@ def test_get_node_from_keylist(tmp_path):
     # 3. Valid traversal to a specific node in a list
     graph3 = {
         "graphml": {
-            "graph": {
-                "node": [
-                    {"@id": "n1", "val": 1},
-                    {"@id": "n2", "val": 2}
-                ]
-            }
+            "graph": {"node": [{"@id": "n1", "val": 1}, {"@id": "n2", "val": 2}]}
         }
     }
     keylist3 = ["graphml", "n2"]
     assert gdiff._get_node_from_keylist(graph3, keylist3) == {"@id": "n2", "val": 2}
 
     # 4. Valid traversal to a specific node (not a list)
-    graph4 = {
-        "graphml": {
-            "graph": {
-                "node": {"@id": "n1", "val": 1}
-            }
-        }
-    }
+    graph4 = {"graphml": {"graph": {"node": {"@id": "n1", "val": 1}}}}
     keylist4 = ["graphml", "n1"]
     assert gdiff._get_node_from_keylist(graph4, keylist4) == {"@id": "n1", "val": 1}
 
@@ -54,11 +48,8 @@ def test_get_node_from_keylist(tmp_path):
                     {
                         "@id": "group1",
                         "graph": {
-                            "node": [
-                                {"@id": "n1", "val": 1},
-                                {"@id": "n2", "val": 2}
-                            ]
-                        }
+                            "node": [{"@id": "n1", "val": 1}, {"@id": "n2", "val": 2}]
+                        },
                     }
                 ]
             }
