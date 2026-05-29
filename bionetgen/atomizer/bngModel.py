@@ -719,41 +719,9 @@ class Function:
             self.time_flag = True
             defn = re.sub(r"(\W|^)(t)(\W|$)", r"\1TIME_\3", defn)
 
-        # old code for the same purpose
-        # defn = re.sub(r"(\W|^)(time)(\W|$)", r"\1time()\3", defn)
-        # defn = re.sub(r"(\W|^)(Time)(\W|$)", r"\1time()\3", defn)
-        # defn = re.sub(r"(\W|^)(t)(\W|$)", r"\1time()\3", defn)
-
         # remove true and false
         defn = re.sub(r"(\W|^)(true)(\W|$)", r"\1 1\3", defn)
         defn = re.sub(r"(\W|^)(false)(\W|$)", r"\1 0\3", defn)
-
-        # TODO: Make sure we don't need these
-        # dependencies2 = {}
-        # for idx in range(0, len(functions)):
-        #     dependencies2[functions[idx].split(' = ')[0].split('(')[0].strip()] = []
-        #     for key in artificialObservables:
-        #         oldfunc = functions[idx]
-        #         functions[idx] = (re.sub(r'(\W|^)({0})([^\w(]|$)'.format(key), r'\1\2()\3', functions[idx]))
-        #         if oldfunc != functions[idx]:
-        #             dependencies2[functions[idx].split(' = ')[0].split('(')[0]].append(key)
-        #     for element in sbmlfunctions:
-        #         oldfunc = functions[idx]
-        #         key = element.split(' = ')[0].split('(')[0]
-        #         if re.search('(\W|^){0}(\W|$)'.format(key), functions[idx].split(' = ')[1]) != None:
-        #             dependencies2[functions[idx].split(' = ')[0].split('(')[0]].append(key)
-        #     for element in tfunc:
-        #         key = element.split(' = ')[0].split('(')[0]
-        #         if key in functions[idx].split(' = ')[1]:
-        #             dependencies2[functions[idx].split( ' = ')[0].split('(')[0]].append(key)
-
-        # fd = []
-        # for function in functions:
-        #     # print(function, '---', dependencies2[function.split(' = ' )[0].split('(')[0]], '---', function.split(' = ' )[0].split('(')[0], 0)
-        #     fd.append([function, resolveDependencies(dependencies2, function.split(' = ' )[0].split('(')[0], 0)])
-        # fd = sorted(fd, key= lambda rule:rule[1])
-        # functions = [x[0] for x in fd]
-        # return functions
 
         # returning expanded definition
         return defn
