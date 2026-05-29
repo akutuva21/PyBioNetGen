@@ -1,58 +1,90 @@
 import pytest
 import copy
+from unittest.mock import patch, mock_open
 from bionetgen.core.tools.gdiff import BNGGdiff
+
+mock_xml = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:java="http://www.yworks.com/xml/yfiles-common/1.0/java" xmlns:sys="http://www.yworks.com/xml/yfiles-common/markup/primitives/2.0" xmlns:x="http://www.yworks.com/xml/yfiles-common/markup/2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:y="http://www.yworks.com/xml/graphml" xmlns:yed="http://www.yworks.com/xml/yed/3" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd">
+  <key id="d0" for="node" yfiles.type="nodegraphics"/>
+  <key id="d1" for="edge" yfiles.type="edgegraphics"/>
+  <graph edgedefault="directed" id="G">
+    <node id="n0">
+      <data key="d0">
+        <y:ShapeNode>
+          <y:Fill color="#D2D2D2"/>
+          <y:NodeLabel fontSize="12">MockSpecies</y:NodeLabel>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <edge id="e0" source="n0" target="n0">
+    </edge>
+  </graph>
+</graphml>"""
 
 
 def test_gdiff_init():
-    inp1 = "tests/models/testviz1_cm.graphml"
-    inp2 = "tests/models/testviz2_cm.graphml"
+    with patch("builtins.open", mock_open(read_data=mock_xml)):
+        inp1 = "mock1.graphml"
+        inp2 = "mock2.graphml"
 
-    # Test valid modes
-    gdiff = BNGGdiff(inp1, inp2, mode="matrix")
-    assert gdiff.mode == "matrix"
+        # Test valid modes
+        gdiff = BNGGdiff(inp1, inp2, mode="matrix")
+        assert gdiff.mode == "matrix"
 
-    gdiff = BNGGdiff(inp1, inp2, mode="union")
-    assert gdiff.mode == "union"
+        gdiff = BNGGdiff(inp1, inp2, mode="union")
+        assert gdiff.mode == "union"
 
-    # Test invalid mode
-    with pytest.raises(ValueError, match="Mode invalid is not a valid mode"):
-        BNGGdiff(inp1, inp2, mode="invalid")
+        # Test invalid mode
+        with pytest.raises(ValueError, match="Mode invalid is not a valid mode"):
+            BNGGdiff(inp1, inp2, mode="invalid")
 
-    # Test colors
-    gdiff = BNGGdiff(inp1, inp2, colors=None)
-    assert "g1" in gdiff.colors
-    assert "intersect" in gdiff.colors
+        # Test colors
+        gdiff = BNGGdiff(inp1, inp2, colors=None)
+        assert "g1" in gdiff.colors
+        assert "intersect" in gdiff.colors
 
-    with pytest.raises(ValueError, match="Color type .* not recognized"):
-        BNGGdiff(inp1, inp2, colors=123)
+        with pytest.raises(ValueError, match="Color type .* not recognized"):
+            BNGGdiff(inp1, inp2, colors=123)
 
 
 def test_gdiff_run_matrix(tmp_path):
-    inp1 = "tests/models/testviz1_cm.graphml"
-    inp2 = "tests/models/testviz2_cm.graphml"
+    # Need edge to be a list
+    mock_xml_list = mock_xml.replace(
+        "</edge>", '</edge><edge id="e1" source="n0" target="n0"></edge>'
+    )
+    with patch("builtins.open", mock_open(read_data=mock_xml_list)):
+        inp1 = "mock1.graphml"
+        inp2 = "mock2.graphml"
 
-    out1 = str(tmp_path / "out1.graphml")
-    out2 = str(tmp_path / "out2.graphml")
+        out1 = str(tmp_path / "out1.graphml")
+        out2 = str(tmp_path / "out2.graphml")
 
-    gdiff = BNGGdiff(inp1, inp2, out=out1, out2=out2, mode="matrix")
-    graphs = gdiff.run()
+        gdiff = BNGGdiff(inp1, inp2, out=out1, out2=out2, mode="matrix")
+        with patch("bionetgen.core.tools.gdiff.open", mock_open()):
+            graphs = gdiff.run()
 
-    assert out1 in graphs
-    assert out2 in graphs
-    assert len(graphs) == 4  # diff1, diff2, recolor1, recolor2
+        assert out1 in graphs
+        assert out2 in graphs
+        assert len(graphs) == 4  # diff1, diff2, recolor1, recolor2
 
 
 def test_gdiff_run_union(tmp_path):
-    inp1 = "tests/models/testviz1_cm.graphml"
-    inp2 = "tests/models/testviz2_cm.graphml"
+    # Need edge to be a list
+    mock_xml_list = mock_xml.replace(
+        "</edge>", '</edge><edge id="e1" source="n0" target="n0"></edge>'
+    )
+    with patch("builtins.open", mock_open(read_data=mock_xml_list)):
+        inp1 = "mock1.graphml"
+        inp2 = "mock2.graphml"
 
-    out1 = str(tmp_path / "out_union.graphml")
+        out1 = str(tmp_path / "out_union.graphml")
 
-    gdiff = BNGGdiff(inp1, inp2, out=out1, mode="union")
-    graphs = gdiff.run()
+        gdiff = BNGGdiff(inp1, inp2, out=out1, mode="union")
+        with patch("bionetgen.core.tools.gdiff.open", mock_open()):
+            graphs = gdiff.run()
 
-    assert out1 in graphs
-    assert len(graphs) == 1
+        assert out1 in graphs
+        assert len(graphs) == 1
 
 
 # Minimal mock node dict that satisfies _get_node_properties
@@ -97,48 +129,49 @@ mock_node_group = {
 
 
 def test_gdiff_node_methods():
-    inp1 = "tests/models/testviz1_cm.graphml"
-    inp2 = "tests/models/testviz2_cm.graphml"
-    gdiff = BNGGdiff(inp1, inp2)
+    with patch("builtins.open", mock_open(read_data=mock_xml)):
+        inp1 = "mock1.graphml"
+        inp2 = "mock2.graphml"
+        gdiff = BNGGdiff(inp1, inp2)
 
-    # test _get_node_properties
-    props = gdiff._get_node_properties(mock_node_grey)
-    assert props["y:NodeLabel"]["#text"] == "MockSpecies"
+        # test _get_node_properties
+        props = gdiff._get_node_properties(mock_node_grey)
+        assert props["y:NodeLabel"]["#text"] == "MockSpecies"
 
-    props = gdiff._get_node_properties(mock_node_group)
-    assert props["y:NodeLabel"]["#text"] == "MockGroup"
+        props = gdiff._get_node_properties(mock_node_group)
+        assert props["y:NodeLabel"]["#text"] == "MockGroup"
 
-    # test _get_node_name
-    assert gdiff._get_node_name(mock_node_grey) == "MockSpecies"
-    assert gdiff._get_node_name(mock_node_white) == "MockComponent"
+        # test _get_node_name
+        assert gdiff._get_node_name(mock_node_grey) == "MockSpecies"
+        assert gdiff._get_node_name(mock_node_white) == "MockComponent"
 
-    # test _get_node_fill
-    assert gdiff._get_node_fill(mock_node_grey)["@color"] == "#D2D2D2"
+        # test _get_node_fill
+        assert gdiff._get_node_fill(mock_node_grey)["@color"] == "#D2D2D2"
 
-    # test _get_node_color
-    assert gdiff._get_node_color(mock_node_grey) == "#D2D2D2"
+        # test _get_node_color
+        assert gdiff._get_node_color(mock_node_grey) == "#D2D2D2"
 
-    # test _get_font_size
-    assert gdiff._get_font_size(mock_node_grey) == 12
-    assert gdiff._get_font_size(mock_node_group) == 14
+        # test _get_font_size
+        assert gdiff._get_font_size(mock_node_grey) == 12
+        assert gdiff._get_font_size(mock_node_group) == 14
 
-    # test _resize_node_font
-    test_node = copy.deepcopy(mock_node_grey)
-    gdiff._resize_node_font(test_node, 20)
-    assert gdiff._get_font_size(test_node) == 20
+        # test _resize_node_font
+        test_node = copy.deepcopy(mock_node_grey)
+        gdiff._resize_node_font(test_node, 20)
+        assert gdiff._get_font_size(test_node) == 20
 
-    # test _get_color_id
-    assert gdiff._get_color_id(mock_node_grey) == 0
-    assert gdiff._get_color_id(mock_node_white) == 1
-    assert gdiff._get_color_id(mock_node_yellow) == 2
+        # test _get_color_id
+        assert gdiff._get_color_id(mock_node_grey) == 0
+        assert gdiff._get_color_id(mock_node_white) == 1
+        assert gdiff._get_color_id(mock_node_yellow) == 2
 
-    with pytest.raises(
-        RuntimeError, match="Node color #000000 doesn't match known colors"
-    ):
-        gdiff._get_color_id(mock_node_unknown)
+        with pytest.raises(
+            RuntimeError, match="Node color #000000 doesn't match known colors"
+        ):
+            gdiff._get_color_id(mock_node_unknown)
 
-    # test _color_node
-    test_node = copy.deepcopy(mock_node_grey)
-    success = gdiff._color_node(test_node, "#FF0000")
-    assert success
-    assert gdiff._get_node_color(test_node) == "#FF0000"
+        # test _color_node
+        test_node = copy.deepcopy(mock_node_grey)
+        success = gdiff._color_node(test_node, "#FF0000")
+        assert success
+        assert gdiff._get_node_color(test_node) == "#FF0000"
