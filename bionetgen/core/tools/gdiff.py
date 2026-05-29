@@ -549,9 +549,9 @@ class BNGGdiff:
                         except:
                             break
             else:
-                if cnode["@id"] == key:
+                if nodes["@id"] == key:
                     found = True
-                    node = cnode
+                    node = nodes
             if not found:
                 return None
         return node
