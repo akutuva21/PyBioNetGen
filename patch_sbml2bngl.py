@@ -1,5 +1,6 @@
 import re
 
+
 def replace():
     with open("bionetgen/atomizer/sbml2bngl.py", "r") as f:
         content = f.read()
@@ -23,5 +24,6 @@ def replace():
             print("Replaced redundant observable dict update.")
     else:
         print("Not found.")
+
 
 replace()
