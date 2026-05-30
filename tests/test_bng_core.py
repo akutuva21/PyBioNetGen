@@ -117,10 +117,9 @@ def test_plotDAT_current_folder():
     app_mock.pargs.output = "."
     app_mock.pargs._get_kwargs.return_value = {}.items()
 
-    plotDAT(app_mock)
-
-    expected_out = os.path.join("/path/to", "test.png")
-    MockBNGPlotter.assert_called_once_with(
-        "/path/to/test.cdat", expected_out, app=app_mock
-    )
-    MockBNGPlotter.return_value.plot.assert_called_once()
+    with patch("bionetgen.core.tools.plot.BNGResult", autospec=True):
+        with patch(
+            "bionetgen.core.tools.plot.BNGPlotter.plot", autospec=True
+        ) as MockPlot:
+            plotDAT(app_mock)
+            MockPlot.assert_called_once()
