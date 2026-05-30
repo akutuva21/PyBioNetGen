@@ -552,6 +552,10 @@ class BNGGdiff:
                 if nodes["@id"] == key:
                     found = True
                     node = nodes
+                    try:
+                        nodes = node["graph"]["node"]
+                    except:
+                        pass
             if not found:
                 return None
         return node
