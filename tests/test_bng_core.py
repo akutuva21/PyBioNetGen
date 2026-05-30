@@ -108,7 +108,6 @@ def test_plotDAT_invalid_input():
 
 def test_plotDAT_current_folder():
     from unittest.mock import patch
-    from unittest.mock import patch
     from unittest.mock import MagicMock
     from bionetgen.core.main import plotDAT
     import os
