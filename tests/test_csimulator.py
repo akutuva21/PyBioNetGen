@@ -60,12 +60,10 @@ def test_csimulator_simulator_property():
 
     csim.model = MockModel()
 
-    with (
-        unittest.mock.patch("os.path.abspath", side_effect=lambda x: x),
-        unittest.mock.patch(
+    with unittest.mock.patch("os.path.abspath", side_effect=lambda x: x), \
+         unittest.mock.patch(
             "bionetgen.simulator.csimulator.CSimWrapper"
-        ) as mock_wrapper,
-    ):
+         ) as mock_wrapper:
         csim.simulator = "dummy_lib_file"
         mock_wrapper.assert_called_once()
         args, kwargs = mock_wrapper.call_args
