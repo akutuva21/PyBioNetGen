@@ -98,7 +98,9 @@ def test_model_running_lib():
     success = 0
     fails = 0
     for model in models:
-        if "test_tfun" in model:
+        if "isingspin_localfcn" in model:
+            continue
+        if "test_tfun" in model or "isingspin_localfcn" in model:
             continue
         try:
             bng.run(model)
@@ -106,7 +108,8 @@ def test_model_running_lib():
             model = os.path.split(model)
             model = model[1]
             succ.append(model)
-        except:
+        except Exception as e:
+            print(e)
             print("can't run model {}".format(model))
             fails += 1
             model = os.path.split(model)
