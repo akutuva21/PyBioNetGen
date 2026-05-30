@@ -1,6 +1,6 @@
 import re
 
-with open('bionetgen/modelapi/runner.py', 'r') as f:
+with open("bionetgen/modelapi/runner.py", "r") as f:
     content = f.read()
 
 target = """from bionetgen.core.defaults import BNGDefaults
@@ -14,5 +14,5 @@ conf = app.config["bionetgen"]"""
 
 content = content.replace(target, replacement)
 
-with open('bionetgen/modelapi/runner.py', 'w') as f:
+with open("bionetgen/modelapi/runner.py", "w") as f:
     f.write(content)
