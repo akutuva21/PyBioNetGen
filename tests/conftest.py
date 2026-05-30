@@ -3,7 +3,7 @@ PyTest Fixtures.
 """
 
 import pytest
-from cement.utils import fs
+from cement import fs
 
 
 @pytest.fixture(scope="function")
