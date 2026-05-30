@@ -1,9 +1,9 @@
 from . import componentGroups
 import argparse
-import ast
 import pprint
 from collections import defaultdict
 import itertools
+import ast
 from copy import copy
 from bionetgen.atomizer.utils import readBNGXML
 
