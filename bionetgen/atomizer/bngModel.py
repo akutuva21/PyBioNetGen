@@ -1218,18 +1218,10 @@ class bngModel:
                 # rule is an assignment rule
                 # let's first check parameters
                 if arule.Id in self.parameters:
-                    a_param = self.parameters[arule.Id]
-                    # if not a_param.cts:
-                    # this means that one of our parameters
-                    # is _not_ a constant and is modified by
-                    # an assignment rule
-                    # Note: Not sure if anything else
-                    # can happen here. Confirm via SBML spec
                     a_param = self.parameters.pop(arule.Id)
-                    # Note: check if an initial value to
-                    # a non-constant parameter is relevant?
-                    # I think the only thing we need is to
-                    # turn this into a function
+                    # Note: We pop the parameter here since it's an assignment rule.
+                    # The SBML spec states assignment rules overwrite initial parameter values.
+                    # Therefore, any initial value given is irrelevant.
                     fobj = self.make_function()
                     fobj.Id = arule.Id
                     fobj.definition = arule.rates[0]
