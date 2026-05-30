@@ -7,7 +7,7 @@ from bionetgen.core.tools import BNGCLI
 from bionetgen.core.defaults import BNGDefaults
 
 # This allows access to the CLIs config setup
-conf = BNGDefaults()
+conf = BNGDefaults().config["bionetgen"]
 
 logger = logging.getLogger(__name__)
 
