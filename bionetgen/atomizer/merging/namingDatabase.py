@@ -50,7 +50,7 @@ class NamingDatabase:
         self.connection = sqlite3.connect(self.databaseName)
 
     def __del__(self):
-        if hasattr(self, "connection") and self.connection:
+        if hasattr(self, "connection"):
             self.connection.close()
 
     def getAnnotationsFromSpecies(self, speciesName):
@@ -263,12 +263,7 @@ class NamingDatabase:
         return fileSpecies
 
     def isFileInDatabase(self, fileName):
-        cursor = self.connection.cursor()
-        queryStatement = 'select file from biomodels WHERE file == "{0}"'.format(
-            fileName
-        )
-        matchingFileNames = [x[0] for x in cursor.execute(queryStatement)]
-        return len(matchingFileNames) > 0
+        return isFileInDatabase(self.databaseName, fileName)
 
 
 def isFileInDatabase(databaseName, fileName):
