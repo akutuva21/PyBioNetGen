@@ -1,3 +1,5 @@
+import re
+
 from bionetgen.core.utils.logging import BNGLogger
 
 logger = BNGLogger()
@@ -525,7 +527,8 @@ class Molecule:
     @name.setter
     def name(self, value):
         # print("Warning: Logical checks are not complete")
-        # TODO: Check for invalid characters
+        if not re.match(r"^[a-zA-Z0-9_]*$", value):
+            raise ValueError(f"Invalid characters in name: {value}")
         self._name = value
 
     @property
