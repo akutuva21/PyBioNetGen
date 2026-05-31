@@ -980,13 +980,13 @@ class SBML2BNGL:
                 )
                 for reactant in reaction.getListOfReactants()
                 if reactant.getSpecies().lower() not in zerospecies
-                and reactant.getStoichiometry() not in [0, "0"]
+                and reactant.getStoichiometry() not in (0, "0")
             ]
             product = [
                 (product.getSpecies(), product.getStoichiometry(), product.getSpecies())
                 for product in reaction.getListOfProducts()
                 if product.getSpecies().lower() not in zerospecies
-                and product.getStoichiometry() not in [0, "0"]
+                and product.getStoichiometry() not in (0, "0")
             ]
         else:
             reactant = [
@@ -998,7 +998,7 @@ class SBML2BNGL:
                 for rElement in reaction.getListOfReactants()
                 if self.speciesDictionary[rElement.getSpecies()].lower()
                 not in zerospecies
-                and rElement.getStoichiometry() not in [0, "0"]
+                and rElement.getStoichiometry() not in (0, "0")
             ]
             product = [
                 (
@@ -1009,7 +1009,7 @@ class SBML2BNGL:
                 for rProduct in reaction.getListOfProducts()
                 if self.speciesDictionary[rProduct.getSpecies()].lower()
                 not in zerospecies
-                and rProduct.getStoichiometry() not in [0, "0"]
+                and rProduct.getStoichiometry() not in (0, "0")
             ]
         kineticLaw = reaction.getKineticLaw()
         reversible = reaction.getReversible()
@@ -1333,7 +1333,7 @@ class SBML2BNGL:
         for x in reaction.getListOfReactants():
             if (
                 x.getSpecies().lower() not in zerospecies
-                and x.getStoichiometry() not in [0, "0"]
+                and x.getStoichiometry() not in (0, "0")
                 and pymath.isnan(x.getStoichiometry())
             ):
                 if not x.getConstant():
@@ -1350,7 +1350,7 @@ class SBML2BNGL:
         for x in reaction.getListOfProducts():
             if (
                 x.getSpecies().lower() not in zerospecies
-                and x.getStoichiometry() not in [0, "0"]
+                and x.getStoichiometry() not in (0, "0")
                 and pymath.isnan(x.getStoichiometry())
             ):
                 if not x.getConstant():
@@ -2505,7 +2505,7 @@ class SBML2BNGL:
                         # TODO: if for whatever reason a rate rule
                         # was defined as a parameter that is not 0
                         # remove it. This might not be exact behavior
-                        if re.search("^{0}\s".format(rawArule[0]), element):
+                        if re.search(r"^{0}\s".format(rawArule[0]), element):
                             logMess(
                                 "WARNING:SIM106",
                                 "Parameter {0} corresponds both as a non zero parameter \
@@ -2686,7 +2686,7 @@ class SBML2BNGL:
             """
             elif rawArule[2] == True:
                 for parameter in parameters:
-                    if re.search('^{0}\s'.format(rawArule[0]),parameter):
+                    if re.search(r'^{0}\s'.format(rawArule[0]),parameter):
                         print '////',rawArule[0]
             """
             # we can't decide any of this here, we need the

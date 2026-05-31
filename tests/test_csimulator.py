@@ -72,7 +72,7 @@ def test_csimulator_simulator_property():
         assert kwargs["num_spec_init"] == 2  # 2 species
         assert args[0] == "dummy_lib_file"
 
-        assert csim.simulator == mock_wrapper.return_value
+            assert csim.simulator == mock_wrapper.return_value
 
     with unittest.mock.patch(
         "bionetgen.simulator.csimulator.CSimWrapper",
@@ -180,3 +180,56 @@ def test_simulator_setter_compile_error():
     ):
         with pytest.raises(BNGCompileError):
             sim.simulator = "dummy_lib"
+
+
+def test_csimulator_init_str():
+    import bionetgen
+
+    dummy_bngl = "tests/models/test_Hill.bngl"
+
+    with unittest.mock.patch(
+        "bionetgen.simulator.csimulator.ccompiler", create=True
+    ) as mock_ccompiler:
+        with unittest.mock.patch("bionetgen.simulator.csimulator.conf") as mock_conf:
+            mock_conf.get.return_value = "dummy"
+
+            with unittest.mock.patch(
+                "bionetgen.simulator.csimulator.bionetgen.run"
+            ) as mock_run:
+                with unittest.mock.patch("bionetgen.simulator.csimulator.CSimWrapper"):
+                    mock_compiler_instance = mock_ccompiler.new_compiler.return_value
+
+                    csim = CSimulator(dummy_bngl, generate_network=True)
+
+                    mock_compiler_instance.compile.assert_called_once()
+                    mock_compiler_instance.link_shared_lib.assert_called_once()
+                    mock_run.assert_called_once()
+
+                    assert csim.model.model_name == "test_Hill"
+
+
+def test_csimulator_init_bngmodel():
+    import bionetgen
+
+    dummy_bngl = "tests/models/test_Hill.bngl"
+    mock_model = bionetgen.bngmodel(dummy_bngl, generate_network=True)
+
+    with unittest.mock.patch(
+        "bionetgen.simulator.csimulator.ccompiler", create=True
+    ) as mock_ccompiler:
+        with unittest.mock.patch("bionetgen.simulator.csimulator.conf") as mock_conf:
+            mock_conf.get.return_value = "dummy"
+
+            with unittest.mock.patch(
+                "bionetgen.simulator.csimulator.bionetgen.run"
+            ) as mock_run:
+                with unittest.mock.patch("bionetgen.simulator.csimulator.CSimWrapper"):
+                    mock_compiler_instance = mock_ccompiler.new_compiler.return_value
+
+                    csim = CSimulator(mock_model, generate_network=True)
+
+                    mock_compiler_instance.compile.assert_called_once()
+                    mock_compiler_instance.link_shared_lib.assert_called_once()
+                    mock_run.assert_called_once()
+
+                    assert csim.model.model_name == "test_Hill_cpy"
