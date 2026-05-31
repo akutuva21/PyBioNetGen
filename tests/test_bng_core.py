@@ -81,7 +81,6 @@ def test_plotDAT_valid_input():
     app_mock.pargs._get_kwargs.return_value = {"kwarg1": "val1"}.items()
 
     with patch("bionetgen.core.tools.BNGPlotter") as MockBNGPlotter:
-
         plotDAT(app_mock)
 
         MockBNGPlotter.assert_called_once_with(
@@ -113,7 +112,7 @@ def test_plotDAT_current_folder():
     import os
 
     app_mock = MagicMock()
-    app_mock.pargs.input = "/path/to/test.cdat"
+    app_mock.pargs.input = "test.cdat"
     app_mock.pargs.output = "."
     app_mock.pargs._get_kwargs.return_value = {}.items()
 

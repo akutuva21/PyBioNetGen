@@ -37,6 +37,38 @@ def test_bionetgen_all_model_loading():
     assert fails == 0
 
 
+def test_action_argument_type_check():
+    import bionetgen
+    from bionetgen.core.exc import BNGParseError
+
+    # Test invalid dict argument
+    try:
+        a = bionetgen.modelapi.structs.Action(
+            "generate_network", {"max_stoich": "not_a_dict"}
+        )
+        assert False, "Should have raised BNGParseError for invalid dict argument"
+    except BNGParseError as e:
+        assert (
+            "Expected dictionary for action argument max_stoich, got str instead."
+            in str(e)
+        )
+
+    # Test invalid list argument
+    try:
+        a = bionetgen.modelapi.structs.Action(
+            "simulate", {"sample_times": "not_a_list"}
+        )
+        assert False, "Should have raised BNGParseError for invalid list argument"
+    except BNGParseError as e:
+        assert (
+            "Expected list for action argument sample_times, got str instead." in str(e)
+        )
+
+    # Test valid arguments don't raise
+    bionetgen.modelapi.structs.Action("generate_network", {"max_stoich": {"A": 5}})
+    bionetgen.modelapi.structs.Action("simulate", {"sample_times": [1, 2, 3]})
+
+
 def test_action_loading():
     # tests a BNGL file containing all BNG actions
     all_action_model = os.path.join(*[tfold, "models", "actions", "all_actions.bngl"])
@@ -136,3 +168,42 @@ def test_setup_simulator():
     except:
         res = None
     assert res is not None
+
+
+def test_bngmodel_add_block_exception():
+    from bionetgen.core.exc import BNGModelError
+
+    # Load a valid model
+    fpath = os.path.join(tfold, "test.bngl")
+    fpath = os.path.abspath(fpath)
+    m = bng.bngmodel(fpath)
+
+    # Create a mock block with an unsupported name
+    class MockBlock:
+        def __init__(self, name):
+            self.name = name
+
+    invalid_block = MockBlock("invalid_block_type")
+
+    # Assert that adding this block raises BNGModelError
+    with raises(BNGModelError) as exc_info:
+        m.add_block(invalid_block)
+
+    # Check that the exception message is correct
+    assert "Block type invalid_block_type is not supported" in str(exc_info.value)
+
+
+def test_bngmodel_add_empty_block_exception():
+    from bionetgen.core.exc import BNGModelError
+
+    # Load a valid model
+    fpath = os.path.join(tfold, "test.bngl")
+    fpath = os.path.abspath(fpath)
+    m = bng.bngmodel(fpath)
+
+    # Assert that adding this block raises BNGModelError
+    with raises(BNGModelError) as exc_info:
+        m.add_empty_block("invalid_block_type")
+
+    # Check that the exception message is correct
+    assert "Block type invalid_block_type is not supported" in str(exc_info.value)
