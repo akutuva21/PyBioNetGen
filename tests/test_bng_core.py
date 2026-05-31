@@ -109,7 +109,6 @@ def test_plotDAT_invalid_input():
 def test_plotDAT_current_folder(MockBNGPlotter):
     from unittest.mock import patch
     from unittest.mock import MagicMock
-    from bionetgen.core.main import plotDAT
     import os
 
     app_mock = MagicMock()
@@ -117,6 +116,27 @@ def test_plotDAT_current_folder(MockBNGPlotter):
     app_mock.pargs.output = "."
     app_mock.pargs._get_kwargs.return_value = {}.items()
 
+    with patch("bionetgen.core.tools.plot.BNGResult.load") as mock_load:
+        with patch("bionetgen.core.tools.plot.BNGPlotter") as MockBNGPlotter:
+            import bionetgen.core.tools
+
+            # ensure BNGPlotter is the mocked one
+            original_plotter = bionetgen.core.tools.BNGPlotter
+            bionetgen.core.tools.BNGPlotter = MockBNGPlotter
+            try:
+                from bionetgen.core.main import plotDAT
+
+                plotDAT(app_mock)
+
+                expected_out = os.path.join("/path/to", "test.png")
+                MockBNGPlotter.assert_called_once_with(
+                    "/path/to/test.cdat", expected_out, app=app_mock
+                )
+                MockBNGPlotter.return_value.plot.assert_called_once()
+            finally:
+                bionetgen.core.tools.BNGPlotter = original_plotter
+
+    # Also keep the main version as a separate test for safety
     with patch("bionetgen.core.tools.BNGPlotter") as MockBNGPlotter:
         plotDAT(app_mock)
 
