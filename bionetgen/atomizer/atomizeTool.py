@@ -126,8 +126,12 @@ class AtomizeTool:
         return options
 
     def run(self):
-        # TODO: Make atomizer also use cement app logging
-        # this involves changing a lot of code in atomizer!
+        # Wire up the atomizer's global logger to the cement app
+        from bionetgen.atomizer.utils.util import logger as atomizer_logger
+
+        atomizer_logger.app = self.app
+        atomizer_logger.level = self.config["logLevel"]
+
         self.logger.debug("Analyzing SBML file", loc=f"{__file__} : AtomizeTool.run()")
         self.returnArray = ls2b.analyzeFile(
             self.config["inputFile"],

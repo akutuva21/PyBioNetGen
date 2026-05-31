@@ -298,7 +298,9 @@ def processFunctions(functions, sbmlfunctions, artificialObservables, tfunc):
             oldfunc = functions[idx]
             key = element.split(" = ")[0].split("(")[0]
             if (
-                re.search("(\W|^){0}(\W|$)".format(key), functions[idx].split(" = ")[1])
+                re.search(
+                    r"(\W|^){0}(\W|$)".format(key), functions[idx].split(" = ")[1]
+                )
                 != None
             ):
                 dependencies2[functions[idx].split(" = ")[0].split("(")[0]].append(key)
@@ -564,7 +566,7 @@ def reorderFunctions(functions):
     functionNames = []
     tmp = []
     for function in functions:
-        m = re.split("(?<=\()[\w)]", function)
+        m = re.split(r"(?<=\()[\w)]", function)
         functionName = m[0]
         if "=" in functionName:
             functionName = functionName.split("=")[0].strip() + "("
@@ -1094,7 +1096,7 @@ def analyzeHelper(
     tmpParams = []
     for idx, parameter in enumerate(param):
         for key in artificialObservables:
-            if re.search("^{0}\s".format(key), parameter) != None:
+            if re.search(r"^{0}\s".format(key), parameter) != None:
                 assignmentRuleDefinedParameters.append(idx)
     tmpParams.extend(artificialObservables)
     tmpParams.extend(removeParams)
