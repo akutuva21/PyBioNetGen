@@ -366,7 +366,7 @@ class Function:
             ) and (oldrule != rule):
                 oldrule = rule
                 for x in functionList:
-                    rule = re.sub("({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
+                    rule = re.sub(r"({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
                 if rule == oldrule:
                     logMess("ERROR:TRS001", "Malformed pow or root function %s" % rule)
             return rule
@@ -1588,7 +1588,7 @@ class bngModel:
             # we are a split reaction and likely have fRate as our rate constant
             if "fRate" in rule.rate_cts[0]:
                 # we got the fRate in the definition, let's get the value
-                frate_search = re.search("fRate.+\(\)", rule.rate_cts[0])
+                frate_search = re.search(r"fRate.+\(\)", rule.rate_cts[0])
                 if frate_search:
                     frate_name = frate_search.group(0)
                     # we got the name

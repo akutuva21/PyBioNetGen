@@ -19,9 +19,9 @@ def getBngExecutable():
 
 def bngl2xml(bnglFile, timeout=60):
     import subprocess
-    import tempfile
     import sys
     import os
+    import tempfile
 
     script = """import bionetgen
 import sys
@@ -52,9 +52,6 @@ except Exception as e:
             proc.communicate()
             if os.path.exists(xml_file):
                 os.remove(xml_file)
-    finally:
-        if os.path.exists(script_path):
-            try:
-                os.remove(script_path)
-            except OSError:
-                pass
+    except subprocess.TimeoutExpired:
+        if os.path.exists(xml_file):
+            os.remove(xml_file)
