@@ -1,6 +1,31 @@
 import pytest
 from unittest.mock import patch
-from bionetgen.modelapi.sympy_odes import _safe_rmtree
+from bionetgen.modelapi.sympy_odes import _safe_rmtree, _extract_nv_assignments
+
+
+def test_extract_nv_assignments():
+    # Empty body
+    assert _extract_nv_assignments("", "expr") == {}
+
+    # No matches
+    assert _extract_nv_assignments("int main() {}", "expr") == {}
+
+    # Valid assignments using standard array indexing syntax
+    body = """
+    NV_Ith_S(expressions, 0) = 2.0 * k1;
+    NV_Ith_S(expressions, 1) = k2 * s1;
+    NV_Ith_S(other_var, 0) = 1.0;
+    """
+
+    res = _extract_nv_assignments(body, "expressions")
+    assert len(res) == 2
+    assert res[0] == "2.0 * k1"
+    assert res[1] == "k2 * s1"
+
+    # Ensure it only extracts the requested variable
+    res_other = _extract_nv_assignments(body, "other_var")
+    assert len(res_other) == 1
+    assert res_other[0] == "1.0"
 
 
 def test_safe_rmtree_exception():
@@ -95,3 +120,26 @@ def test_extract_odes_unsupported_rate_law(tmp_path):
     """)
     with pytest.raises(NotImplementedError, match="not yet supported by writeMexfile"):
         extract_odes_from_mexfile(str(mex_c))
+
+
+from bionetgen.modelapi.sympy_odes import _extract_function_body
+
+
+def test_extract_function_body_normal():
+    text = "void myfunc() {\n  body text;\n}\n"
+    assert _extract_function_body(text, "myfunc") == "\n  body text;\n"
+
+
+def test_extract_function_body_missing_brace():
+    text = "void myfunc() {\n  body text;\n"
+    assert _extract_function_body(text, "myfunc") == ""
+
+
+def test_extract_function_body_nested_braces():
+    text = "void myfunc() {\n  if (1) { body; }\n}\n"
+    assert _extract_function_body(text, "myfunc") == "\n  if (1) { body; }\n"
+
+
+def test_extract_function_body_not_found():
+    text = "void otherfunc() {\n  body text;\n}\n"
+    assert _extract_function_body(text, "myfunc") == ""
