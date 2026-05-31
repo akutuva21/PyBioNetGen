@@ -28,12 +28,14 @@ def test_extract_nv_assignments():
     assert res_other[0] == "1.0"
 
 
-def test_safe_rmtree_exception():
-    with patch("shutil.rmtree") as mock_rmtree:
-        mock_rmtree.side_effect = Exception("Mock exception")
-        # Should not raise an exception
+def test_safe_rmtree_oserror(tmp_path):
+    d = tmp_path / "test_dir"
+    d.mkdir()
+    (d / "file.txt").write_text("hello")
+    with patch("os.lstat") as mock_lstat:
+        mock_lstat.side_effect = OSError("Mock OS Error")
         try:
-            _safe_rmtree("dummy_path")
+            _safe_rmtree(str(d))
         except Exception as e:
             pytest.fail(f"_safe_rmtree raised an exception unexpectedly: {e}")
 
