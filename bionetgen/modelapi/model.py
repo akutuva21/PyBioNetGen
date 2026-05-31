@@ -74,7 +74,12 @@ class bngmodel:
     """
 
     def __init__(
-        self, bngl_model, BNGPATH=def_bng_path, generate_network=False, suppress=True
+        self,
+        bngl_model,
+        BNGPATH=def_bng_path,
+        generate_network=False,
+        suppress=True,
+        verbose=False,
     ):
         self.logger = BNGLogger(app=app)
         self.active_blocks = []
@@ -93,8 +98,12 @@ class bngmodel:
         ]
         self.model_name = ""
         self.model_path = bngl_model
+        self.verbose = verbose
         self.bngparser = BNGParser(
-            bngl_model, generate_network=generate_network, suppress=True
+            bngl_model,
+            generate_network=generate_network,
+            suppress=True,
+            verbose=self.verbose,
         )
         self.bngparser.parse_model(self)
         for block in self._block_order:
