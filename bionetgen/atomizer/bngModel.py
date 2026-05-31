@@ -366,7 +366,7 @@ class Function:
             ) and (oldrule != rule):
                 oldrule = rule
                 for x in functionList:
-                    rule = re.sub("({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
+                    rule = re.sub(r"({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
                 if rule == oldrule:
                     logMess("ERROR:TRS001", "Malformed pow or root function %s" % rule)
             return rule
@@ -719,41 +719,9 @@ class Function:
             self.time_flag = True
             defn = re.sub(r"(\W|^)(t)(\W|$)", r"\1TIME_\3", defn)
 
-        # old code for the same purpose
-        # defn = re.sub(r"(\W|^)(time)(\W|$)", r"\1time()\3", defn)
-        # defn = re.sub(r"(\W|^)(Time)(\W|$)", r"\1time()\3", defn)
-        # defn = re.sub(r"(\W|^)(t)(\W|$)", r"\1time()\3", defn)
-
         # remove true and false
         defn = re.sub(r"(\W|^)(true)(\W|$)", r"\1 1\3", defn)
         defn = re.sub(r"(\W|^)(false)(\W|$)", r"\1 0\3", defn)
-
-        # TODO: Make sure we don't need these
-        # dependencies2 = {}
-        # for idx in range(0, len(functions)):
-        #     dependencies2[functions[idx].split(' = ')[0].split('(')[0].strip()] = []
-        #     for key in artificialObservables:
-        #         oldfunc = functions[idx]
-        #         functions[idx] = (re.sub(r'(\W|^)({0})([^\w(]|$)'.format(key), r'\1\2()\3', functions[idx]))
-        #         if oldfunc != functions[idx]:
-        #             dependencies2[functions[idx].split(' = ')[0].split('(')[0]].append(key)
-        #     for element in sbmlfunctions:
-        #         oldfunc = functions[idx]
-        #         key = element.split(' = ')[0].split('(')[0]
-        #         if re.search('(\W|^){0}(\W|$)'.format(key), functions[idx].split(' = ')[1]) != None:
-        #             dependencies2[functions[idx].split(' = ')[0].split('(')[0]].append(key)
-        #     for element in tfunc:
-        #         key = element.split(' = ')[0].split('(')[0]
-        #         if key in functions[idx].split(' = ')[1]:
-        #             dependencies2[functions[idx].split( ' = ')[0].split('(')[0]].append(key)
-
-        # fd = []
-        # for function in functions:
-        #     # print(function, '---', dependencies2[function.split(' = ' )[0].split('(')[0]], '---', function.split(' = ' )[0].split('(')[0], 0)
-        #     fd.append([function, resolveDependencies(dependencies2, function.split(' = ' )[0].split('(')[0], 0)])
-        # fd = sorted(fd, key= lambda rule:rule[1])
-        # functions = [x[0] for x in fd]
-        # return functions
 
         # returning expanded definition
         return defn
@@ -828,10 +796,7 @@ class Rule:
                         react_str = str(react[0]) + "()"
                 # Apply stoichiometry
                 if float(react[1]).is_integer():
-                    for i in range(int(react[1])):
-                        if i > 0:
-                            txt += " + "
-                        txt += react_str
+                    txt += " + ".join([react_str] * int(react[1]))
                 else:
                     txt += str(react[1]) + " " + react_str
         # correct rxn arrow
@@ -876,10 +841,7 @@ class Rule:
                         prod_str = str(prod[0]) + "()"
                 # Apply stoichiometry
                 if float(prod[1]).is_integer():
-                    for i in range(int(prod[1])):
-                        if i > 0:
-                            txt += " + "
-                        txt += prod_str
+                    txt += " + ".join([prod_str] * int(prod[1]))
                 else:
                     txt += str(prod[1]) + " " + prod_str
         if self.reversible and len(self.rate_cts) == 2:
@@ -1218,15 +1180,14 @@ class bngModel:
                 # rule is an assignment rule
                 # let's first check parameters
                 if arule.Id in self.parameters:
-                    a_param = self.parameters[arule.Id]
-                    # if not a_param.cts:
+                    # if not self.parameters[arule.Id].cts:
                     # this means that one of our parameters
                     # is _not_ a constant and is modified by
                     # an assignment rule
-                    # TODO: Not sure if anything else
+                    # Note: Not sure if anything else
                     # can happen here. Confirm via SBML spec
-                    a_param = self.parameters.pop(arule.Id)
-                    # TODO: check if an initial value to
+                    self.parameters.pop(arule.Id)
+                    # Note: check if an initial value to
                     # a non-constant parameter is relevant?
                     # I think the only thing we need is to
                     # turn this into a function
@@ -1594,7 +1555,7 @@ class bngModel:
             # we are a split reaction and likely have fRate as our rate constant
             if "fRate" in rule.rate_cts[0]:
                 # we got the fRate in the definition, let's get the value
-                frate_search = re.search("fRate.+\(\)", rule.rate_cts[0])
+                frate_search = re.search(r"fRate.+\(\)", rule.rate_cts[0])
                 if frate_search:
                     frate_name = frate_search.group(0)
                     # we got the name

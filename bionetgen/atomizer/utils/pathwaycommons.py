@@ -182,7 +182,7 @@ def queryActiveSite(nameStr, organism):
                     "ERROR:MSC03", "A connection could not be established to uniprot"
                 )
         response = str(response)
-        if response in ["", None]:
+        if response in ("", None):
             url = "http://www.uniprot.org/uniprot/?"
             # ASS - Updating the query to conform with a regular RESTful API request and work in Python3
             xparams = {
@@ -240,7 +240,7 @@ def name2uniprot(nameStr, organism):
             logMess("ERROR:MSC03", "A connection could not be established to uniprot")
             return None
 
-    if response in ["", None]:
+    if response in ("", None):
         url = "http://www.uniprot.org/uniprot/?"
         d = {
             "query": f"{nameStr}",
