@@ -123,14 +123,14 @@ class AnnotationExtractor:
 
     def updateFromParent(self, child, parent, annotationDict):
         for annotationLabel in annotationDict[parent]:
-            if annotationLabel in ["BQB_IS_VERSION_OF", "BQB_IS"]:
+            if annotationLabel in {"BQB_IS_VERSION_OF", "BQB_IS"}:
                 annotationDict[child]["BQB_IS_VERSION_OF"] = annotationDict[parent][
                     annotationLabel
                 ]
 
     def updateFromChild(self, parent, child, annotationDict):
         for annotationLabel in annotationDict[child]:
-            if annotationLabel in ["BQB_IS_VERSION_OF", "BQB_IS"]:
+            if annotationLabel in {"BQB_IS_VERSION_OF", "BQB_IS"}:
                 annotationDict[parent]["BQB_HAS_VERSION"] = annotationDict[child][
                     annotationLabel
                 ]
@@ -145,7 +145,7 @@ class AnnotationExtractor:
             flag = False
             if len(annotationDict[constituentElement]) > 0:
                 for annotation in annotationDict[constituentElement]:
-                    if annotation in ["BQB_IS_VERSION_OF", "BQB_IS", "BQB_HAS_VERSION"]:
+                    if annotation in {"BQB_IS_VERSION_OF", "BQB_IS", "BQB_HAS_VERSION"}:
                         flag = True
                         for individualAnnotation in annotationDict[constituentElement][
                             annotation
@@ -166,7 +166,7 @@ class AnnotationExtractor:
                 unmatchedReactants.append(constituentElement)
 
         for annotationType in annotationDict[complexMolecule]:
-            if annotationType in ["BQB_HAS_VERSION", "BQB_HAS_PART"]:
+            if annotationType in {"BQB_HAS_VERSION", "BQB_HAS_PART"}:
                 for constituentAnnotation in annotationDict[complexMolecule][
                     annotationType
                 ]:
@@ -197,12 +197,12 @@ class AnnotationExtractor:
             flag = False
             if len(annotationDict[constituentElement]) > 0:
                 for annotation in annotationDict[constituentElement]:
-                    if annotation in [
+                    if annotation in {
                         "BQB_IS_VERSION_OF",
                         "BQB_IS",
                         "BQB_HAS_VERSION",
                         "BQB_HAS_PART",
-                    ]:
+                    }:
                         for individualAnnotation in annotationDict[constituentElement][
                             annotation
                         ]:

@@ -350,7 +350,7 @@ def bnglFunction(
         ) and (oldrule != rule):
             oldrule = rule
             for x in functionList:
-                rule = re.sub("({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
+                rule = re.sub(r"({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
             if rule == oldrule:
                 logMess("ERROR:TRS001", "Malformed pow or root function %s" % rule)
                 print("meep")
