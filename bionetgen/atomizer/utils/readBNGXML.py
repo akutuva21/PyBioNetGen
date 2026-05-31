@@ -29,7 +29,7 @@ def findBond(bondDefinitions, component):
 def createMolecule(molecule, bonds):
     nameDict = {}
     mol = st.Molecule(molecule.get("name"), molecule.get("id"))
-    if molecule.get("compartment") not in ["", None]:
+    if molecule.get("compartment") not in ("", None):
         mol.setCompartment(molecule.get("compartment"))
     nameDict[molecule.get("id")] = molecule.get("name")
     listOfComponents = molecule.find(

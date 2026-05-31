@@ -270,8 +270,9 @@ class ActionList:
             "print_functions",
             "netfile",
             "seed",
-            # `poplevel` and `check_product_scale` are arguments for the `psa`
+            # Note: `poplevel` and `check_product_scale` are arguments for the `psa`
             # method which is not documented in the Google Spreadsheet specification
+            # https://docs.google.com/spreadsheets/d/1Co0bPgMmOyAFxbYnGCmwKzoEsY2aUCMtJXQNpQCEUag/
             "poplevel",
             "check_product_scale",
         ]
