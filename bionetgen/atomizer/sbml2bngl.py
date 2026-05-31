@@ -2505,7 +2505,7 @@ class SBML2BNGL:
                         # TODO: if for whatever reason a rate rule
                         # was defined as a parameter that is not 0
                         # remove it. This might not be exact behavior
-                        if re.search("^{0}\s".format(rawArule[0]), element):
+                        if re.search(r"^{0}\s".format(rawArule[0]), element):
                             logMess(
                                 "WARNING:SIM106",
                                 "Parameter {0} corresponds both as a non zero parameter \
@@ -2686,7 +2686,7 @@ class SBML2BNGL:
             """
             elif rawArule[2] == True:
                 for parameter in parameters:
-                    if re.search('^{0}\s'.format(rawArule[0]),parameter):
+                    if re.search(r'^{0}\s'.format(rawArule[0]),parameter):
                         print '////',rawArule[0]
             """
             # we can't decide any of this here, we need the

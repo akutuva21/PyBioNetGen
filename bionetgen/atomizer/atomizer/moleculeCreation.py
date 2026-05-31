@@ -1071,9 +1071,6 @@ def updateSpecies(species, referenceMolecule):
                 count -= [x.name for x in moleculeStructure.components].count(
                     component.name
                 )
-                newComponent = st.Component(component.name)
-                # if len(component.states) > 0:
-                #    newComponent.addState('0')
                 if count > 0:
                     for _ in range(0, count):
                         # just make a copy of the reference component and set active state to 0
@@ -1082,8 +1079,9 @@ def updateSpecies(species, referenceMolecule):
                         moleculeStructure.addComponent(componentCopy)
                 elif count < 0:
                     for _ in range(0, -count):
-                        # FIXME: does not fully copy the states
-                        referenceMolecule.addComponent(deepcopy(newComponent))
+                        componentCopy = deepcopy(component)
+                        componentCopy.setActiveState("0")
+                        referenceMolecule.addComponent(componentCopy)
                         flag = True
                 elif count == 0:
                     localComponents = [
@@ -1115,16 +1113,16 @@ def updateSpecies(species, referenceMolecule):
                 count -= [x.name for x in moleculeStructure.components].count(
                     component.name
                 )
-                newComponent = st.Component(component.name)
-                if len(component.states) > 0:
-                    newComponent.addState(component.states[0])
-                    newComponent.addState("0")
                 if count > 0:
                     for idx in range(0, count):
-                        moleculeStructure.addComponent(deepcopy(newComponent))
+                        componentCopy = deepcopy(component)
+                        componentCopy.setActiveState("0")
+                        moleculeStructure.addComponent(componentCopy)
                 elif count < 0:
                     for idx in range(0, -count):
-                        referenceMolecule.addComponent(deepcopy(newComponent))
+                        componentCopy = deepcopy(component)
+                        componentCopy.setActiveState("0")
+                        referenceMolecule.addComponent(componentCopy)
                         flag = True
 
     return flag
