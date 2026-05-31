@@ -83,3 +83,26 @@ def test_pattern_zero_molecule():
     assert pat_obj.molecules[0].name == "0"
     assert len(pat_obj.molecules[0].components) == 0
     assert str(pat_obj) == "0"
+
+
+def test_parse_actions_exception():
+    from bionetgen.modelapi.bngparser import BNGParser
+    from bionetgen.core.exc import BNGParseError
+    from unittest.mock import MagicMock
+    import pytest
+
+    parser = BNGParser("tests/models/test.bngl")
+
+    # fake an action
+    parser.bngfile.parsed_actions = ['simulate({method=>"ode",t_end=>100,n_steps=>10})']
+
+    # mock the parseString
+    parser.alist.action_parser.parseString = MagicMock(
+        side_effect=Exception("mocked error")
+    )
+
+    model_obj_mock = MagicMock()
+    with pytest.raises(BNGParseError) as exc_info:
+        parser.parse_actions(model_obj_mock)
+
+    assert "Failed to parse action" in str(exc_info.value)

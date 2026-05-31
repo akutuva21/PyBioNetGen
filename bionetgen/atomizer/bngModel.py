@@ -366,7 +366,7 @@ class Function:
             ) and (oldrule != rule):
                 oldrule = rule
                 for x in functionList:
-                    rule = re.sub("({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
+                    rule = re.sub(r"({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
                 if rule == oldrule:
                     logMess("ERROR:TRS001", "Malformed pow or root function %s" % rule)
             return rule
@@ -828,10 +828,7 @@ class Rule:
                         react_str = str(react[0]) + "()"
                 # Apply stoichiometry
                 if float(react[1]).is_integer():
-                    for i in range(int(react[1])):
-                        if i > 0:
-                            txt += " + "
-                        txt += react_str
+                    txt += " + ".join([react_str] * int(react[1]))
                 else:
                     txt += str(react[1]) + " " + react_str
         # correct rxn arrow
@@ -876,10 +873,7 @@ class Rule:
                         prod_str = str(prod[0]) + "()"
                 # Apply stoichiometry
                 if float(prod[1]).is_integer():
-                    for i in range(int(prod[1])):
-                        if i > 0:
-                            txt += " + "
-                        txt += prod_str
+                    txt += " + ".join([prod_str] * int(prod[1]))
                 else:
                     txt += str(prod[1]) + " " + prod_str
         if self.reversible and len(self.rate_cts) == 2:
@@ -1594,7 +1588,7 @@ class bngModel:
             # we are a split reaction and likely have fRate as our rate constant
             if "fRate" in rule.rate_cts[0]:
                 # we got the fRate in the definition, let's get the value
-                frate_search = re.search("fRate.+\(\)", rule.rate_cts[0])
+                frate_search = re.search(r"fRate.+\(\)", rule.rate_cts[0])
                 if frate_search:
                     frate_name = frate_search.group(0)
                     # we got the name
