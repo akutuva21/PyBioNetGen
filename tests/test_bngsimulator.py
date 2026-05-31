@@ -33,3 +33,9 @@ def test_bngsimulator_simulate_not_implemented():
     sim = BNGSimulator()
     with pytest.raises(NotImplementedError):
         sim.simulate()
+
+
+def test_bngsimulator_simulate():
+    simulator = BNGSimulator()
+    with pytest.raises(NotImplementedError):
+        simulator.simulate()
