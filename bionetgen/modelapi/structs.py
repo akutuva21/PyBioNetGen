@@ -316,17 +316,26 @@ class Action(ModelObj):
         if self.type not in self.possible_types:
             raise BNGParseError(message=f"Action type {self.type} not recognized!")
         seen_args = []
-        for arg in action_args:
-            arg_name, arg_value = arg, action_args[arg]
-            valid_arg_list = AList.arg_dict[self.type]
-            # TODO: actions that don't take argument names should be parsed separately to check validity of arg-val tuples
-            # TODO: currently not type checking arguments
-            if valid_arg_list is None:
+        valid_arg_list = AList.arg_dict[self.type]
+        if valid_arg_list is None:
+            if len(action_args) > 0:
                 raise BNGParseError(
-                    message=f"Argument {arg_name} is given, but action {self.type} does not take arguments"
+                    message=f"Action {self.type} does not take arguments"
                 )
-            if len(valid_arg_list) > 0:
-                if arg_name not in AList.arg_dict[self.type]:
+        elif len(valid_arg_list) == 0:
+            for arg in action_args:
+                arg_name, arg_value = arg, action_args[arg]
+                if arg_name in seen_args:
+                    print(
+                        f"Warning: argument {arg_name} already given, using latter value {arg_value}"
+                    )
+                else:
+                    seen_args.append(arg_name)
+        else:
+            for arg in action_args:
+                arg_name, arg_value = arg, action_args[arg]
+                # TODO: currently not type checking arguments
+                if arg_name not in valid_arg_list:
                     raise BNGParseError(
                         message=f"Action argument {arg_name} not recognized!\nCheck to make sure action is correctly formatted"
                     )
@@ -352,12 +361,12 @@ class Action(ModelObj):
                             raise BNGParseError(
                                 message=f"Expected list for action argument {arg_name}, got {type(arg_value).__name__} instead."
                             )
-            if arg_name in seen_args:
-                print(
-                    f"Warning: argument {arg_name} already given, using latter value {arg_value}"
-                )
-            else:
-                seen_args.append(arg_name)
+                if arg_name in seen_args:
+                    print(
+                        f"Warning: argument {arg_name} already given, using latter value {arg_value}"
+                    )
+                else:
+                    seen_args.append(arg_name)
 
     def gen_string(self) -> str:
         # TODO: figure out every argument that has special
