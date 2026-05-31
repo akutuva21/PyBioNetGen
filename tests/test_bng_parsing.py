@@ -75,6 +75,16 @@ def test_pattern_canonicalization():
     assert res is True
 
 
+def test_pattern_zero_molecule():
+    from bionetgen.modelapi.pattern_reader import BNGPatternReader
+
+    pat_obj = BNGPatternReader("0").pattern
+    assert len(pat_obj.molecules) == 1
+    assert pat_obj.molecules[0].name == "0"
+    assert len(pat_obj.molecules[0].components) == 0
+    assert str(pat_obj) == "0"
+
+
 def test_parse_actions_exception():
     from bionetgen.modelapi.bngparser import BNGParser
     from bionetgen.core.exc import BNGParseError
