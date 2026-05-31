@@ -55,9 +55,12 @@ class ModelObj:
 
     @comment.setter
     def comment(self, val) -> None:
-        match = re.match(r"^\s*#(.*)", val)
-        if match:
-            self._comment = match.group(1)
+        if isinstance(val, str):
+            match = re.match(r"^\s*#(.*)", val)
+            if match:
+                self._comment = match.group(1)
+            else:
+                self._comment = val
         else:
             self._comment = val
 
