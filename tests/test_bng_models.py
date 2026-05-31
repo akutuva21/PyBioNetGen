@@ -12,6 +12,21 @@ def test_bionetgen_model():
     m = bng.bngmodel(fpath)
 
 
+def test_add_invalid_block():
+    fpath = os.path.join(tfold, "models", "test_synthesis_simple.bngl")
+    fpath = os.path.abspath(fpath)
+    m = bng.bngmodel(fpath)
+
+    class MockBlock:
+        name = "unsupported block"
+
+    with raises(
+        bng.core.exc.BNGModelError,
+        match="Block type unsupported_block is not supported.",
+    ):
+        m.add_block(MockBlock())
+
+
 def test_bionetgen_all_model_loading():
     # tests library model loading using many models
     mpattern = os.path.join(tfold, "models") + os.sep + "*.bngl"
