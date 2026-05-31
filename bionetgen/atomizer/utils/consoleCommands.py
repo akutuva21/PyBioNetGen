@@ -19,9 +19,9 @@ def getBngExecutable():
 
 def bngl2xml(bnglFile, timeout=60):
     import subprocess
-    import tempfile
     import sys
     import os
+    import tempfile
 
     script = """import bionetgen
 import sys
@@ -35,11 +35,10 @@ try:
 except Exception as e:
     sys.exit(1)
 """
-    fd, script_path = tempfile.mkstemp(suffix=".py")
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+        f.write(script)
+        script_path = f.name
     try:
-        with os.fdopen(fd, "w") as f:
-            f.write(script)
-
         xml_file = bnglFile.replace(".bngl", "_bngxml.xml")
 
         proc = subprocess.Popen([sys.executable, script_path, bnglFile])
@@ -53,9 +52,6 @@ except Exception as e:
             proc.communicate()
             if os.path.exists(xml_file):
                 os.remove(xml_file)
-    finally:
-        if os.path.exists(script_path):
-            try:
-                os.remove(script_path)
-            except OSError:
-                pass
+    except subprocess.TimeoutExpired:
+        if os.path.exists(xml_file):
+            os.remove(xml_file)

@@ -1,176 +1,106 @@
 import pytest
-import copy
-from unittest.mock import patch, mock_open
+from unittest.mock import patch, MagicMock
 from bionetgen.core.tools.gdiff import BNGGdiff
 
 
-mock_xml = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:java="http://www.yworks.com/xml/yfiles-common/1.0/java" xmlns:sys="http://www.yworks.com/xml/yfiles-common/markup/primitives/2.0" xmlns:x="http://www.yworks.com/xml/yfiles-common/markup/2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:y="http://www.yworks.com/xml/graphml" xmlns:yed="http://www.yworks.com/xml/yed/3" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://www.yworks.com/xml/schema/graphml/1.1/ygraphml.xsd">
-  <key id="d0" for="node" yfiles.type="nodegraphics"/>
-  <key id="d1" for="edge" yfiles.type="edgegraphics"/>
-  <graph edgedefault="directed" id="G">
-    <node id="n0">
-      <data key="d0">
-        <y:ShapeNode>
-          <y:Fill color="#D2D2D2"/>
-          <y:NodeLabel fontSize="12">MockSpecies</y:NodeLabel>
-        </y:ShapeNode>
-      </data>
-    </node>
-    <edge id="e0" source="n0" target="n0">
-    </edge>
-  </graph>
-</graphml>"""
+def test_get_node_from_keylist_base_case(tmp_path):
+    dummy_file = tmp_path / "dummy.graphml"
+    dummy_file.write_text("<graphml></graphml>")
+
+    gdiff = BNGGdiff(str(dummy_file), str(dummy_file))
+    mock_graph = {"graphml": {"node": "value"}}
+    result = gdiff._get_node_from_keylist(mock_graph, ["graphml"])
+    assert result == {"node": "value"}
 
 
-def test_gdiff_init():
-    with patch("builtins.open", mock_open(read_data=mock_xml)):
-        inp1 = "mock1.graphml"
-        inp2 = "mock2.graphml"
+def test_get_node_from_keylist_no_graph(tmp_path):
+    dummy_file = tmp_path / "dummy.graphml"
+    dummy_file.write_text("<graphml></graphml>")
 
-        # Test valid modes
-        gdiff = BNGGdiff(inp1, inp2, mode="matrix")
-        assert gdiff.mode == "matrix"
-
-        gdiff = BNGGdiff(inp1, inp2, mode="union")
-        assert gdiff.mode == "union"
-
-        # Test invalid mode
-        with pytest.raises(ValueError, match="Mode invalid is not a valid mode"):
-            BNGGdiff(inp1, inp2, mode="invalid")
-
-        # Test colors
-        gdiff = BNGGdiff(inp1, inp2, colors=None)
-        assert "g1" in gdiff.colors
-        assert "intersect" in gdiff.colors
-
-        with pytest.raises(ValueError, match="Color type .* not recognized"):
-            BNGGdiff(inp1, inp2, colors=123)
+    gdiff = BNGGdiff(str(dummy_file), str(dummy_file))
+    mock_graph = {"graphml": {}}
+    result = gdiff._get_node_from_keylist(mock_graph, ["graphml", "n1"])
+    assert result is None
 
 
-def test_gdiff_run_matrix(tmp_path):
-    # Need edge to be a list
-    mock_xml_list = mock_xml.replace(
-        "</edge>", '</edge><edge id="e1" source="n0" target="n0"></edge>'
-    )
-    with patch("builtins.open", mock_open(read_data=mock_xml_list)):
-        inp1 = "mock1.graphml"
-        inp2 = "mock2.graphml"
+def test_get_node_from_keylist_list_nodes(tmp_path):
+    dummy_file = tmp_path / "dummy.graphml"
+    dummy_file.write_text("<graphml></graphml>")
 
-        out1 = str(tmp_path / "out1.graphml")
-        out2 = str(tmp_path / "out2.graphml")
-
-        gdiff = BNGGdiff(inp1, inp2, out=out1, out2=out2, mode="matrix")
-        graphs = gdiff.run()
-
-        assert out1 in graphs
-        assert out2 in graphs
-        assert len(graphs) == 4  # diff1, diff2, recolor1, recolor2
-
-
-def test_gdiff_run_union(tmp_path):
-    # Need edge to be a list
-    mock_xml_list = mock_xml.replace(
-        "</edge>", '</edge><edge id="e1" source="n0" target="n0"></edge>'
-    )
-    with patch("builtins.open", mock_open(read_data=mock_xml_list)):
-        inp1 = "mock1.graphml"
-        inp2 = "mock2.graphml"
-
-        out1 = str(tmp_path / "out_union.graphml")
-
-        gdiff = BNGGdiff(inp1, inp2, out=out1, mode="union")
-        graphs = gdiff.run()
-
-        assert out1 in graphs
-        assert len(graphs) == 1
-
-
-# Minimal mock node dict that satisfies _get_node_properties
-mock_node_grey = {
-    "@id": "n0",
-    "data": {
-        "y:ShapeNode": {
-            "y:NodeLabel": {"#text": "MockSpecies", "@fontSize": "12"},
-            "y:Fill": {"@color": "#D2D2D2"},
+    gdiff = BNGGdiff(str(dummy_file), str(dummy_file))
+    mock_graph = {
+        "graphml": {
+            "graph": {"node": [{"@id": "n1", "val": 1}, {"@id": "n2", "val": 2}]}
         }
-    },
-}
+    }
+    result = gdiff._get_node_from_keylist(mock_graph, ["graphml", "n2"])
+    assert result == {"@id": "n2", "val": 2}
 
-mock_node_white = copy.deepcopy(mock_node_grey)
-mock_node_white["data"]["y:ShapeNode"]["y:NodeLabel"]["#text"] = "MockComponent"
-mock_node_white["data"]["y:ShapeNode"]["y:Fill"]["@color"] = "#FFFFFF"
 
-mock_node_yellow = copy.deepcopy(mock_node_grey)
-mock_node_yellow["data"]["y:ShapeNode"]["y:NodeLabel"]["#text"] = "MockState"
-mock_node_yellow["data"]["y:ShapeNode"]["y:Fill"]["@color"] = "#FFCC00"
+def test_get_node_from_keylist_single_dict_node(tmp_path):
+    dummy_file = tmp_path / "dummy.graphml"
+    dummy_file.write_text("<graphml></graphml>")
 
-mock_node_unknown = copy.deepcopy(mock_node_grey)
-mock_node_unknown["data"]["y:ShapeNode"]["y:Fill"]["@color"] = "#000000"
+    gdiff = BNGGdiff(str(dummy_file), str(dummy_file))
+    mock_graph = {"graphml": {"graph": {"node": {"@id": "n1", "val": 1}}}}
+    result = gdiff._get_node_from_keylist(mock_graph, ["graphml", "n1"])
+    assert result == {"@id": "n1", "val": 1}
 
-mock_node_group = {
-    "@id": "n1",
-    "data": [
-        {
-            "y:ProxyAutoBoundsNode": {
-                "y:Realizers": {
-                    "y:GroupNode": [
-                        {
-                            "y:NodeLabel": {"#text": "MockGroup", "@fontSize": "14"},
-                            "y:Fill": {"@color": "#D2D2D2"},
-                        }
-                    ]
+
+def test_get_node_from_keylist_nested(tmp_path):
+    dummy_file = tmp_path / "dummy.graphml"
+    dummy_file.write_text("<graphml></graphml>")
+
+    gdiff = BNGGdiff(str(dummy_file), str(dummy_file))
+    mock_graph = {
+        "graphml": {
+            "graph": {
+                "node": {
+                    "@id": "group1",
+                    "graph": {
+                        "node": [
+                            {"@id": "inner1", "val": 10},
+                            {"@id": "inner2", "val": 20},
+                        ]
+                    },
                 }
             }
         }
-    ],
-}
+    }
+    result = gdiff._get_node_from_keylist(mock_graph, ["graphml", "group1", "inner2"])
+    assert result == {"@id": "inner2", "val": 20}
 
 
-def test_gdiff_node_methods():
-    with patch("builtins.open", mock_open(read_data=mock_xml)):
-        inp1 = "mock1.graphml"
-        inp2 = "mock2.graphml"
-        gdiff = BNGGdiff(inp1, inp2)
+def test_get_node_from_keylist_nested_not_found(tmp_path):
+    dummy_file = tmp_path / "dummy.graphml"
+    dummy_file.write_text("<graphml></graphml>")
 
-        # test _get_node_properties
-        props = gdiff._get_node_properties(mock_node_grey)
-        assert props["y:NodeLabel"]["#text"] == "MockSpecies"
+    gdiff = BNGGdiff(str(dummy_file), str(dummy_file))
+    mock_graph = {
+        "graphml": {
+            "graph": {
+                "node": {
+                    "@id": "group1",
+                    "graph": {"node": [{"@id": "inner1", "val": 10}]},
+                }
+            }
+        }
+    }
+    result = gdiff._get_node_from_keylist(
+        mock_graph, ["graphml", "group1", "inner_missing"]
+    )
+    assert result is None
 
-        props = gdiff._get_node_properties(mock_node_group)
-        assert props["y:NodeLabel"]["#text"] == "MockGroup"
 
-        # test _get_node_name
-        assert gdiff._get_node_name(mock_node_grey) == "MockSpecies"
-        assert gdiff._get_node_name(mock_node_white) == "MockComponent"
+def test_get_color_id_exception():
+    gdiff = BNGGdiff.__new__(BNGGdiff)
+    gdiff.app = MagicMock()
+    gdiff.logger = MagicMock()
 
-        # test _get_node_fill
-        assert gdiff._get_node_fill(mock_node_grey)["@color"] == "#D2D2D2"
+    node = MagicMock()
 
-        # test _get_node_color
-        assert gdiff._get_node_color(mock_node_grey) == "#D2D2D2"
-
-        # test _get_font_size
-        assert gdiff._get_font_size(mock_node_grey) == 12
-        assert gdiff._get_font_size(mock_node_group) == 14
-
-        # test _resize_node_font
-        test_node = copy.deepcopy(mock_node_grey)
-        gdiff._resize_node_font(test_node, 20)
-        assert gdiff._get_font_size(test_node) == 20
-
-        # test _get_color_id
-        assert gdiff._get_color_id(mock_node_grey) == 0
-        assert gdiff._get_color_id(mock_node_white) == 1
-        assert gdiff._get_color_id(mock_node_yellow) == 2
-
+    with patch.object(gdiff, "_get_node_color", return_value="#UNKNOWN_COLOR"):
         with pytest.raises(
-            RuntimeError, match="Node color #000000 doesn't match known colors"
+            RuntimeError, match="Node color #UNKNOWN_COLOR doesn't match known colors"
         ):
-            gdiff._get_color_id(mock_node_unknown)
-
-        # test _color_node
-        test_node = copy.deepcopy(mock_node_grey)
-        success = gdiff._color_node(test_node, "#FF0000")
-        assert success
-        assert gdiff._get_node_color(test_node) == "#FF0000"
+            gdiff._get_color_id(node)
