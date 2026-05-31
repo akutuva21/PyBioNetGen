@@ -246,10 +246,8 @@ class NetworkReaction(NetworkObj):
         list of patterns for reactants
     products : list[Pattern]
         list of patterns for products
-    rule_mod : RuleMod
-        modifier (moveConnected, TotalRate, etc.) used by a given rule
-    operations : list[Operation]
-        list of operations
+    rate_constant : str
+        rate constant of the reaction
     """
 
     def __init__(
@@ -303,7 +301,7 @@ class NetworkEnergyPattern(NetworkObj):
 
 class NetworkPopulationMap(NetworkObj):
     """
-    Class for all population maps in the model, subclass of ModelObj.
+    Class for all population maps in the network, subclass of NetworkObj.
 
     In BNGL the population maps are of the form
         structured_species -> population_species lumping_parameter
@@ -312,9 +310,9 @@ class NetworkPopulationMap(NetworkObj):
     ----------
     name : str
         id of the population map
-    struct_species : Pattern
+    species : Pattern
         Pattern object representing the species to be mapped
-    pop_species : Pattern
+    population : Pattern
         Pattern object representing the population count
     rate : str
         lumping parameter used in population mapping

@@ -6,10 +6,10 @@ from bionetgen.core.tools import BNGCLI
 
 from bionetgen.core.defaults import BNGDefaults
 
-# This allows access to the CLIs config setup
 app = BioNetGen()
 app.setup()
 conf = app.config["bionetgen"]
+def_bng_path = conf["bngpath"]
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ def run(inp, out=None, suppress=False, timeout=None):
         try:
             # instantiate a CLI object with the info
             cli = BNGCLI(
-                inp, out_dir, conf["bngpath"], suppress=suppress, timeout=timeout
+                inp, out_dir, conf.bng_path, suppress=suppress, timeout=timeout
             )
             cli.run()
         except Exception as e:
@@ -57,7 +57,7 @@ def run(inp, out=None, suppress=False, timeout=None):
     else:
         try:
             # instantiate a CLI object with the info
-            cli = BNGCLI(inp, out, conf["bngpath"], suppress=suppress, timeout=timeout)
+            cli = BNGCLI(inp, out, conf.bng_path, suppress=suppress, timeout=timeout)
             cli.run()
         except Exception as e:
             logger.error("Couldn't run the simulation, see error")
