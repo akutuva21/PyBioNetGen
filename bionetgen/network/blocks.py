@@ -81,27 +81,22 @@ class NetworkBlock:
     def __contains__(self, key) -> bool:
         return key in self.items
 
-    # TODO: Think extensively how this is going to work
     def __setattr__(self, name, value) -> None:
-        changed = False
-        if hasattr(self, "items"):
-            if name in self.items.keys():
-                try:
-                    new_value = float(value)
-                    changed = True
-                    self.items[name] = new_value
-                except (ValueError, TypeError):
-                    self.items[name] = value
-                    changed = True
+        if hasattr(self, "items") and name in self.items:
+            try:
+                new_value = float(value)
+                self.items[name] = new_value
+            except (ValueError, TypeError):
+                self.items[name] = value
 
-                if changed:
-                    if hasattr(self, "_changes"):
-                        self._changes[name] = self.items[name]
-                    self.__dict__[name] = self.items[name]
-            else:
-                self.__dict__[name] = value
-        else:
-            self.__dict__[name] = value
+            if hasattr(self, "_changes"):
+                self._changes[name] = self.items[name]
+
+        self.__dict__[name] = (
+            self.items[name]
+            if (hasattr(self, "items") and name in self.items)
+            else value
+        )
 
     def gen_string(self) -> str:
         # each block can have a comment at the start
