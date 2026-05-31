@@ -1585,15 +1585,16 @@ class SBMLAnalyzer:
 
                 # greedymatching
 
-                acc = 0
                 # FIXME:its not properly copying all the string
                 for idx in range(0, len(matches) - 1):
+                    acc = 0
                     while (
-                        matches[idx][2] + acc < len(tmpRuleList[1][0])
-                        and tmpRuleList[1][0][matches[idx][2] + acc] in sym
+                        matches[idx][1] + matches[idx][2] + acc < len(tmpRuleList[1][0])
+                        and tmpRuleList[1][0][matches[idx][1] + matches[idx][2] + acc]
+                        in sym
                     ):
                         productPartitions[idx] += tmpRuleList[1][0][
-                            matches[idx][2] + acc
+                            matches[idx][1] + matches[idx][2] + acc
                         ]
                         acc += 1
 
