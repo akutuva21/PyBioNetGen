@@ -95,3 +95,26 @@ def test_extract_odes_unsupported_rate_law(tmp_path):
     """)
     with pytest.raises(NotImplementedError, match="not yet supported by writeMexfile"):
         extract_odes_from_mexfile(str(mex_c))
+
+
+from bionetgen.modelapi.sympy_odes import _extract_function_body
+
+
+def test_extract_function_body_normal():
+    text = "void myfunc() {\n  body text;\n}\n"
+    assert _extract_function_body(text, "myfunc") == "\n  body text;\n"
+
+
+def test_extract_function_body_missing_brace():
+    text = "void myfunc() {\n  body text;\n"
+    assert _extract_function_body(text, "myfunc") == ""
+
+
+def test_extract_function_body_nested_braces():
+    text = "void myfunc() {\n  if (1) { body; }\n}\n"
+    assert _extract_function_body(text, "myfunc") == "\n  if (1) { body; }\n"
+
+
+def test_extract_function_body_not_found():
+    text = "void otherfunc() {\n  body text;\n}\n"
+    assert _extract_function_body(text, "myfunc") == ""

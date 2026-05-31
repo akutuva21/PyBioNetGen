@@ -828,10 +828,7 @@ class Rule:
                         react_str = str(react[0]) + "()"
                 # Apply stoichiometry
                 if float(react[1]).is_integer():
-                    for i in range(int(react[1])):
-                        if i > 0:
-                            txt += " + "
-                        txt += react_str
+                    txt += " + ".join([react_str] * int(react[1]))
                 else:
                     txt += str(react[1]) + " " + react_str
         # correct rxn arrow
@@ -876,10 +873,7 @@ class Rule:
                         prod_str = str(prod[0]) + "()"
                 # Apply stoichiometry
                 if float(prod[1]).is_integer():
-                    for i in range(int(prod[1])):
-                        if i > 0:
-                            txt += " + "
-                        txt += prod_str
+                    txt += " + ".join([prod_str] * int(prod[1]))
                 else:
                     txt += str(prod[1]) + " " + prod_str
         if self.reversible and len(self.rate_cts) == 2:

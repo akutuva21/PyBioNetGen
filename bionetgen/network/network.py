@@ -237,8 +237,5 @@ class Network:
         """
         write the model to file
         """
-        model_str = ""
-        for block in self.active_blocks:
-            model_str += str(getattr(self, block))
         with open(file_name, "w") as f:
-            f.write(model_str)
+            f.write("".join(str(getattr(self, block)) for block in self.active_blocks))
