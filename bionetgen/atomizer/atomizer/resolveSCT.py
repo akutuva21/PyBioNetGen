@@ -364,7 +364,7 @@ class SCTSolver:
             for reaction, classification in zip(rules, self.database.classifications):
                 preaction = list(atoAux.parseReactions(reaction))
                 if len(preaction[0]) == 1 and len(preaction[1]) == 1:
-                    if (preaction[0][0] in [0, "0"]) or (preaction[1][0] in [0, "0"]):
+                    if (preaction[0][0] in (0, "0")) or (preaction[1][0] in (0, "0")):
                         continue
                     if preaction[1][0].lower() in preaction[0][0].lower() or len(
                         preaction[1][0]
