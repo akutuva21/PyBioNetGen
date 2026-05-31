@@ -50,8 +50,10 @@ class BNGParser:
         parse_actions=True,
         generate_network=False,
         suppress=True,
+        verbose=False,
     ) -> None:
         self.to_parse_actions = parse_actions
+        self.verbose = verbose
         self.bngfile = BNGFile(path, generate_network=generate_network, suppress=True)
         self.alist = ActionList()
         self.alist.define_parser()
@@ -76,11 +78,12 @@ class BNGParser:
         # this route runs BNG2.pl on the bngl and parses
         # the XML instead
         if model_file.endswith(".bngl"):
-            # TODO: Add verbosity option to the library
-            # print("Attempting to generate XML")
+            if self.verbose:
+                print("Attempting to generate XML")
             with TemporaryFile("w+") as xml_file:
                 if self.bngfile.generate_xml(xml_file):
-                    # TODO: Add verbosity option to the library
+                    if self.verbose:
+                        print("Parsing XML")
                     xmlstr = xml_file.read()
                     # < is not a valid XML character, we need to replace it
                     xmlstr = xmlstr.replace('relation="<', 'relation="&lt;')
@@ -343,5 +346,5 @@ class BNGParser:
                     xml_parser = PopulationMapBlockXML(pms)
                     model_obj.add_block(xml_parser.parsed_obj)
         # And that's the end of parsing
-        # TODO: Add verbosity option to the library
-        # print("Parsing complete")
+        if self.verbose:
+            print("Parsing complete")
