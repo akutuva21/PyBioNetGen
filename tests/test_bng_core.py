@@ -105,7 +105,8 @@ def test_plotDAT_invalid_input():
     app_mock.log.error.assert_called_once()
 
 
-def test_plotDAT_current_folder():
+@patch("bionetgen.core.tools.BNGPlotter")
+def test_plotDAT_current_folder(MockBNGPlotter):
     from unittest.mock import patch
     from unittest.mock import MagicMock
     from bionetgen.core.main import plotDAT
