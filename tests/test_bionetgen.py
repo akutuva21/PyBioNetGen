@@ -59,7 +59,7 @@ def test_bionetgen_plot():
 
 
 def test_bionetgen_model():
-    fpath = os.path.join(tfold, "test.bngl")
+    fpath = os.path.join(tfold, "models", "test_synthesis_simple.bngl")
     fpath = os.path.abspath(fpath)
     m = bng.bngmodel(fpath)
 
