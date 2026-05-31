@@ -330,7 +330,28 @@ class Action(ModelObj):
                     raise BNGParseError(
                         message=f"Action argument {arg_name} not recognized!\nCheck to make sure action is correctly formatted"
                     )
-                # TODO: If arg_value is the correct type
+                if arg_name in AList.irregular_args:
+                    arg_type = AList.irregular_args[arg_name]
+                    if arg_type == "dict":
+                        is_valid = isinstance(arg_value, dict) or (
+                            isinstance(arg_value, str)
+                            and arg_value.startswith("{")
+                            and arg_value.endswith("}")
+                        )
+                        if not is_valid:
+                            raise BNGParseError(
+                                message=f"Expected dictionary for action argument {arg_name}, got {type(arg_value).__name__} instead."
+                            )
+                    elif arg_type == "list":
+                        is_valid = isinstance(arg_value, list) or (
+                            isinstance(arg_value, str)
+                            and arg_value.startswith("[")
+                            and arg_value.endswith("]")
+                        )
+                        if not is_valid:
+                            raise BNGParseError(
+                                message=f"Expected list for action argument {arg_name}, got {type(arg_value).__name__} instead."
+                            )
             if arg_name in seen_args:
                 print(
                     f"Warning: argument {arg_name} already given, using latter value {arg_value}"
