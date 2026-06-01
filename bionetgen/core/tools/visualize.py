@@ -1,6 +1,8 @@
 import os, bionetgen, glob
 from tempfile import TemporaryDirectory
+from typing import NoReturn, Optional
 
+from bionetgen.core.exc import BNGError, BNGFileError
 from bionetgen.core.utils.logging import BNGLogger
 
 
@@ -135,7 +137,7 @@ class BNGVisualize:
         self.logger.debug("Running", loc=f"{__file__} : BNGVisualize.run()")
         return self._normal_mode()
 
-    def _normal_mode(self):
+    def _normal_mode(self) -> VisResult:
         self.logger.debug(
             f"Running on normal mode, loading model {self.input}",
             loc=f"{__file__} : BNGVisualize._normal_mode()",
@@ -177,46 +179,55 @@ class BNGVisualize:
             loc=f"{__file__} : BNGVisualize._normal_mode()",
         )
 
+        if self.output is None:
+            with TemporaryDirectory() as out:
+                # instantiate a CLI object with the info
+                cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
+                return self._run_and_collect_vis(
+                    cli,
+                    model_name=model.model_name,
+                    cur_dir=cur_dir,
+                    dump_dir=cur_dir,
+                )
+
+        # instantiate a CLI object with the info
+        cli = BNGCLI(model, self.output, self.bngpath, suppress=self.suppress)
+        return self._run_and_collect_vis(
+            cli,
+            model_name=model.model_name,
+            cur_dir=cur_dir,
+        )
+
+    def _run_and_collect_vis(
+        self, cli, *, model_name: str, cur_dir: str, dump_dir: Optional[str] = None
+    ) -> VisResult:
         try:
-            # We don't use TemporaryDirectory as a context manager because on Windows
-            # os.chdir(out) followed by an exception and cleanup may lead to PermissionError.
-            # So we create and explicitly clean it up.
-            import tempfile
-            import shutil
-
-            out = tempfile.mkdtemp(prefix="bngviz_")
-            os.chdir(out)
-
-            # instantiate a CLI object with the info
-            cli = BNGCLI(model, out, self.bngpath, suppress=self.suppress)
             cli.run()
-
-            # load vis
             vis_res = VisResult(
-                os.path.abspath(out),
-                name=model.model_name,
+                os.path.abspath(os.getcwd()),
+                name=model_name,
                 vtype=self.vtype,
             )
-
-            # dump files
-            if self.output is None:
-                vis_res._dump_files(cur_dir)
-            else:
-                if not os.path.isdir(self.output):
-                    os.makedirs(self.output, exist_ok=True)
-                vis_res._dump_files(os.path.abspath(self.output))
-
+            if dump_dir is not None:
+                vis_res._dump_files(dump_dir)
             return vis_res
-        except Exception as e:
-            self.logger.error(
-                "Failed to run file",
-                loc=f"{__file__} : BNGVisualize._normal_mode()",
-            )
-            print("Couldn't run the simulation, see error.")
-            raise e
+        except BNGError as exc:
+            self._log_visualization_failure(exc)
+            raise
+        except OSError as exc:
+            self._raise_visualization_file_error(exc)
         finally:
             os.chdir(cur_dir)
-            try:
-                shutil.rmtree(out)
-            except:
-                pass
+
+    def _log_visualization_failure(self, exc: BaseException) -> None:
+        self.logger.error(
+            f"Failed to generate visualization files: {exc}",
+            loc=f"{__file__} : BNGVisualize._normal_mode()",
+        )
+
+    def _raise_visualization_file_error(self, exc: OSError) -> NoReturn:
+        self._log_visualization_failure(exc)
+        raise BNGFileError(
+            self.input,
+            message=f"Failed to generate visualization files: {exc}",
+        ) from exc

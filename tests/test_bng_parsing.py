@@ -82,3 +82,37 @@ def test_zero_molecule_parsing():
     assert len(pat_obj.molecules) == 1
     assert len(pat_obj.molecules[0].components) == 0
     assert str(pat_obj) == "0"
+
+
+def test_action_normalization_drops_stray_backslashes_outside_quotes():
+    from bionetgen.modelapi.bngparser import _normalize_action_text
+
+    out = _normalize_action_text(
+        'parameter_scan({n_scan_pts=>101,\\log_scale=>1,method=>"ode"})'
+    )
+    assert "\\" not in out
+    assert "log_scale=>1" in out
+
+
+def test_action_normalization_preserves_backslashes_inside_quotes():
+    from bionetgen.modelapi.bngparser import _normalize_action_text
+
+    out = _normalize_action_text('action({arg=>"a\\b"})')
+    assert '"a\\b"' in out
+
+
+def test_action_normalization_collapses_unquoted_double_commas():
+    from bionetgen.modelapi.bngparser import _normalize_action_text
+
+    out = _normalize_action_text(
+        'simulate({method=>"ode",t_end=>3000,n_steps=>20,,print_functions=>1})'
+    )
+    assert ",," not in out
+    assert ",n_steps=>20,print_functions=>1" in out
+
+
+def test_action_normalization_preserves_double_commas_inside_quotes():
+    from bionetgen.modelapi.bngparser import _normalize_action_text
+
+    out = _normalize_action_text('something({xs=>"0,,1,,2"})')
+    assert '"0,,1,,2"' in out

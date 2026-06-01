@@ -2,9 +2,11 @@ import glob
 import os, re
 import shutil
 import tempfile
+from typing import NoReturn
 
 from bionetgen.main import BioNetGen
 from bionetgen.core.exc import BNGFileError
+from bionetgen.core.utils.logging import BNGLogger
 from bionetgen.core.utils.utils import find_BNG_path, run_command, ActionList
 
 # This allows access to the CLIs config setup
@@ -46,6 +48,7 @@ class BNGFile:
         self, path, BNGPATH=def_bng_path, generate_network=False, suppress=True
     ) -> None:
         self.path = path
+        self.logger = BNGLogger()
         self.generate_network = generate_network
         self.suppress = suppress
         AList = ActionList()
@@ -54,6 +57,16 @@ class BNGFile:
         self.BNGPATH = BNGPATH
         self.bngexec = bngexec
         self.parsed_actions = []
+        # Actions that live inside a ``begin protocol``/``end protocol``
+        # block, stored separately from top-level actions so BNGParser can
+        # round-trip them into a ProtocolBlock instead of folding them into
+        # the top-level ActionBlock.
+        self.parsed_protocol_actions = []
+
+    def _raise_file_error(self, message, path=None, loc=None) -> NoReturn:
+        error_path = self.path if path is None else path
+        self.logger.error(message, loc=loc)
+        raise BNGFileError(error_path, message=message)
 
     def generate_xml(self, xml_file, model_file=None) -> bool:
         """
@@ -83,7 +96,12 @@ class BNGFile:
                 cwd=temp_folder,
             )
             if rc != 0:
-                return False
+                msg = f"BNG-XML generation failed for {model_file}"
+                self._raise_file_error(
+                    msg,
+                    path=model_file,
+                    loc=f"{__file__} : BNGFile.generate_xml()",
+                )
 
             # we should now have the XML file
             path, model_name = os.path.split(stripped_bngl)
@@ -100,7 +118,12 @@ class BNGFile:
                     ]
                     xml_path = preferred[0] if preferred else candidates[0]
             if not os.path.exists(xml_path):
-                return False
+                msg = f"BNG-XML generation did not produce an XML file for {model_file}"
+                self._raise_file_error(
+                    msg,
+                    path=model_file,
+                    loc=f"{__file__} : BNGFile.generate_xml()",
+                )
             with open(xml_path, "r", encoding="UTF-8") as f:
                 content = f.read()
                 xml_file.write(content)
@@ -152,19 +175,55 @@ class BNGFile:
         with open(model_path, "r", encoding="UTF-8") as mf:
             # read and strip actions
             mstr = mf.read()
-            # this removes any new line escapes (\ \n) to continue
-            # to another line, so we can just remove the action lines
-            mstr = re.sub(r"\\\n", "", mstr)
+            # Collapse `\<newline>` line continuations before stripping
+            # action lines, so the action parser sees the same logical
+            # command boundaries as BNG.
+            #
+            # Only collapse `\` that appears before any `#` on its line.
+            # A continuation marker after the comment introducer is part
+            # of the comment body in BNG2.pl — collapsing it would glue
+            # the next physical line (often a real definition) into the
+            # comment, dropping it from the model. Repro: a commented-out
+            # `# foo()=if(t<42,0,\` immediately above a live
+            # `foo()=if(t<42,9.899,\` definition would silently lose the
+            # live function from the regenerated `.bngl` (and from any
+            # `.net` BNG2.pl generated downstream).
+            #
+            # BNG2.pl also tolerates trailing whitespace between the `\`
+            # and the newline (e.g. `method=>"ode",\<space><newline>` is
+            # valid BNGL); accept the same shape here.
+            mstr = re.sub(r"^([^#\n]*)\\[ \t]*\n", r"\1", mstr, flags=re.MULTILINE)
             mlines = mstr.split("\n")
-
-            stripped_lines = []
+            # Walk the lines once, separating non-action content (kept in the
+            # stripped output for BNG2.pl) from action-shaped lines, and
+            # further splitting action-shaped lines based on whether they sit
+            # inside a ``begin protocol``/``end protocol`` block. Protocol
+            # actions are tracked separately so BNGParser can round-trip them
+            # into a ProtocolBlock instead of the top-level ActionBlock.
             self.parsed_actions = []
+            self.parsed_protocol_actions = []
+            stripped_lines = []
+            in_protocol = False
             for line in mlines:
+                if re.match(r"\s*(begin)\s+(protocol)\b", line):
+                    in_protocol = True
+                    stripped_lines.append(line)
+                    continue
+                if re.match(r"\s*(end)\s+(protocol)\b", line):
+                    in_protocol = False
+                    stripped_lines.append(line)
+                    continue
                 if self._not_action(line):
                     stripped_lines.append(line)
+                    continue
+                # Hand the action line off to BNGParser intact — quoted
+                # spans (e.g. ``param=>"-v -gml 1000000"``) need to survive
+                # the whitespace-collapse pass, which `_normalize_action_text`
+                # does in a quote-aware way.
+                if in_protocol:
+                    self.parsed_protocol_actions.append(line)
                 else:
-                    self.parsed_actions.append(line.replace(" ", ""))
-
+                    self.parsed_actions.append(line)
             # let's remove begin/end actions, rarely used but should be removed
             remove_from = -1
             remove_to = -1
@@ -196,8 +255,14 @@ class BNGFile:
         return stripped_model
 
     def _not_action(self, line) -> bool:
+        # Anchor the match to the start of the (left-stripped) line so that
+        # user identifiers containing an action name as a substring — most
+        # commonly ``conversion()`` (the substring ``version(`` matches the
+        # ``version`` action) inside a ``begin functions`` block — aren't
+        # misclassified and pulled out as actions.
+        stripped = line.lstrip()
         for action in self._action_list:
-            if action in line:
+            if stripped.startswith(action):
                 return False
         return True
 
@@ -222,22 +287,24 @@ class BNGFile:
             # Output suppression is handled downstream by self.suppress
             if xml_type == "bngxml":
                 if self.bngexec is None:
-                    return self._generate_minimal_xml(
-                        open_file, "temp.bngl"
-                    )  # no need to chdir here, handled by finally block
+                    msg = "BNG-XML generation requires BNG2.pl (BioNetGen) to be installed."
+                    self._raise_file_error(msg, loc=f"{__file__} : BNGFile.write_xml()")
                 rc, _ = run_command(
                     ["perl", self.bngexec, "--xml", "temp.bngl"],
                     suppress=self.suppress,
                     cwd=temp_folder,
                 )
                 if rc != 0:
-                    print("XML generation failed")
-                    return False
+                    msg = f"BNG-XML generation failed for {self.path}"
+                    self._raise_file_error(msg, loc=f"{__file__} : BNGFile.write_xml()")
                 else:
                     # we should now have the XML file
-                    with open(
-                        os.path.join(temp_folder, "temp.xml"), "r", encoding="UTF-8"
-                    ) as f:
+                    if not os.path.exists("temp.xml"):
+                        msg = "BNG-XML generation did not produce temp.xml"
+                        self._raise_file_error(
+                            msg, loc=f"{__file__} : BNGFile.write_xml()"
+                        )
+                    with open("temp.xml", "r", encoding="UTF-8") as f:
                         content = f.read()
                         open_file.write(content)
                     # go back to beginning
@@ -245,29 +312,30 @@ class BNGFile:
                     return True
             elif xml_type == "sbml":
                 if self.bngexec is None:
-                    print(
+                    msg = (
                         "SBML generation requires BNG2.pl (BioNetGen) to be installed."
                     )
-                    return False
+                    self._raise_file_error(msg, loc=f"{__file__} : BNGFile.write_xml()")
                 command = ["perl", self.bngexec, "temp.bngl"]
                 rc, _ = run_command(command, suppress=self.suppress, cwd=temp_folder)
                 if rc != 0:
-                    print("SBML generation failed")
-                    return False
+                    msg = f"SBML generation failed for {self.path}"
+                    self._raise_file_error(msg, loc=f"{__file__} : BNGFile.write_xml()")
                 else:
                     # we should now have the SBML file
-                    with open(
-                        os.path.join(temp_folder, "temp_sbml.xml"),
-                        "r",
-                        encoding="UTF-8",
-                    ) as f:
+                    if not os.path.exists("temp_sbml.xml"):
+                        msg = "SBML generation did not produce temp_sbml.xml"
+                        self._raise_file_error(
+                            msg, loc=f"{__file__} : BNGFile.write_xml()"
+                        )
+                    with open("temp_sbml.xml", "r", encoding="UTF-8") as f:
                         content = f.read()
                         open_file.write(content)
                     open_file.seek(0)
                     return True
             else:
-                print("XML type {} not recognized".format(xml_type))
-                return False
+                msg = f"XML type {xml_type} not recognized"
+                self._raise_file_error(msg, loc=f"{__file__} : BNGFile.write_xml()")
         finally:
             try:
                 shutil.rmtree(temp_folder)

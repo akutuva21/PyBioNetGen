@@ -1,123 +1,195 @@
+import copy
+import json
+from unittest import mock
+
 import pytest
-from unittest.mock import patch, MagicMock
+import xmltodict
+
+from bionetgen.core.exc import BNGFileError
 from bionetgen.core.tools.gdiff import BNGGdiff
 
 
-def test_color_node_success():
-    gdiff = BNGGdiff.__new__(BNGGdiff)
-    node = {"data": {"y:ShapeNode": {"y:Fill": {"@color": "#000000"}}}}
-    result = gdiff._color_node(node, "#FFFFFF")
-    assert result is True
-    assert node["data"]["y:ShapeNode"]["y:Fill"]["@color"] == "#FFFFFF"
-
-
-def test_color_node_failure(capsys):
-    gdiff = BNGGdiff.__new__(BNGGdiff)
-    node = {"data": {}}
-    result = gdiff._color_node(node, "#FFFFFF")
-    assert result is False
-    captured = capsys.readouterr()
-    assert "Couldn't color node, error" in captured.out
-
-
-def test_get_node_from_keylist_base_case(tmp_path):
-    dummy_file = tmp_path / "dummy.graphml"
-    dummy_file.write_text("<graphml></graphml>")
-
-    gdiff = BNGGdiff(str(dummy_file), str(dummy_file))
-    mock_graph = {"graphml": {"node": "value"}}
-    result = gdiff._get_node_from_keylist(mock_graph, ["graphml"])
-    assert result == {"node": "value"}
-
-
-def test_get_node_from_keylist_no_graph(tmp_path):
-    dummy_file = tmp_path / "dummy.graphml"
-    dummy_file.write_text("<graphml></graphml>")
-
-    gdiff = BNGGdiff(str(dummy_file), str(dummy_file))
-    mock_graph = {"graphml": {}}
-    result = gdiff._get_node_from_keylist(mock_graph, ["graphml", "n1"])
-    assert result is None
-
-
-def test_get_node_from_keylist_list_nodes(tmp_path):
-    dummy_file = tmp_path / "dummy.graphml"
-    dummy_file.write_text("<graphml></graphml>")
-
-    gdiff = BNGGdiff(str(dummy_file), str(dummy_file))
-    mock_graph = {
-        "graphml": {
-            "graph": {"node": [{"@id": "n1", "val": 1}, {"@id": "n2", "val": 2}]}
-        }
+def _make_shape_node(name, color, node_id, font_size="12"):
+    return {
+        "@id": node_id,
+        "data": {
+            "@key": "d6",
+            "y:ShapeNode": {
+                "y:Geometry": {"@height": "30", "@width": "30"},
+                "y:Fill": {"@color": color, "@transparent": "false"},
+                "y:NodeLabel": {"#text": name, "@fontSize": font_size},
+            },
+        },
     }
-    result = gdiff._get_node_from_keylist(mock_graph, ["graphml", "n2"])
-    assert result == {"@id": "n2", "val": 2}
 
 
-def test_get_node_from_keylist_single_dict_node(tmp_path):
-    dummy_file = tmp_path / "dummy.graphml"
-    dummy_file.write_text("<graphml></graphml>")
+def _make_group_node(name, color, node_id, children, font_size="12"):
+    child_nodes = children if len(children) != 1 else children[0]
+    return {
+        "@id": node_id,
+        "data": [
+            {"@key": "d4"},
+            {
+                "@key": "d6",
+                "y:ProxyAutoBoundsNode": {
+                    "y:Realizers": {
+                        "y:GroupNode": {
+                            "y:Geometry": {"@height": "80", "@width": "120"},
+                            "y:Fill": {"@color": color, "@transparent": "false"},
+                            "y:NodeLabel": {"#text": name, "@fontSize": font_size},
+                        }
+                    }
+                },
+            },
+        ],
+        "graph": {"@id": node_id + ":", "node": child_nodes},
+    }
 
-    gdiff = BNGGdiff(str(dummy_file), str(dummy_file))
-    mock_graph = {"graphml": {"graph": {"node": {"@id": "n1", "val": 1}}}}
-    result = gdiff._get_node_from_keylist(mock_graph, ["graphml", "n1"])
-    assert result == {"@id": "n1", "val": 1}
+
+def _make_edge(edge_id, source, target):
+    return {
+        "@id": edge_id,
+        "@source": source,
+        "@target": target,
+        "data": {"@key": "d10"},
+    }
 
 
-def test_get_node_from_keylist_nested(tmp_path):
-    dummy_file = tmp_path / "dummy.graphml"
-    dummy_file.write_text("<graphml></graphml>")
-
-    gdiff = BNGGdiff(str(dummy_file), str(dummy_file))
-    mock_graph = {
+def _make_graphml(nodes, edges):
+    return {
         "graphml": {
+            "@xmlns": "http://graphml.graphstruct.org/graphml",
             "graph": {
-                "node": {
-                    "@id": "group1",
-                    "graph": {
-                        "node": [
-                            {"@id": "inner1", "val": 10},
-                            {"@id": "inner2", "val": 20},
-                        ]
-                    },
-                }
-            }
+                "@id": "G",
+                "@edgedefault": "undirected",
+                "node": nodes,
+                "edge": edges,
+            },
         }
     }
-    result = gdiff._get_node_from_keylist(mock_graph, ["graphml", "group1", "inner2"])
-    assert result == {"@id": "inner2", "val": 20}
 
 
-def test_get_node_from_keylist_nested_not_found(tmp_path):
-    dummy_file = tmp_path / "dummy.graphml"
-    dummy_file.write_text("<graphml></graphml>")
+def _write_graphml(path, graph):
+    with open(path, "w") as handle:
+        xmltodict.unparse(graph, output=handle, pretty=True)
 
-    gdiff = BNGGdiff(str(dummy_file), str(dummy_file))
-    mock_graph = {
-        "graphml": {
-            "graph": {
-                "node": {
-                    "@id": "group1",
-                    "graph": {"node": [{"@id": "inner1", "val": 10}]},
-                }
-            }
-        }
+
+def _read_graphml(path):
+    with open(path, "r") as handle:
+        return xmltodict.parse(handle.read(), force_list=("node", "edge"))
+
+
+GRAPH1 = _make_graphml(
+    [
+        _make_group_node(
+            "A",
+            "#D2D2D2",
+            "n0",
+            [
+                _make_shape_node("a1", "#FFFFFF", "n0::n0"),
+                _make_shape_node("a2", "#FFFFFF", "n0::n1"),
+            ],
+        ),
+        _make_group_node(
+            "B",
+            "#D2D2D2",
+            "n1",
+            [_make_shape_node("b1", "#FFFFFF", "n1::n0")],
+        ),
+    ],
+    [
+        _make_edge("e0", "n0::n0", "n1::n0"),
+        _make_edge("e1", "n0::n1", "n1::n0"),
+    ],
+)
+
+GRAPH2 = _make_graphml(
+    [
+        _make_group_node(
+            "A",
+            "#D2D2D2",
+            "n0",
+            [_make_shape_node("a1", "#FFFFFF", "n0::n0")],
+        ),
+        _make_group_node(
+            "C",
+            "#D2D2D2",
+            "n1",
+            [_make_shape_node("c1", "#FFFFFF", "n1::n0")],
+        ),
+    ],
+    [
+        _make_edge("e0", "n0::n0", "n1::n0"),
+        _make_edge("e1", "n1::n0", "n0::n0"),
+    ],
+)
+
+
+def _make_gdiff(path1, path2):
+    obj = BNGGdiff.__new__(BNGGdiff)
+    from bionetgen.core.utils.logging import BNGLogger
+
+    obj.app = None
+    obj.logger = BNGLogger(app=None)
+    obj.input = path1
+    obj.input2 = path2
+    obj.output = None
+    obj.output2 = None
+    obj.colors = {
+        "g1": ["#dadbfd", "#e6e7fe", "#f3f3ff"],
+        "g2": ["#ff9e81", "#ffbfaa", "#ffdfd4"],
+        "intersect": ["#c4ed9e", "#d9f4be", "#ecf9df"],
     }
-    result = gdiff._get_node_from_keylist(
-        mock_graph, ["graphml", "group1", "inner_missing"]
-    )
-    assert result is None
+    obj.available_modes = ["matrix", "union"]
+    obj.mode = "matrix"
+    obj.gdict_1 = _read_graphml(path1)
+    obj.gdict_2 = _read_graphml(path2)
+    return obj
 
 
-def test_get_color_id_exception():
-    gdiff = BNGGdiff.__new__(BNGGdiff)
-    gdiff.app = MagicMock()
-    gdiff.logger = MagicMock()
+@pytest.fixture
+def gdiff_obj(tmp_path):
+    path1 = tmp_path / "g1.graphml"
+    path2 = tmp_path / "g2.graphml"
+    _write_graphml(path1, copy.deepcopy(GRAPH1))
+    _write_graphml(path2, copy.deepcopy(GRAPH2))
+    return _make_gdiff(str(path1), str(path2))
 
-    node = MagicMock()
 
-    with patch.object(gdiff, "_get_node_color", return_value="#UNKNOWN_COLOR"):
+def test_get_color_id_unknown_raises_bng_file_error(gdiff_obj):
+    node = _make_shape_node("x", "#123456", "n0")
+    with pytest.raises(
+        BNGFileError, match="doesn't match known BioNetGen contact-map colors"
+    ):
+        gdiff_obj._get_color_id(node)
+
+
+def test_get_node_properties_shape_without_supported_node_type_raises(gdiff_obj):
+    node = {"@id": "n0", "data": {"@key": "d6", "y:UnsupportedNode": {}}}
+    with pytest.raises(BNGFileError, match="Could not find supported yEd properties"):
+        gdiff_obj._get_node_properties(node)
+
+
+def test_color_node_logs_and_raises_for_invalid_node(gdiff_obj):
+    node = {"@id": "n0", "data": {"@key": "d6", "y:UnsupportedNode": {}}}
+    with mock.patch.object(gdiff_obj.logger, "error") as mock_error:
         with pytest.raises(
-            RuntimeError, match="Node color #UNKNOWN_COLOR doesn't match known colors"
+            BNGFileError, match="Could not find supported yEd properties"
         ):
-            gdiff._get_color_id(node)
+            gdiff_obj._color_node(node, "#AABBCC")
+    mock_error.assert_called_once()
+    assert "Couldn't color GraphML node n0" in mock_error.call_args.args[0]
+
+
+def test_keylist_finds_nested_leaf_node(gdiff_obj):
+    graph = copy.deepcopy(gdiff_obj.gdict_1)
+    result = gdiff_obj._get_node_from_keylist(graph, ["graphml", "n0", "n0::n0"])
+    assert result["@id"] == "n0::n0"
+    assert gdiff_obj._get_node_name(result) == "a1"
+
+
+def test_keylist_finds_leaf_in_single_dict_child_graph(gdiff_obj):
+    graph = copy.deepcopy(gdiff_obj.gdict_1)
+    result = gdiff_obj._get_node_from_keylist(graph, ["graphml", "n1", "n1::n0"])
+    assert result["@id"] == "n1::n0"
+    assert gdiff_obj._get_node_name(result) == "b1"

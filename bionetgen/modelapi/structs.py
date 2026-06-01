@@ -73,7 +73,7 @@ class ModelObj:
         try:
             ll = int(val)
             self._line_label = "{} ".format(ll)
-        except (ValueError, TypeError):
+        except (TypeError, ValueError):
             self._line_label = "{}: ".format(val)
 
     def print_line(self) -> str:
@@ -306,72 +306,27 @@ class Action(ModelObj):
         action arguments as keys and their values as values
     """
 
-    def __init__(self, action_type=None, action_args={}) -> None:
+    def __init__(self, action_type=None, action_args=None) -> None:
         super().__init__()
+        if action_args is None:
+            action_args = {}
         AList = ActionList()
         self.normal_types = AList.normal_types
         self.no_setter_syntax = AList.no_setter_syntax
         self.square_braces = AList.square_braces
         self.possible_types = AList.possible_types
-        # Set initial values
         self.name = action_type
         self.type = action_type
         self.args = action_args
-        # check type
-        if self.type not in self.possible_types:
-            raise BNGParseError(message=f"Action type {self.type} not recognized!")
+        AList.validate_action(action_type, action_args)
         seen_args = []
-        valid_arg_list = AList.arg_dict[self.type]
-        if valid_arg_list is None:
-            if len(action_args) > 0:
-                raise BNGParseError(
-                    message=f"Action {self.type} does not take arguments"
+        for arg_name, arg_value in action_args.items():
+            if arg_name in seen_args:
+                print(
+                    f"Warning: argument {arg_name} already given, using latter value {arg_value}"
                 )
-        elif len(valid_arg_list) == 0:
-            for arg in action_args:
-                arg_name, arg_value = arg, action_args[arg]
-                if arg_name in seen_args:
-                    print(
-                        f"Warning: argument {arg_name} already given, using latter value {arg_value}"
-                    )
-                else:
-                    seen_args.append(arg_name)
-        else:
-            for arg in action_args:
-                arg_name, arg_value = arg, action_args[arg]
-                # TODO: currently not type checking arguments
-                if arg_name not in valid_arg_list:
-                    raise BNGParseError(
-                        message=f"Action argument {arg_name} not recognized!\nCheck to make sure action is correctly formatted"
-                    )
-                if arg_name in AList.irregular_args:
-                    arg_type = AList.irregular_args[arg_name]
-                    if arg_type == "dict":
-                        is_valid = isinstance(arg_value, dict) or (
-                            isinstance(arg_value, str)
-                            and arg_value.startswith("{")
-                            and arg_value.endswith("}")
-                        )
-                        if not is_valid:
-                            raise BNGParseError(
-                                message=f"Expected dictionary for action argument {arg_name}, got {type(arg_value).__name__} instead."
-                            )
-                    elif arg_type == "list":
-                        is_valid = isinstance(arg_value, list) or (
-                            isinstance(arg_value, str)
-                            and arg_value.startswith("[")
-                            and arg_value.endswith("]")
-                        )
-                        if not is_valid:
-                            raise BNGParseError(
-                                message=f"Expected list for action argument {arg_name}, got {type(arg_value).__name__} instead."
-                            )
-                if arg_name in seen_args:
-                    print(
-                        f"Warning: argument {arg_name} already given, using latter value {arg_value}"
-                    )
-                else:
-                    seen_args.append(arg_name)
+            else:
+                seen_args.append(arg_name)
 
     def gen_string(self) -> str:
         # TODO: figure out every argument that has special
@@ -472,7 +427,12 @@ class Rule(ModelObj):
             self.rate_constants = [rate_cts[0], rate_cts[1]]
             self.bidirectional = True
         else:
-            print("1 or 2 rate constants allowed")
+            raise BNGParseError(
+                message=(
+                    f": Rule {self.name} requires 1 or 2 rate constants, "
+                    f"got {len(rate_cts)}"
+                )
+            )
 
     def gen_string(self):
         if self.bidirectional:

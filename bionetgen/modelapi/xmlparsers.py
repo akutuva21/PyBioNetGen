@@ -1,3 +1,8 @@
+import re
+from typing import NoReturn
+
+from bionetgen.core.exc import BNGParseError
+from bionetgen.core.utils.logging import BNGLogger
 from .blocks import ParameterBlock, CompartmentBlock, ObservableBlock
 from .blocks import SpeciesBlock, MoleculeTypeBlock
 from .blocks import FunctionBlock, RuleBlock
@@ -6,6 +11,78 @@ from .blocks import EnergyPatternBlock, PopulationMapBlock
 from .pattern import Pattern, Molecule, Component
 
 from .rulemod import RuleMod
+
+# BNG2.pl serializes the boolean operators ``&&`` and ``||`` in <Expression>
+# elements as the function-call-shaped strings ``(operand)and(operand)`` and
+# ``(operand)or(operand)`` (see Perl2/Expression.pm: '&&' => 'and'). When we
+# re-emit that body into a .bngl file BNG2.pl re-parses ``and(...)`` as a
+# function call and aborts ("Missing end parentheses ... at and(...)"), so
+# we have to undo the substitution here. The match is intentionally
+# anchored on the closing-paren of the left operand: BNG2.pl always wraps
+# both operands in parens when emitting these forms, so ``)and(`` /
+# ``)or(`` only appear as the boolean-operator encoding — never as the
+# tail of a user-defined identifier or a literal function call.
+_AND_OP_RE = re.compile(r"\)and\(")
+_OR_OP_RE = re.compile(r"\)or\(")
+logger = BNGLogger()
+_PARSE_SOURCE = "<BNG-XML>"
+
+
+def _raise_parse_error(message: str, *, loc: str) -> NoReturn:
+    logger.error(message, loc=loc)
+    raise BNGParseError(_PARSE_SOURCE, message=f": {message}")
+
+
+def _ratelaw_arg_ids(args_xml):
+    """Join argument ids from a ListOfArguments[N] element."""
+    if not args_xml:
+        return ""
+    args = args_xml.get("Argument") if hasattr(args_xml, "get") else None
+    if args is None:
+        return ""
+    if isinstance(args, list):
+        return ",".join(str(arg["@id"]) for arg in args)
+    return str(args["@id"])
+
+
+def _resolve_ratelaw(xml, *, context: str, loc: str) -> str:
+    rate_type = str(xml["@type"])
+    if rate_type == "Ele":
+        rate_cts_xml = xml["ListOfRateConstants"]
+        return str(rate_cts_xml["RateConstant"]["@value"])
+    if rate_type == "Function":
+        return str(xml["@name"])
+    if rate_type == "FunctionProduct":
+        name1 = str(xml["@name1"])
+        name2 = str(xml["@name2"])
+        a1 = _ratelaw_arg_ids(xml.get("ListOfArguments1"))
+        a2 = _ratelaw_arg_ids(xml.get("ListOfArguments2"))
+        return f'FunctionProduct("{name1}({a1})","{name2}({a2})")'
+    if rate_type in ("MM", "Sat", "Hill", "Arrhenius"):
+        rate_cts = rate_type + "("
+        args = xml["ListOfRateConstants"]["RateConstant"]
+        if isinstance(args, list):
+            for iarg, arg in enumerate(args):
+                if iarg > 0:
+                    rate_cts += ","
+                rate_cts += str(arg["@value"])
+        else:
+            rate_cts += str(args["@value"])
+        rate_cts += ")"
+        return rate_cts
+    _raise_parse_error(
+        f"Unrecognized rate law type {rate_type!r} in {context}",
+        loc=loc,
+    )
+
+
+def _decode_xml_boolean_ops(expr):
+    """Translate BNG2.pl's ``)and(`` / ``)or(`` XML encoding back to ``&&`` / ``||``."""
+    if not expr:
+        return expr
+    expr = _AND_OP_RE.sub(") && (", expr)
+    expr = _OR_OP_RE.sub(") || (", expr)
+    return expr
 
 
 ###### Base object  ######
@@ -95,7 +172,7 @@ class BondsXML:
         comp_id = comp["@id"]
         try:
             num_bonds = int(num_bonds)
-        except:
+        except (TypeError, ValueError):
             # This means we have something like +/?
             return num_bonds
         # use the comp_id to find the bond index from
@@ -130,7 +207,11 @@ class BondsXML:
                 if bond_partner_1 not in self.bonds_dict:
                     self.bonds_dict[bond_partner_1] = [ibond + 1]
                 else:
-                    self.bonds_dict[bond_partner_1].append([ibond + 1])
+                    # B13: must append the int, not a [int] list — the
+                    # rendered Component.__str__ emits ``f"!{bond}"`` per
+                    # entry, so a list ``[2]`` would render as ``![2]``,
+                    # which BNG2.pl reads as a compartment specifier.
+                    self.bonds_dict[bond_partner_1].append(ibond + 1)
                 if bond_partner_2 not in self.bonds_dict:
                     self.bonds_dict[bond_partner_2] = [ibond + 1]
                 else:
@@ -192,10 +273,17 @@ class PatternXML(XMLObj):
             try:
                 n = int(quantity)
                 f = float(quantity)
-                if n == f:
-                    pattern.quantity = quantity
-            except ValueError as e:
-                print("Quantity needs to be an integer")
+            except (TypeError, ValueError):
+                _raise_parse_error(
+                    f"Pattern quantity must be an integer, got {quantity!r}",
+                    loc=f"{__file__} : PatternXML.parse_xml()",
+                )
+            if n != f:
+                _raise_parse_error(
+                    f"Pattern quantity must be an integer, got {quantity!r}",
+                    loc=f"{__file__} : PatternXML.parse_xml()",
+                )
+            pattern.quantity = quantity
         # check for either list of molecules or single molecule, add if exist
         mols = xml["ListOfMolecules"]["Molecule"]
         molecules = []
@@ -509,7 +597,7 @@ class FunctionBlockXML(XMLObj):
             for f in xml:
                 # add content to line
                 fname = f["@id"]
-                expr = f["Expression"]
+                expr = _decode_xml_boolean_ops(self._resolve_expression(f))
                 args = []
                 if "ListOfArguments" in f:
                     args = self.get_arguments(f["ListOfArguments"]["Argument"])
@@ -517,7 +605,7 @@ class FunctionBlockXML(XMLObj):
                 block.add_function(fname, expr, args=args)
         else:
             fname = xml["@id"]
-            expr = xml["Expression"]
+            expr = _decode_xml_boolean_ops(self._resolve_expression(xml))
             args = []
             if "ListOfArguments" in xml:
                 args = self.get_arguments(xml["ListOfArguments"]["Argument"])
@@ -525,6 +613,40 @@ class FunctionBlockXML(XMLObj):
             block.add_function(fname, expr, args=args)
 
         return block
+
+    def _resolve_expression(self, f) -> str:
+        """Return the BNGL expression body for a Function XML element.
+
+        Most functions serialize their body verbatim into ``<Expression>``,
+        but BNG2.pl rewrites ``tfun(...)`` calls (both the inline-array form
+        and the file-based ``TFUN(arg, "file")`` form) as the placeholder
+        ``__TFUN_VAL__`` and stashes the real arguments in attributes on
+        the ``<Function>`` element. Round-tripping the placeholder back
+        into BNGL is invalid — BNG2.pl can't re-parse it. Reconstruct the
+        call from the attributes when present.
+        """
+        raw = str(f.get("Expression", ""))
+        if f.get("@type") != "TFUN":
+            return raw
+
+        ctr = str(f.get("@ctrName", ""))
+        if "@xData" in f:
+            xs = str(f.get("@xData", ""))
+            ys = str(f.get("@yData", ""))
+            method = str(f.get("@method", "linear"))
+            body = f"tfun([{xs}],[{ys}],{ctr}"
+            if method and method != "linear":
+                body += f',method=>"{method}"'
+            body += ")"
+        elif "@file" in f:
+            body = f'TFUN({ctr},"{str(f.get("@file", ""))}")'
+        else:
+            body = raw
+
+        for placeholder in ("__TFUN__VAL__", "__TFUN_VAL__"):
+            if placeholder in raw:
+                return raw.replace(placeholder, body).strip()
+        return body.strip()
 
     def get_arguments(self, xml) -> list:
         args = []
@@ -568,8 +690,9 @@ class RuleBlockXML(XMLObj):
                 reactants = self.resolve_rxn_side(rule["ListOfReactantPatterns"])
                 products = self.resolve_rxn_side(rule["ListOfProductPatterns"])
                 if "RateLaw" not in rule:
-                    print(
-                        "Rule seems to be missing a rate law, please make sure that XML exporter of BNGL supports whatever you are doing!"
+                    _raise_parse_error(
+                        f"Reaction rule {name!r} is missing a RateLaw entry",
+                        loc=f"{__file__} : RuleBlockXML.parse_xml()",
                     )
                 rate_constants = [self.resolve_ratelaw(rule["RateLaw"])]
                 rule_modifier = self.get_rule_mod(rule)
@@ -590,8 +713,9 @@ class RuleBlockXML(XMLObj):
             reactants = self.resolve_rxn_side(xml["ListOfReactantPatterns"])
             products = self.resolve_rxn_side(xml["ListOfProductPatterns"])
             if "RateLaw" not in xml:
-                print(
-                    "Rule seems to be missing a rate law, please make sure that XML exporter of BNGL supports whatever you are doing!"
+                _raise_parse_error(
+                    f"Reaction rule {name!r} is missing a RateLaw entry",
+                    loc=f"{__file__} : RuleBlockXML.parse_xml()",
                 )
             rate_constants = [self.resolve_ratelaw(xml["RateLaw"])]
             rule_modifier = self.get_rule_mod(xml)
@@ -607,6 +731,13 @@ class RuleBlockXML(XMLObj):
             )
         block.consolidate_rules()
         return block
+
+    def resolve_ratelaw(self, xml):
+        return _resolve_ratelaw(
+            xml,
+            context="reaction rule",
+            loc=f"{__file__} : RuleBlockXML.resolve_ratelaw()",
+        )
 
     def resolve_rxn_side(self, xml):
         # this is either reactant or product
@@ -643,7 +774,10 @@ class RuleBlockXML(XMLObj):
                 sl.append(PatternXML(side).parsed_obj)
             return sl
         else:
-            print("Can't parse rule XML {}".format(xml))
+            _raise_parse_error(
+                "Reaction side XML must contain ReactantPattern or ProductPattern",
+                loc=f"{__file__} : RuleBlockXML.resolve_rxn_side()",
+            )
 
     def get_operations(self, xml):
         # TODO: create working operations class
@@ -679,11 +813,11 @@ class RuleBlockXML(XMLObj):
         return ops
 
     def get_rule_mod(self, xml):
-        # TODO: create working rule mods class
         rule_mod = RuleMod()
-        list_ops = xml["ListOfOperations"]
+        list_ops = xml.get("ListOfOperations")
+        had_explicit_ops = list_ops is not None
         if list_ops is None:
-            return None
+            list_ops = {}
         # determine which rule mod is being used, if any
         if "Delete" in list_ops:
             del_op = list_ops["Delete"]
@@ -694,6 +828,7 @@ class RuleBlockXML(XMLObj):
             # it does not apply to the whole rule
             if all(val == "1" for val in dmvals):
                 rule_mod.type = "DeleteMolecules"
+                rule_mod.add_modifier("DeleteMolecules")
                 # JRF: I don't believe the id of the specific op rule_mod is currently used
                 # rule_mod.id = op["@id"]
         elif "ChangeCompartment" in list_ops:
@@ -704,6 +839,7 @@ class RuleBlockXML(XMLObj):
                 # check if modifier was called or automatic
                 if mod_call == "1":
                     rule_mod.type = "MoveConnected"
+                    rule_mod.add_modifier("MoveConnected")
                     rule_mod.id = move_op["@id"]
                     rule_mod.source = move_op["@source"]
                     rule_mod.destination = move_op["@destination"]
@@ -718,6 +854,7 @@ class RuleBlockXML(XMLObj):
                 for mo in move_op:
                     if mo["@moveConnected"] == "1":
                         rule_mod.type = "MoveConnected"
+                        rule_mod.add_modifier("MoveConnected")
                         rule_mod.id.append(mo["@id"])
                         rule_mod.source.append(mo["@source"])
                         rule_mod.destination.append(mo["@destination"])
@@ -729,22 +866,81 @@ class RuleBlockXML(XMLObj):
             rate_type = ratelaw["@type"]
             if rate_type == "Function" and str(ratelaw.get("@totalrate", "0")) == "1":
                 rule_mod.type = "TotalRate"
+                rule_mod.add_modifier("TotalRate")
                 rule_mod.id = ratelaw["@id"]
                 rule_mod.rate_type = ratelaw["@type"]
                 rule_mod.name = ratelaw["@name"]
                 rule_mod.call = ratelaw.get("@totalrate", "0")
 
-        # TODO: add support for include/exclude reactants/products
+        # Include / exclude reactants and products are also rule modifiers in BNGL.
+        # BNG2.pl emits them as ListOfInclude{Reactants,Products} /
+        # ListOfExclude{Reactants,Products} children on the rule, each carrying
+        # a pattern-index suffix (_RP<n> / _PP<n>) on the selector id and one
+        # or more Pattern entries. Mirror those back as
+        #   include_reactants(<n>,<pattern>)
+        #   exclude_products(<n>,<pattern>)
+        # etc., so the rule round-trips through BNG2.pl.
+        for key, value in xml.items():
+            if key not in (
+                "ListOfIncludeReactants",
+                "ListOfIncludeProducts",
+                "ListOfExcludeReactants",
+                "ListOfExcludeProducts",
+            ):
+                continue
+            selectors = value if isinstance(value, list) else [value]
+            for selector in selectors:
+                call = self._build_selector_modifier(key, selector)
+                if call is not None:
+                    rule_mod.add_modifier(call)
+
         if (
-            "ListOfIncludeReactants" in xml
-            or "ListOfIncludeProducts" in xml
-            or "ListOfExcludeReactants" in xml
-            or "ListOfExcludeProducts" in xml
+            rule_mod.type is None
+            and len(rule_mod.modifiers) == 0
+            and not had_explicit_ops
         ):
-            print(
-                "WARNING: Include/Exclude Reactants/Products not currently supported as rule modifiers"
-            )
+            return None
         return rule_mod
+
+    def _build_selector_modifier(self, key, selector_xml):
+        call_names = {
+            "ListOfIncludeReactants": "include_reactants",
+            "ListOfExcludeReactants": "exclude_reactants",
+            "ListOfIncludeProducts": "include_products",
+            "ListOfExcludeProducts": "exclude_products",
+        }
+        call_name = call_names.get(key)
+        if call_name is None:
+            return None
+        selector_id = str(selector_xml.get("@id", ""))
+        match = re.search(r"_(?:RP|PP)(\d+)$", selector_id)
+        if match is None:
+            return None
+        pattern_xml = selector_xml.get("Pattern")
+        if pattern_xml is None:
+            return None
+        patterns = pattern_xml if isinstance(pattern_xml, list) else [pattern_xml]
+        pattern_parts = [self._format_selector_pattern(pattern) for pattern in patterns]
+        pattern_str = " + ".join(pattern_parts)
+        return f"{call_name}({match.group(1)},{pattern_str})"
+
+    def _format_selector_pattern(self, pattern_xml):
+        pattern = PatternXML(pattern_xml).parsed_obj
+        if len(pattern.molecules) == 1:
+            molecule = pattern.molecules[0]
+            if (
+                molecule.name != "0"
+                and len(molecule.components) == 0
+                and molecule.compartment is None
+                and molecule.label is None
+                and pattern.compartment is None
+                and not pattern.fixed
+                and not pattern.MatchOnce
+                and pattern.relation is None
+                and pattern.quantity is None
+            ):
+                return molecule.name
+        return str(pattern)
 
 
 class EnergyPatternBlockXML(XMLObj):
@@ -828,6 +1024,13 @@ class PopulationMapBlockXML(XMLObj):
             block.add_population_map(pmid, struct_spec, pop_spec, rate_constant)
 
         return block
+
+    def resolve_ratelaw(self, xml):
+        return _resolve_ratelaw(
+            xml,
+            context="population map",
+            loc=f"{__file__} : PopulationMapBlockXML.resolve_ratelaw()",
+        )
 
 
 # TODO: Store operations!

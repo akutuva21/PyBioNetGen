@@ -177,10 +177,13 @@ for iurl, bng_url in enumerate([linux_url, mac_url, windows_url]):
 
 if bng_downloaded:
     # only add if not there
-    with open("MANIFEST.in", "r") as f:
-        manifest_lines = f.readlines()
+    manifest_path = "MANIFEST.in"
+    manifest_lines = []
+    if os.path.isfile(manifest_path):
+        with open(manifest_path, "r") as f:
+            manifest_lines = f.readlines()
 
-    with open("MANIFEST.in", "a") as f:
+    with open(manifest_path, "a") as f:
         for line in [
             "recursive-include bionetgen/bng-linux *\n",
             "recursive-include bionetgen/bng-mac *\n",

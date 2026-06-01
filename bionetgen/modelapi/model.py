@@ -1,7 +1,7 @@
 import copy, tempfile, shutil, os
 
 from bionetgen.main import BioNetGen
-from bionetgen.core.exc import BNGModelError
+from bionetgen.core.exc import BNGFileError, BNGModelError
 from bionetgen.core.utils.logging import BNGLogger
 
 from .bngparser import BNGParser
@@ -12,6 +12,7 @@ from .blocks import (
     MoleculeTypeBlock,
     ObservableBlock,
     ParameterBlock,
+    ProtocolBlock,
     RuleBlock,
     SpeciesBlock,
     EnergyPatternBlock,
@@ -94,6 +95,7 @@ class bngmodel:
             "energy_patterns",
             "population_maps",
             "rules",
+            "protocol",
             "actions",
         ]
         self.model_name = ""
@@ -185,32 +187,46 @@ class bngmodel:
         Adds the given block object to the model, uses the
         name of the block object to determine what block it is
         """
-        bname = block.name.replace(" ", "_")
-        if bname == "reaction_rules":
-            bname = "rules"
-        try:
-            block_adder = getattr(self, "add_{}_block".format(bname))
-            block_adder(block)
-        except AttributeError:
-            raise BNGModelError(
-                self.model_path, message=f"Block type {bname} is not supported."
-            )
+        block_adder = self._resolve_block_adder(block.name)
+        block_adder(block)
 
     def add_empty_block(self, block_name):
         """
         Makes an empty block object from a given block name and
         adds it to the model object.
         """
-        bname = block_name.replace(" ", "_")
-        if bname == "reaction_rules":
-            bname = "rules"
-        try:
-            block_adder = getattr(self, "add_{}_block".format(bname))
-            block_adder()
-        except AttributeError:
-            raise BNGModelError(
-                self.model_path, message=f"Block type {bname} is not supported."
+        block_adder = self._resolve_block_adder(block_name)
+        block_adder()
+
+    def _resolve_block_adder(self, block_name):
+        """
+        Resolve supported block names to block adders.
+
+        Block names are normalized by replacing spaces with underscores, and
+        the historical ``reaction_rules`` alias continues to map to ``rules``.
+        """
+        normalized_name = block_name.replace(" ", "_")
+        block_adders = {
+            "parameters": self.add_parameters_block,
+            "compartments": self.add_compartments_block,
+            "molecule_types": self.add_molecule_types_block,
+            "species": self.add_species_block,
+            "observables": self.add_observables_block,
+            "functions": self.add_functions_block,
+            "energy_patterns": self.add_energy_patterns_block,
+            "population_maps": self.add_population_maps_block,
+            "rules": self.add_rules_block,
+            "reaction_rules": self.add_rules_block,
+            "protocol": self.add_protocol_block,
+            "actions": self.add_actions_block,
+        }
+        if normalized_name not in block_adders:
+            supported_names = ", ".join(block_adders)
+            raise ValueError(
+                f"Unsupported block name '{block_name}'. "
+                f"Supported block names: {supported_names}"
             )
+        return block_adders[normalized_name]
 
     def add_parameters_block(self, block=None):
         """
@@ -418,6 +434,24 @@ class bngmodel:
         else:
             self.population_maps = PopulationMapBlock()
 
+    def add_protocol_block(self, block=None):
+        """
+        Adds a protocol block to the model object.
+
+        A protocol block lives inside ``begin model``/``end model`` and
+        holds a sequence of state-mutating action lines (e.g.
+        ``setParameter``, ``setConcentration``, ``simulate``) that BNG2.pl
+        executes when ``parameter_scan({method=>"protocol"})`` is invoked.
+        """
+        if block is not None:
+            # TODO: Transition to BNGErrors and logging
+            assert isinstance(block, ProtocolBlock)
+            self.protocol = block
+            if "protocol" not in self.active_blocks:
+                self.active_blocks.append("protocol")
+        else:
+            self.protocol = ProtocolBlock()
+
     def add_actions_block(self, block=None):
         """
         Adds an actions block to the model object.
@@ -496,20 +530,24 @@ class bngmodel:
             self.add_action("writeSBML", {})
             # temporary folder instead to make it work
             # with windows
+            tmp_folder = None
             try:
                 tmp_folder = tempfile.mkdtemp()
                 sbml_name = os.path.join(tmp_folder, f"{self.model_name}_sbml.xml")
                 # write the sbml
                 with open(sbml_name, "w+") as f:
-                    if not (
+                    try:
                         self.bngparser.bngfile.write_xml(
                             f, xml_type="sbml", bngl_str=str(self)
                         )
-                    ):
+                    except BNGFileError as exc:
                         raise BNGModelError(
                             self.model_path,
-                            message="SBML couldn't be generated for libRR simulator",
-                        )
+                            message=(
+                                "SBML couldn't be generated for libRR simulator: "
+                                f"{exc.message}"
+                            ),
+                        ) from exc
                 self.actions.clear_actions()
                 # get the simulator
                 import bionetgen as bng
@@ -519,11 +557,9 @@ class bngmodel:
                 selections = ["time"] + [obs for obs in self.observables]
                 self.simulator.simulator.timeCourseSelections = selections
             finally:
-                try:
+                if tmp_folder is not None:
                     shutil.rmtree(tmp_folder)
-                except Exception:
-                    pass
-            self.actions = curr_actions
+                self.actions = curr_actions
         elif sim_type == "cpy":
             # get the simulator
             import bionetgen as bng
@@ -531,9 +567,11 @@ class bngmodel:
             self.simulator = bng.sim_getter(model_file=self, sim_type=sim_type)
             return self.simulator
         else:
-            print('Sim type {} is not recognized, only libroadrunner \
+            print(
+                'Sim type {} is not recognized, only libroadrunner \
                    is supported currently by passing "libRR" to \
-                   sim_type keyword argument'.format(sim_type))
+                   sim_type keyword argument'.format(sim_type)
+            )
             return None
         # for now we return the underlying simulator
         return self.simulator.simulator

@@ -1,6 +1,7 @@
 from multiprocessing.sharedctypes import Value
 import xmltodict, copy, os, json
 
+from bionetgen.core.exc import BNGFileError
 from bionetgen.core.utils.logging import BNGLogger
 
 
@@ -83,6 +84,15 @@ class BNGGdiff:
             self.gdict_1 = xmltodict.parse(f.read())
         with open(self.input2, "r") as f:
             self.gdict_2 = xmltodict.parse(f.read())
+
+    def _graphml_file_error(self, message) -> BNGFileError:
+        return BNGFileError(getattr(self, "input", None), message=message)
+
+    def _describe_node(self, node) -> str:
+        node_id = self._get_node_id(node)
+        if node_id is None:
+            return "GraphML node"
+        return f"GraphML node {node_id}"
 
     def diff_graphs(
         self,
@@ -455,6 +465,11 @@ class BNGGdiff:
         return node
 
     def _get_node_properties(self, node):
+        node_desc = self._describe_node(node)
+        if "data" not in node:
+            raise self._graphml_file_error(
+                f"Could not find supported yEd properties for {node_desc}"
+            )
         if isinstance(node["data"], list):
             found = False
             for datum in node["data"]:
@@ -473,7 +488,9 @@ class BNGGdiff:
                         properties = snode
                     found = True
             if not found:
-                raise RuntimeError("Can't find properties for nodes")
+                raise self._graphml_file_error(
+                    f"Could not find supported yEd properties for {node_desc}"
+                )
         else:
             if "y:ProxyAutoBoundsNode" in node["data"]:
                 properties = node["data"]["y:ProxyAutoBoundsNode"]["y:Realizers"][
@@ -482,7 +499,9 @@ class BNGGdiff:
             elif "y:ShapeNode" in node["data"]:
                 properties = node["data"]["y:ShapeNode"]
             else:
-                raise RuntimeError("Can't find properties for nodes")
+                raise self._graphml_file_error(
+                    f"Could not find supported yEd properties for {node_desc}"
+                )
         return properties
 
     def _get_node_name(self, node):
@@ -521,7 +540,10 @@ class BNGGdiff:
             # yellow indicates a state
             cid = 2
         else:
-            raise RuntimeError(f"Node color {curr_color} doesn't match known colors")
+            node_desc = self._describe_node(node)
+            raise self._graphml_file_error(
+                f"{node_desc} color {curr_color} doesn't match known BioNetGen contact-map colors"
+            )
         return cid
 
     def _get_node_from_keylist(self, g, keylist):
@@ -531,33 +553,34 @@ class BNGGdiff:
             # we only have "graphml" as key
             return g[gkey]
         # we are out of group nodes
-        if "graph" not in g[gkey]:
+        graph = g[gkey].get("graph")
+        if not isinstance(graph, dict) or "node" not in graph:
             return None
         # everything up to here is good,
         # loop over to find the node
-        nodes = g[gkey]["graph"]["node"]
+        nodes = graph["node"]
+        node = None
         while len(copy_keylist) > 0:
             key = copy_keylist.pop(0)
-            found = False
             if isinstance(nodes, list):
                 for cnode in nodes:
-                    if cnode["@id"] == key:
-                        found = True
+                    if cnode.get("@id") == key:
                         node = cnode
-                        try:
-                            nodes = node["graph"]["node"]
-                        except:
-                            break
+                        break
+                else:
+                    node = None
+            elif isinstance(nodes, dict) and nodes.get("@id") == key:
+                node = nodes
             else:
-                if nodes["@id"] == key:
-                    found = True
-                    node = nodes
-                    try:
-                        nodes = node["graph"]["node"]
-                    except:
-                        pass
-            if not found:
+                node = None
+            if node is None:
                 return None
+            if len(copy_keylist) == 0:
+                return node
+            graph = node.get("graph")
+            if not isinstance(graph, dict) or "node" not in graph:
+                return None
+            nodes = graph["node"]
         return node
 
     def _color_node(self, node, color) -> bool:
@@ -571,15 +594,26 @@ class BNGGdiff:
                 color dictionary with g1/g2/intersect keys and color hex strings as values
         returns
             bool
-                True if colored correctly, False if not
+                True if colored correctly
+
+        raises
+            BNGFileError
+                if the GraphML node does not expose the expected yEd properties
         """
         try:
             fill = self._get_node_fill(node)
             fill["@color"] = color
             return True
+        except BNGFileError as exc:
+            self.logger.error(
+                f"Couldn't color {self._describe_node(node)}: {exc.message}",
+                loc=f"{__file__} : BNGGdiff._color_node()",
+            )
+            raise
         except Exception as e:
-            print(f"Couldn't color node, error: {e}")
-            return False
+            msg = f"Couldn't color {self._describe_node(node)}: {e}"
+            self.logger.error(msg, loc=f"{__file__} : BNGGdiff._color_node()")
+            raise self._graphml_file_error(msg) from e
 
     def _get_node_text(self, node):
         noded = node["data"]["y:ProxyAutoBoundsNode"]["y:Realizers"]

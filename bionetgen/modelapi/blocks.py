@@ -2,6 +2,7 @@ try:
     from typing import OrderedDict
 except ImportError:
     from collections import OrderedDict
+from bionetgen.core.utils.logging import BNGLogger
 from .structs import Parameter, Compartment, Observable
 from .structs import MoleculeType, Species, Function
 from .structs import Rule, Action
@@ -14,6 +15,8 @@ try:
     from typing import OrderedDict
 except ImportError:
     from collections import OrderedDict
+
+logger = BNGLogger()
 
 
 ###### BLOCK OBJECTS ######
@@ -88,10 +91,7 @@ class ModelBlock:
         self.items[key] = value
 
     def __delitem__(self, key) -> None:
-        if key in self.items:
-            self.items.pop(key)
-        else:
-            print("Item {} not found".format(key))
+        self.items.pop(key)
 
     def __iter__(self):
         return self.items.keys().__iter__()
@@ -100,21 +100,21 @@ class ModelBlock:
         return key in self.items
 
     def __setattr__(self, name, value) -> None:
-        if hasattr(self, "items") and name in self.items:
-            try:
-                new_value = float(value)
-                self.items[name] = new_value
-            except (ValueError, TypeError):
-                self.items[name] = value
-
-            if hasattr(self, "_changes"):
-                self._changes[name] = self.items[name]
-
-        self.__dict__[name] = (
-            self.items[name]
-            if (hasattr(self, "items") and name in self.items)
-            else value
-        )
+        changed = False
+        if hasattr(self, "items"):
+            if name in self.items.keys():
+                try:
+                    new_value = float(value)
+                except (TypeError, ValueError):
+                    self.items[name] = value
+                else:
+                    changed = True
+                    self.items[name] = new_value
+                if changed:
+                    self._changes[name] = new_value
+                    self.__dict__[name] = new_value
+        else:
+            self.__dict__[name] = value
 
     def gen_string(self) -> str:
         """
@@ -188,9 +188,13 @@ class ModelBlock:
         if set_attr:
             try:
                 setattr(self, name, value)
-            except Exception:
-                print("can't set {} to {}".format(name, value))
-                pass
+            except Exception as exc:
+                logger.warning(
+                    f"Unable to bind attribute {name!r} for the {self.name} block;"
+                    " the item remains available via block.items. "
+                    f"Original error: {exc}",
+                    loc=f"{__file__} : ModelBlock.add_item()",
+                )
         # we just added an item to a block, let's assume we need
         # to recompile if we have a compiled simulator
         self._recompile = True
@@ -236,16 +240,20 @@ class ParameterBlock(ModelBlock):
                     try:
                         # try a new value, we need to make sure
                         # to stop printing out the expression
-                        value = float(value)
-                        if self.items[name]["value"] != value:
+                        new_value = float(value)
+                        if self.items[name]["value"] != new_value:
                             changed = True
-                            self.items[name]["value"] = value
+                            self.items[name]["value"] = new_value
                             self.items[name].write_expr = False
-                    except:
-                        print(
-                            "can't set parameter {} to {}".format(
-                                self.items[name]["name"], value
-                            )
+                            value = new_value
+                    except (TypeError, ValueError):
+                        logger.warning(
+                            "Unable to set parameter {!r} to {!r}; keeping existing value {!r}".format(
+                                self.items[name]["name"],
+                                value,
+                                self.items[name]["value"],
+                            ),
+                            loc=f"{__file__} : ParameterBlock.__setattr__()",
                         )
                 if changed:
                     self._changes[name] = value
@@ -288,15 +296,19 @@ class CompartmentBlock(ModelBlock):
                         self.items[name]["name"] = value
                 else:
                     try:
-                        value = float(value)
-                        if self.items[name]["size"] != value:
+                        new_value = float(value)
+                        if self.items[name]["size"] != new_value:
                             changed = True
-                            self.items[name]["size"] = value
-                    except:
-                        print(
-                            "can't set compartment {} to {}".format(
-                                self.items[name]["name"], value
-                            )
+                            self.items[name]["size"] = new_value
+                            value = new_value
+                    except (TypeError, ValueError):
+                        logger.warning(
+                            "Unable to set compartment {!r} to {!r}; keeping existing size {!r}".format(
+                                self.items[name]["name"],
+                                value,
+                                self.items[name]["size"],
+                            ),
+                            loc=f"{__file__} : CompartmentBlock.__setattr__()",
                         )
                 if changed:
                     self._changes[name] = value
@@ -338,10 +350,13 @@ class ObservableBlock(ModelBlock):
                         changed = True
                         self.items[name]["name"] = value
                 else:
-                    print(
-                        "can't set observable {} to {}".format(
-                            self.items[name]["name"], value
-                        )
+                    logger.warning(
+                        "Unable to set observable {!r} to {!r}; keeping existing observable {!r}".format(
+                            self.items[name]["name"],
+                            value,
+                            self.items[name]["name"],
+                        ),
+                        loc=f"{__file__} : ObservableBlock.__setattr__()",
                     )
                 if changed:
                     self._changes[name] = value
@@ -383,10 +398,13 @@ class SpeciesBlock(ModelBlock):
                         changed = True
                         self.items[name]["name"] = value
                 else:
-                    print(
-                        "can't set species {} to {}".format(
-                            self.items[name]["name"], value
-                        )
+                    logger.warning(
+                        "Unable to set species {!r} to {!r}; keeping existing species {!r}".format(
+                            self.items[name]["name"],
+                            value,
+                            self.items[name]["name"],
+                        ),
+                        loc=f"{__file__} : SpeciesBlock.__setattr__()",
                     )
                 if changed:
                     self._changes[name] = value
@@ -630,10 +648,7 @@ class ActionBlock(ModelBlock):
         self.items[key] = value
 
     def __delitem__(self, key) -> None:
-        try:
-            return self.items.pop(key)
-        except (IndexError, TypeError):
-            print("Item {} not found".format(key))
+        return self.items.pop(key)
 
     def __iter__(self):
         return range(len(self.items)).__iter__()
@@ -646,13 +661,8 @@ class ActionBlock(ModelBlock):
         adds action, needs type as string and args as list of tuples
         (which preserve order) of (argument, value) pairs
         """
-        if action_type in self._action_list:
-            a = Action(action_type=action_type, action_args=action_args)
-            self.add_item((action_type, a))
-        else:
-            print(
-                "Action type {} is not recognized as a BNGL action".format(action_type)
-            )
+        a = Action(action_type=action_type, action_args=action_args)
+        self.add_item((action_type, a))
 
     def clear_actions(self) -> None:
         self.items.clear()
@@ -663,6 +673,30 @@ class ActionBlock(ModelBlock):
         for item in self.items:
             block_lines.append(item.print_line())
         # join everything with new lines
+        return "\n".join(block_lines)
+
+
+class ProtocolBlock(ActionBlock):
+    """
+    Protocol block object, subclass of ActionBlock.
+
+    Protocol lines live inside ``begin model``/``end model`` and must
+    retain their own begin/end block wrapper rather than being rendered
+    as top-level actions.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "protocol"
+
+    def add_item(self, item_tpl) -> None:
+        _, value = item_tpl
+        self.items.append(value)
+
+    def gen_string(self) -> str:
+        block_lines = ["\nbegin protocol"]
+        block_lines.extend(item.print_line() for item in self.items)
+        block_lines.append("end protocol\n")
         return "\n".join(block_lines)
 
 
