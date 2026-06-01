@@ -112,7 +112,7 @@ def test_plotDAT_current_folder(MockBNGPlotter):
     import os
 
     app_mock = MagicMock()
-    app_mock.pargs.input = "test.cdat"
+    app_mock.pargs.input = "/path/to/test.cdat"
     app_mock.pargs.output = "."
     app_mock.pargs._get_kwargs.return_value = {}.items()
 

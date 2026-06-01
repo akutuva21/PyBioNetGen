@@ -37,9 +37,7 @@ def run(inp, out=None, suppress=False, timeout=None):
         out_dir = tempfile.mkdtemp(prefix="bngrun_")
         try:
             # instantiate a CLI object with the info
-            cli = BNGCLI(
-                inp, out_dir, conf.bng_path, suppress=suppress, timeout=timeout
-            )
+            cli = BNGCLI(inp, out_dir, def_bng_path, suppress=suppress, timeout=timeout)
             cli.run()
         except Exception as e:
             logger.error("Couldn't run the simulation, see error")
@@ -57,7 +55,7 @@ def run(inp, out=None, suppress=False, timeout=None):
     else:
         try:
             # instantiate a CLI object with the info
-            cli = BNGCLI(inp, out, conf.bng_path, suppress=suppress, timeout=timeout)
+            cli = BNGCLI(inp, out, def_bng_path, suppress=suppress, timeout=timeout)
             cli.run()
         except Exception as e:
             logger.error("Couldn't run the simulation, see error")
