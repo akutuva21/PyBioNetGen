@@ -1,11 +1,12 @@
 import sys
 import collections
+
 Counter = collections.Counter
 
 # Simulation with double modification bug
-candidates = [['A']]
-reactant = 'A_P_P'
-tmpCandidates = [['A']]
+candidates = [["A"]]
+reactant = "A_P_P"
+tmpCandidates = [["A"]]
 
 # What actually happens when a double modification fails?
 # In the original code, the FIXME says:
@@ -15,9 +16,9 @@ tmpCandidates = [['A']]
 # And `tmpCandidate` is just `['A']`.
 # `modifiedElementsCounter` has `Counter({'A': 2})`.
 
-newModifiedElements = {'A': 'A_P'}
-tmpCandidate = ['A']
-modifiedElementsCounter = Counter({'A': 2})
+newModifiedElements = {"A": "A_P"}
+tmpCandidate = ["A"]
+modifiedElementsCounter = Counter({"A": 2})
 
 flag = True
 while flag:

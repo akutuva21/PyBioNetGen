@@ -1,5 +1,6 @@
 import sys
 import collections
+
 Counter = collections.Counter
 
 # Another case for double modification:
@@ -13,8 +14,8 @@ Counter = collections.Counter
 # tmpCandidate = ['A', 'A']
 # modifiedElementsPerCandidate = [[('A', 'A_P'), ('A', 'A_P')]]
 # The loop:
-modifiedElementsPerCandidate = [[('A', 'A_P'), ('A', 'A_P')]]
-reactant = 'A_P_A_P'
+modifiedElementsPerCandidate = [[("A", "A_P"), ("A", "A_P")]]
+reactant = "A_P_A_P"
 
 newModifiedElements = {}
 modifiedElementsCounters = [Counter() for x in range(len(modifiedElementsPerCandidate))]
@@ -28,8 +29,10 @@ for idx, modifiedElementsInCandidate in enumerate(modifiedElementsPerCandidate):
 print("Dict:", newModifiedElements)
 print("Counters:", modifiedElementsCounters)
 
-tmpCandidates = [['A', 'A']]
-for tmpCandidate, modifiedElementsCounter in zip(tmpCandidates, modifiedElementsCounters):
+tmpCandidates = [["A", "A"]]
+for tmpCandidate, modifiedElementsCounter in zip(
+    tmpCandidates, modifiedElementsCounters
+):
     flag = True
     while flag:
         flag = False

@@ -1,4 +1,5 @@
 import collections
+
 Counter = collections.Counter
 
 # The FIXME says: FIXME:Fails if there is a double modification
@@ -13,8 +14,8 @@ Counter = collections.Counter
 # What if the graph is `A_P1_P2 -> A` directly, so `mod` is `[('A', 'A_P1_P2')]`? Then no double modification.
 # What if it's `[('A', 'A_P1'), ('A', 'A_P2')]` but we only have one 'A' in tmpCandidates?
 # No, if there is a double modification, maybe both modifications apply to the SAME instance, and we only capture one in `newModifiedElements`?
-modifiedElementsPerCandidate = [[('A', 'A_P1'), ('A', 'A_P2')]]
-reactant = 'A_P1_P2'
+modifiedElementsPerCandidate = [[("A", "A_P1"), ("A", "A_P2")]]
+reactant = "A_P1_P2"
 
 newModifiedElements = {}
 for element in modifiedElementsPerCandidate[0]:

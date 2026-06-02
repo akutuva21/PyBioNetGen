@@ -1,8 +1,9 @@
 import collections
+
 Counter = collections.Counter
 
-modifiedElementsPerCandidate = [[('A', 'A_P1'), ('A_P1', 'A_P1_P2')]]
-reactant = 'A_P1_P2'
+modifiedElementsPerCandidate = [[("A", "A_P1"), ("A_P1", "A_P1_P2")]]
+reactant = "A_P1_P2"
 
 newModifiedElements = {}
 modifiedElementsCounters = [Counter() for x in range(len(modifiedElementsPerCandidate))]
@@ -16,9 +17,11 @@ for idx, modifiedElementsInCandidate in enumerate(modifiedElementsPerCandidate):
 print("Original dict:", newModifiedElements)
 print("Original counters:", modifiedElementsCounters)
 
-tmpCandidates = [['A']]
+tmpCandidates = [["A"]]
 
-for tmpCandidate, modifiedElementsCounter in zip(tmpCandidates, modifiedElementsCounters):
+for tmpCandidate, modifiedElementsCounter in zip(
+    tmpCandidates, modifiedElementsCounters
+):
     flag = True
     while flag:
         flag = False

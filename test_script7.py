@@ -1,8 +1,9 @@
 import collections
+
 Counter = collections.Counter
 
-modifiedElementsPerCandidate = [[('A', 'A_P1'), ('A', 'A_P2')]]
-reactant = 'A_P1_P2'
+modifiedElementsPerCandidate = [[("A", "A_P1"), ("A", "A_P2")]]
+reactant = "A_P1_P2"
 
 # What if we use a list for newModifiedElements to store multiple modifications?
 newModifiedElements = collections.defaultdict(list)
@@ -20,9 +21,11 @@ for idx, modifiedElementsInCandidate in enumerate(modifiedElementsPerCandidate):
 
 print(newModifiedElements)
 
-tmpCandidates = [['A', 'A']]
+tmpCandidates = [["A", "A"]]
 
-for tmpCandidate, modifiedElementsCounter in zip(tmpCandidates, modifiedElementsCounters):
+for tmpCandidate, modifiedElementsCounter in zip(
+    tmpCandidates, modifiedElementsCounters
+):
     flag = True
     while flag:
         flag = False
@@ -30,7 +33,11 @@ for tmpCandidate, modifiedElementsCounter in zip(tmpCandidates, modifiedElements
             if modifiedElementsCounter[chemical] > 0:
                 modifiedElementsCounter[chemical] -= 1
                 # pop from the list of modifications
-                mod = newModifiedElements[chemical].pop(0) if newModifiedElements[chemical] else chemical
+                mod = (
+                    newModifiedElements[chemical].pop(0)
+                    if newModifiedElements[chemical]
+                    else chemical
+                )
                 tmpCandidate[idx] = mod
                 flag = True
                 break

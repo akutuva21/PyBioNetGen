@@ -27,13 +27,11 @@ from collections import Counter, defaultdict
 #   # But modifiedElementsCounters = [Counter() for x in range(len(candidates))] creates enough for `candidates`, which might be MORE than `tmpCandidates`.
 #   # And then: zip(tmpCandidates, modifiedElementsCounters) ignores the extra.
 
-candidates = [['A_P1_P2']]
-reactant = 'A_P1_P2'
-tmpCandidates = [['A', 'A']]
+candidates = [["A_P1_P2"]]
+reactant = "A_P1_P2"
+tmpCandidates = [["A", "A"]]
 
-modifiedElementsPerCandidate = [
-    [('A', 'A_P1'), ('A', 'A_P2')]
-]
+modifiedElementsPerCandidate = [[("A", "A_P1"), ("A", "A_P2")]]
 
 newModifiedElements = [defaultdict(list) for x in range(len(candidates))]
 modifiedElementsCounters = [Counter() for x in range(len(candidates))]
@@ -49,16 +47,20 @@ for idx, modifiedElementsInCandidate in enumerate(modifiedElementsPerCandidate):
 print(newModifiedElements)
 print(modifiedElementsCounters)
 
-for idx, (tmpCandidate, modifiedElementsCounter) in enumerate(zip(
-    tmpCandidates, modifiedElementsCounters
-)):
+for idx, (tmpCandidate, modifiedElementsCounter) in enumerate(
+    zip(tmpCandidates, modifiedElementsCounters)
+):
     flag = True
     while flag:
         flag = False
         for cidx, chemical in enumerate(tmpCandidate):
             if modifiedElementsCounter[chemical] > 0:
                 modifiedElementsCounter[chemical] -= 1
-                mod = newModifiedElements[idx][chemical].pop(0) if newModifiedElements[idx][chemical] else chemical
+                mod = (
+                    newModifiedElements[idx][chemical].pop(0)
+                    if newModifiedElements[idx][chemical]
+                    else chemical
+                )
                 tmpCandidate[cidx] = mod
                 flag = True
                 break

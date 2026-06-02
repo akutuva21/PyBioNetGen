@@ -1,5 +1,6 @@
 import sys
 import collections
+
 Counter = collections.Counter
 
 # The FIXME comment says:
@@ -15,8 +16,8 @@ Counter = collections.Counter
 # If `tmpCandidate` has `['A', 'A']`, one will become `A_P1` and the other will become `A_P1`.
 # But they should be `A_P1` and `A_P2`!
 
-modifiedElementsPerCandidate = [[('A', 'A_P1'), ('A', 'A_P2')]]
-reactant = 'A_P1_A_P2'
+modifiedElementsPerCandidate = [[("A", "A_P1"), ("A", "A_P2")]]
+reactant = "A_P1_A_P2"
 
 newModifiedElements = {}
 modifiedElementsCounters = [Counter() for x in range(1)]
@@ -30,9 +31,11 @@ for idx, modifiedElementsInCandidate in enumerate(modifiedElementsPerCandidate):
 print("Original dict:", newModifiedElements)
 print("Original counters:", modifiedElementsCounters)
 
-tmpCandidates = [['A', 'A']]
+tmpCandidates = [["A", "A"]]
 
-for tmpCandidate, modifiedElementsCounter in zip(tmpCandidates, modifiedElementsCounters):
+for tmpCandidate, modifiedElementsCounter in zip(
+    tmpCandidates, modifiedElementsCounters
+):
     flag = True
     while flag:
         flag = False
@@ -61,16 +64,22 @@ for idx, modifiedElementsInCandidate in enumerate(modifiedElementsPerCandidate):
 print("Fix dict:", newModifiedElementsFix)
 print("Fix counters:", modifiedElementsCountersFix)
 
-tmpCandidatesFix = [['A', 'A']]
+tmpCandidatesFix = [["A", "A"]]
 
-for tmpCandidate, modifiedElementsCounter in zip(tmpCandidatesFix, modifiedElementsCountersFix):
+for tmpCandidate, modifiedElementsCounter in zip(
+    tmpCandidatesFix, modifiedElementsCountersFix
+):
     flag = True
     while flag:
         flag = False
         for idx, chemical in enumerate(tmpCandidate):
             if modifiedElementsCounter[chemical] > 0:
                 modifiedElementsCounter[chemical] -= 1
-                mod = newModifiedElementsFix[chemical].pop(0) if newModifiedElementsFix[chemical] else chemical
+                mod = (
+                    newModifiedElementsFix[chemical].pop(0)
+                    if newModifiedElementsFix[chemical]
+                    else chemical
+                )
                 tmpCandidate[idx] = mod
                 flag = True
                 break

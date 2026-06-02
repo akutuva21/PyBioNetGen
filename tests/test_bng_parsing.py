@@ -117,6 +117,7 @@ def test_action_normalization_preserves_double_commas_inside_quotes():
     out = _normalize_action_text('something({xs=>"0,,1,,2"})')
     assert '"0,,1,,2"' in out
 
+
 def test_action_parsing_exceptions():
     import pytest
     from bionetgen.modelapi.bngparser import BNGParser
@@ -129,7 +130,7 @@ def test_action_parsing_exceptions():
     malformed_actions = [
         "invalid_action!",
         "simulate(t_end=>10) extra_stuff",
-        "simulate({method=>\"ode\")",
+        'simulate({method=>"ode")',
     ]
 
     for action in malformed_actions:

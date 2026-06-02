@@ -82,15 +82,17 @@ def test_pattern_contains():
     assert "A" in pat
     assert "B" not in pat
 
+
 import sys
 import unittest.mock
+
 
 def test_canonicalize_import_error():
     mol = Molecule(name="A")
     pat = Pattern(molecules=[mol])
 
-    with unittest.mock.patch('bionetgen.modelapi.pattern.logger') as mock_logger:
-        with unittest.mock.patch.dict(sys.modules, {'pynauty': None}):
+    with unittest.mock.patch("bionetgen.modelapi.pattern.logger") as mock_logger:
+        with unittest.mock.patch.dict(sys.modules, {"pynauty": None}):
             pat.canonicalize()
             mock_logger.warning.assert_called_once()
             args, kwargs = mock_logger.warning.call_args

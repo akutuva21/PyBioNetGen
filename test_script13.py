@@ -6,14 +6,14 @@ from collections import Counter, defaultdict
 # AND
 # To fix this properly, newModifiedElements needs to be created on a per-candidate basis (e.g., newModifiedElements = [defaultdict(list) for _ in candidates]).
 
-candidates = [['A_P1_P2']]
-reactant = 'A_P1_P2'
-tmpCandidates = [['A', 'B'], ['A', 'B']]
-originalTmpCandidates = [['A', 'B'], ['A', 'B']]
+candidates = [["A_P1_P2"]]
+reactant = "A_P1_P2"
+tmpCandidates = [["A", "B"], ["A", "B"]]
+originalTmpCandidates = [["A", "B"], ["A", "B"]]
 
 modifiedElementsPerCandidate = [
-    [('A', 'A_P1'), ('A', 'A_P2')],  # candidate 0
-    [('B', 'B_P')]                   # candidate 1
+    [("A", "A_P1"), ("A", "A_P2")],  # candidate 0
+    [("B", "B_P")],  # candidate 1
 ]
 
 newModifiedElements = [defaultdict(list) for x in range(len(candidates))]
@@ -39,7 +39,11 @@ for tmpCandidate, modifiedElementsCounter, newModifiedElementDict in zip(
         for idx, chemical in enumerate(tmpCandidate):
             if modifiedElementsCounter[chemical] > 0:
                 modifiedElementsCounter[chemical] -= 1
-                mod = newModifiedElementDict[chemical].pop(0) if newModifiedElementDict[chemical] else chemical
+                mod = (
+                    newModifiedElementDict[chemical].pop(0)
+                    if newModifiedElementDict[chemical]
+                    else chemical
+                )
                 tmpCandidate[idx] = mod
                 flag = True
                 break
