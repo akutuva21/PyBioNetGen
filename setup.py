@@ -230,5 +230,6 @@ setup(
         "pylru",
         "pyparsing",
         "packaging",
+        "defusedxml",
     ],
 )

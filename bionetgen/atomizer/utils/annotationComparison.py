@@ -106,31 +106,17 @@ def annotationComparison(model1, model2, errorList):
     for entry in annotationDict1:
         if entry not in annotationDict2:
             continue
+
+        dict1_part = {x for x in annotationDict1[entry].get("BQB_HAS_PART", []) if "uniprot" in x}
+        dict1_version = {x for x in annotationDict1[entry].get("BQB_HAS_VERSION", []) if "uniprot" in x}
+        dict2_part = {x for x in annotationDict2[entry].get("BQB_HAS_PART", []) if "uniprot" in x}
+        dict2_version = {x for x in annotationDict2[entry].get("BQB_HAS_VERSION", []) if "uniprot" in x}
+
         # for label in ['BQB_HAS_PART','BQB_IS_VERSION_OF','BQB_IS','']
-        if not set(
-            [x for x in annotationDict2[entry]["BQB_HAS_PART"] if "uniprot" in x]
-        ).issubset(
-            set([x for x in annotationDict1[entry]["BQB_HAS_PART"] if "uniprot" in x])
-        ) and not set(
-            [x for x in annotationDict2[entry]["BQB_HAS_PART"] if "uniprot" in x]
-        ).issubset(
-            set(
-                [x for x in annotationDict1[entry]["BQB_HAS_VERSION"] if "uniprot" in x]
-            )
-        ):
+        if not dict2_part.issubset(dict1_part) and not dict2_part.issubset(dict1_version):
             error += 1
 
-        if not set(
-            [x for x in annotationDict2[entry]["BQB_HAS_VERSION"] if "uniprot" in x]
-        ).issubset(
-            set(
-                [x for x in annotationDict1[entry]["BQB_HAS_VERSION"] if "uniprot" in x]
-            )
-        ) and not set(
-            [x for x in annotationDict2[entry]["BQB_HAS_VERSION"] if "uniprot" in x]
-        ).issubset(
-            set([x for x in annotationDict1[entry]["BQB_HAS_PART"] if "uniprot" in x])
-        ):
+        if not dict2_version.issubset(dict1_version) and not dict2_version.issubset(dict1_part):
             error += 1
 
     if error > 0:
@@ -158,60 +144,28 @@ def annotationFileComparison(model1, model2):
     totalSet = set()
 
     for entry in annotationDict1:
-        if not set(
-            [x for x in annotationDict2[entry]["BQB_HAS_PART"] if "uniprot" in x]
-        ).issubset(
-            set([x for x in annotationDict1[entry]["BQB_HAS_PART"] if "uniprot" in x])
-        ) and not set(
-            [x for x in annotationDict2[entry]["BQB_HAS_PART"] if "uniprot" in x]
-        ).issubset(
-            set(
-                [x for x in annotationDict1[entry]["BQB_HAS_VERSION"] if "uniprot" in x]
-            )
-        ):
+        if entry not in annotationDict2:
+            continue
+
+        dict1_part = {x for x in annotationDict1[entry].get("BQB_HAS_PART", []) if "uniprot" in x}
+        dict1_version = {x for x in annotationDict1[entry].get("BQB_HAS_VERSION", []) if "uniprot" in x}
+        dict2_part = {x for x in annotationDict2[entry].get("BQB_HAS_PART", []) if "uniprot" in x}
+        dict2_version = {x for x in annotationDict2[entry].get("BQB_HAS_VERSION", []) if "uniprot" in x}
+
+        if not dict2_part.issubset(dict1_part) and not dict2_part.issubset(dict1_version):
             print("--------------+")
             print(entry)
-            difference = set(
-                [x for x in annotationDict2[entry]["BQB_HAS_PART"] if "uniprot" in x]
-            ).difference(
-                set(
-                    [
-                        x
-                        for x in annotationDict1[entry]["BQB_HAS_PART"]
-                        if "uniprot" in x
-                    ]
-                )
-            )
+            difference = dict2_part.difference(dict1_part)
             print(difference)
             print(annotationDict1[entry])
             print(annotationDict2[entry])
             totalSet = totalSet.union(difference)
             # print set([x for x in annotationDict1[entry]['BQB_HAS_PART'] if 'uniprot' in x])
 
-        if not set(
-            [x for x in annotationDict2[entry]["BQB_HAS_VERSION"] if "uniprot" in x]
-        ).issubset(
-            set(
-                [x for x in annotationDict1[entry]["BQB_HAS_VERSION"] if "uniprot" in x]
-            )
-        ) and not set(
-            [x for x in annotationDict2[entry]["BQB_HAS_VERSION"] if "uniprot" in x]
-        ).issubset(
-            set([x for x in annotationDict1[entry]["BQB_HAS_PART"] if "uniprot" in x])
-        ):
+        if not dict2_version.issubset(dict1_version) and not dict2_version.issubset(dict1_part):
             print("--------------")
             print(entry)
-            difference = set(
-                [x for x in annotationDict2[entry]["BQB_HAS_VERSION"] if "uniprot" in x]
-            ).difference(
-                set(
-                    [
-                        x
-                        for x in annotationDict1[entry]["BQB_HAS_VERSION"]
-                        if "uniprot" in x
-                    ]
-                )
-            )
+            difference = dict2_version.difference(dict1_version)
             print(difference)
             totalSet = totalSet.union(difference)
 
