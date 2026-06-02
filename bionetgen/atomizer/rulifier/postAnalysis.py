@@ -8,6 +8,7 @@ import ast
 import json
 from copy import copy
 from bionetgen.atomizer.utils import readBNGXML
+from bionetgen.atomizer.utils.safe_parse import safe_parse
 
 import functools
 import marshal
