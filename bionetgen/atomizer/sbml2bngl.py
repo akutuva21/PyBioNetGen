@@ -458,16 +458,15 @@ class SBML2BNGL:
         remainderPatterns = []
         highStoichoiMetryFactor = 1
         processedReactants = self.preProcessStoichiometry(reactants)
-        # ASS: I'm doing a hack, this is a flag to indicate
-        # that a species appears on both sides of a reaction
-        bothSides = False
+
+        # Flag to indicate that a species appears on both sides of a reaction
+        bothSides = any(r[0] in {p[0] for p in products} for r in processedReactants)
+
         for x in processedReactants:
             # this is the symmtery factor for the rate constant
             highStoichoiMetryFactor *= factorial(x[1])
-            y = [i[1] for i in products if i[0] == x[0]]
-            if len(y) > 0:
-                bothSides = True
-            y = y[0] if len(y) > 0 else 0
+            y = next((p[1] for p in products if p[0] == x[0]), 0)
+
             # TODO: check if this actually keeps the correct dynamics
             # this is basically there to address the case where theres more products
             # than reactants (synthesis)
@@ -548,16 +547,15 @@ class SBML2BNGL:
         remainderPatterns = []
         highStoichoiMetryFactor = 1
         processedReactants = self.preProcessStoichiometry(react)
-        # ASS: I'm doing a hack, this is a flag to indicate
-        # that a species appears on both sides of a reaction
-        bothSides = False
+
+        # Flag to indicate that a species appears on both sides of a reaction
+        bothSides = any(r[0] in {p[0] for p in prod} for r in processedReactants)
+
         for x in processedReactants:
             # this is the symmtery factor for the rate constant
             highStoichoiMetryFactor *= factorial(x[1])
-            y = [i[1] for i in prod if i[0] == x[0]]
-            if len(y) > 0:
-                bothSides = True
-            y = y[0] if len(y) > 0 else 0
+            y = next((p[1] for p in prod if p[0] == x[0]), 0)
+
             if x[1] > y:
                 highStoichoiMetryFactor /= comb(int(x[1]), int(y), exact=True)
             for counter in range(0, int(x[1])):
