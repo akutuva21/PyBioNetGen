@@ -10,15 +10,15 @@ class BNGResult:
     Class that loads in gdat/cdat/scan files
 
     Usage: BNGResult(path="/path/to/folder") OR
-           BNGResult(direct_path="/path/to/file.gdat")
+           BNGResult(path="/path/to/file.gdat")
 
     Arguments
     ---------
     path : str
         path that points to a folder containing files to be
-        loaded by the class
+        loaded by the class, or a direct path to a file
     direct_path : str
-        path that directly points to a file to load
+        (Deprecated) path that directly points to a file to load
 
     Methods
     -------
@@ -36,8 +36,6 @@ class BNGResult:
         # defaults
         self.process_return = None
         self.output = None
-        # TODO Make it so that with path you can supply an
-        # extension or a list of extensions to load in
         if ext is not None:
             if isinstance(ext, str):
                 self.ext = [ext]
@@ -53,20 +51,29 @@ class BNGResult:
         self.snames = {}
         self.gnames = {}
         if direct_path is not None:
-            path, fname = os.path.split(direct_path)
-            fnoext, fext = os.path.splitext(fname)
-            self.direct_path = direct_path
-            self.file_name = fnoext
-            self.file_extension = fext
-            self.gnames[fnoext] = direct_path
-            self.gdats[fnoext] = self.load(direct_path)
-        elif path is not None:
-            self.path = path
-            self.find_dat_files()
-            self.load_results()
+            path = direct_path
+
+        if path is not None:
+            if os.path.isfile(path):
+                dpath, fname = os.path.split(path)
+                fnoext, fext = os.path.splitext(fname)
+                self.direct_path = path
+                self.file_name = fnoext
+                self.file_extension = fext
+                self.gnames[fnoext] = path
+                self.gdats[fnoext] = self.load(path)
+            elif os.path.isdir(path):
+                self.path = path
+                self.find_dat_files()
+                self.load_results()
+            else:
+                self.logger.info(
+                    f"BNGResult path {path} is neither a file nor a directory",
+                    loc=f"{__file__} : BNGResult.__init__()",
+                )
         else:
             self.logger.info(
-                "BNGResult needs either a path or a direct path kwarg to load gdat/cdat/scan files from",
+                "BNGResult needs a path kwarg to load gdat/cdat/scan files from",
                 loc=f"{__file__} : BNGResult.__init__()",
             )
 
@@ -179,10 +186,9 @@ class BNGResult:
         """
         This function takes a path to a gdat/cdat file as a string and loads that
         file into a numpy structured array, including the correct header info.
-        TODO: Add link
 
         Optional argument allows you to set the data type for every column. See
-        numpy dtype/data type strings for what's allowed. TODO: Add link
+        numpy dtype/data type strings for what's allowed. Note: https://numpy.org/doc/stable/reference/arrays.dtypes.html
         """
         # First step is to read the header,
         # we gotta open the file and pull that line in
