@@ -5,6 +5,7 @@ from collections import Counter, defaultdict
 import itertools
 from copy import deepcopy, copy
 from bionetgen.atomizer.utils.util import logMess, memoize, memoizeMapped
+import json
 from . import atomizationAux as atoAux
 import bionetgen.atomizer.utils.pathwaycommons as pwcm
 
@@ -1455,9 +1456,9 @@ class SCTSolver:
                             "lexicalVsstoch",
                             (
                                 reactant,
-                                ("lexical", str(namingTmpCandidates)),
-                                ("stoch", str(tmpCandidates)),
-                                ("original", str(originalTmpCandidates)),
+                                ("lexical", json.dumps(namingTmpCandidates)),
+                                ("stoch", json.dumps(tmpCandidates)),
+                                ("original", json.dumps(originalTmpCandidates)),
                             ),
                             self.database.assumptions,
                         )
@@ -1494,10 +1495,10 @@ class SCTSolver:
                         "lexicalVsstoch",
                         (
                             reactant,
-                            ("current", str(replacementCandidate)),
+                            ("current", json.dumps(replacementCandidate)),
                             (
                                 "alternatives",
-                                str(
+                                json.dumps(
                                     [
                                         x
                                         for x in tmpCandidates
@@ -1505,7 +1506,7 @@ class SCTSolver:
                                     ]
                                 ),
                             ),
-                            ("original", str(originalTmpCandidates)),
+                            ("original", json.dumps(originalTmpCandidates)),
                         ),
                         self.database.assumptions,
                     )
@@ -1586,9 +1587,9 @@ class SCTSolver:
                             "lexicalVsstoch",
                             (
                                 reactant,
-                                ("stoch", str(tmpCandidates)),
-                                ("lexical", str(namingtmpCandidates)),
-                                ("original", str(originalTmpCandidates)),
+                                ("stoch", json.dumps(tmpCandidates)),
+                                ("lexical", json.dumps(namingtmpCandidates)),
+                                ("original", json.dumps(originalTmpCandidates)),
                             ),
                             self.database.assumptions,
                         )
