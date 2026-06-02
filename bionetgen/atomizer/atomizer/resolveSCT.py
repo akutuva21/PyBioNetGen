@@ -1236,6 +1236,7 @@ class SCTSolver:
                         # if modificationCandidates == {}:
 
                         activeCandidates = []
+                        active_site_memo = {}
                         for individualCandidate in tmpCandidates:
                             for tmpCandidate in individualCandidate:
                                 activeQuery = None
@@ -1244,7 +1245,9 @@ class SCTSolver:
                                 )
                                 if len(uniprotkey) > 0:
                                     uniprotkey = uniprotkey[0].split("/")[-1]
-                                    activeQuery = pwcm.queryActiveSite(uniprotkey, None)
+                                    if uniprotkey not in active_site_memo:
+                                        active_site_memo[uniprotkey] = pwcm.queryActiveSite(uniprotkey, None)
+                                    activeQuery = active_site_memo[uniprotkey]
                                 if activeQuery and len(activeQuery) > 0:
                                     activeCandidates.append(tmpCandidate)
                                     # enter modification information to self.database
@@ -1256,9 +1259,9 @@ class SCTSolver:
                                     individualMajorCandidates = [
                                         y for x in candidates for y in x
                                     ]
-                                    activeQuery = pwcm.queryActiveSite(
-                                        tmpCandidate, None
-                                    )
+                                    if tmpCandidate not in active_site_memo:
+                                        active_site_memo[tmpCandidate] = pwcm.queryActiveSite(tmpCandidate, None)
+                                    activeQuery = active_site_memo[tmpCandidate]
                                     if activeQuery and len(activeQuery) > 0:
                                         otherMatches = [
                                             x
