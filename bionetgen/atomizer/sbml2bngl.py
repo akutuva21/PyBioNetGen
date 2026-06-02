@@ -2549,8 +2549,8 @@ class SBML2BNGL:
                         else:
                             logMess(
                                 "ERROR:SIM201",
-                                "Variables that are both changed by an assignment rule and reactions are not \
-                            supported in BioNetGen simulator. The variable will be split into two".format(
+                                "Variables that are both changed by an assignment rule and reactions are not "
+                                "supported in BioNetGen simulator. The variable {0} will be split into two".format(
                                     rawArule[0]
                                 ),
                             )
@@ -2583,43 +2583,30 @@ class SBML2BNGL:
                         continue
 
                 elif rawArule[0] in molecules:
-                    if molecules[rawArule[0]]["isBoundary"]:
-                        # We should probably re-write this with the name since that's what's used other places
-                        name = molecules[rawArule[0]]["returnID"]
-                        artificialObservables[name + "_ar"] = writer.bnglFunction(
-                            rawArule[1][0],
-                            name + "_ar()",
-                            [],
-                            compartments=compartmentList,
-                            reactionDict=self.reactionDictionary,
+                    name = molecules[rawArule[0]]["returnID"]
+                    if not molecules[rawArule[0]]["isBoundary"]:
+                        logMess(
+                            "ERROR:SIM201",
+                            "Variables that are both changed by an assignment rule and reactions are not "
+                            "supported in BioNetGen simulator. The variable {0} will be split into two".format(
+                                rawArule[0]
+                            ),
                         )
-                        self.arule_map[rawArule[0]] = name + "_ar"
-                        # TODO: Let's store what we know are assignment rules. We can maybe assume that, if something has an assignment rule, it can't in turn be in a reaction? If this is wrong, we can't model this anyway, so we should probably just make an assumption and let people know.
-                        self.only_assignment_dict[name] = name + "_ar"
-                        self.bngModel.add_arule(arule_obj)
-                        continue
-                    else:
-                        # if not boundary but is a species, Jose
-                        # is turning this into an assignment rule
-                        # with a different name (uses ID).
-                        # It looks as if the goal was to handle
-                        # both situations via renaming.
-                        # FIXME: This is very likely broken but
-                        # I'm not 100% sure how it breaks things.
-                        name = molecules[rawArule[0]]["returnID"]
-                        if name in observablesDict:
-                            observablesDict[name] = name + "_ar"
-                        artificialObservables[name + "_ar"] = writer.bnglFunction(
-                            rawArule[1][0],
-                            name + "_ar()",
-                            [],
-                            compartments=compartmentList,
-                            reactionDict=self.reactionDictionary,
-                        )
-                        self.arule_map[rawArule[0]] = name + "_ar"
-                        self.only_assignment_dict[name] = name + "_ar"
-                        self.bngModel.add_arule(arule_obj)
-                        continue
+                    if name in observablesDict:
+                        observablesDict[name] = name + "_ar"
+
+                    artificialObservables[name + "_ar"] = writer.bnglFunction(
+                        rawArule[1][0],
+                        name + "_ar()",
+                        [],
+                        compartments=compartmentList,
+                        reactionDict=self.reactionDictionary,
+                    )
+                    self.arule_map[rawArule[0]] = name + "_ar"
+                    # TODO: Let's store what we know are assignment rules. We can maybe assume that, if something has an assignment rule, it can't in turn be in a reaction? If this is wrong, we can't model this anyway, so we should probably just make an assumption and let people know.
+                    self.only_assignment_dict[name] = name + "_ar"
+                    self.bngModel.add_arule(arule_obj)
+                    continue
                 else:
                     # check if it is defined as an observable
                     # FIXME: This doesn't check for parameter namespace
