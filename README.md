@@ -18,6 +18,12 @@ You will need both python (3.7 and above) and perl installed. Once both are avai
 $ pip install bionetgen
 ```
 
+### Optional: in-process simulation with BNGsim
+
+PyBioNetGen can optionally use [BNGsim](https://github.com/RuleWorld/bngsim) as an in-process simulation engine (ODE/SSA/NFsim, multi-format input). This is fully opt-in: if BNGsim is not installed, every simulation uses the existing subprocess `BNG2.pl` path and behavior is unchanged. BNGsim is never a required dependency.
+
+BNGsim is a compiled extension and is not on PyPI yet, so `pip install bionetgen[bngsim]` will not resolve until it is published. To try it now, install a prebuilt wheel from the [release assets](https://github.com/wshlavacek/PyBioNetGen/releases/tag/bngsim-wheels-0.9.10) (macOS / Python 3.12; build from source on other platforms). PyBioNetGen requires BNGsim `0.9.10` or newer. Set `BIONETGEN_NO_BNGSIM=1` to force the legacy subprocess path even when BNGsim is installed. See the [BNGsim documentation page](https://pybionetgen.readthedocs.io/en/latest/bngsim.html) for details.
+
 ### Features 
 
 PyBioNetGen comes with a command line interface (CLI), based on [cement framework](https://builtoncement.com/), as well as a functional library that can be imported. The CLI can be used to run BNGL models, generate Jupyter notebooks and do rudimentary plotting. 
