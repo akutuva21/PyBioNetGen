@@ -153,6 +153,7 @@ class Species:
         for element in self.molecules:
             if element.name == moleculeName:
                 deadMolecule = element
+                break
         if deadMolecule == None:
             return
         bondNumbers = deadMolecule.getBondNumbers()
