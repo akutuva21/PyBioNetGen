@@ -458,16 +458,15 @@ class SBML2BNGL:
         remainderPatterns = []
         highStoichoiMetryFactor = 1
         processedReactants = self.preProcessStoichiometry(reactants)
-        # ASS: I'm doing a hack, this is a flag to indicate
-        # that a species appears on both sides of a reaction
-        bothSides = False
+
+        # Flag to indicate that a species appears on both sides of a reaction
+        bothSides = any(r[0] in {p[0] for p in products} for r in processedReactants)
+
         for x in processedReactants:
             # this is the symmtery factor for the rate constant
             highStoichoiMetryFactor *= factorial(x[1])
-            y = [i[1] for i in products if i[0] == x[0]]
-            if len(y) > 0:
-                bothSides = True
-            y = y[0] if len(y) > 0 else 0
+            y = next((p[1] for p in products if p[0] == x[0]), 0)
+
             # TODO: check if this actually keeps the correct dynamics
             # this is basically there to address the case where theres more products
             # than reactants (synthesis)
@@ -548,16 +547,15 @@ class SBML2BNGL:
         remainderPatterns = []
         highStoichoiMetryFactor = 1
         processedReactants = self.preProcessStoichiometry(react)
-        # ASS: I'm doing a hack, this is a flag to indicate
-        # that a species appears on both sides of a reaction
-        bothSides = False
+
+        # Flag to indicate that a species appears on both sides of a reaction
+        bothSides = any(r[0] in {p[0] for p in prod} for r in processedReactants)
+
         for x in processedReactants:
             # this is the symmtery factor for the rate constant
             highStoichoiMetryFactor *= factorial(x[1])
-            y = [i[1] for i in prod if i[0] == x[0]]
-            if len(y) > 0:
-                bothSides = True
-            y = y[0] if len(y) > 0 else 0
+            y = next((p[1] for p in prod if p[0] == x[0]), 0)
+
             if x[1] > y:
                 highStoichoiMetryFactor /= comb(int(x[1]), int(y), exact=True)
             for counter in range(0, int(x[1])):
@@ -849,10 +847,6 @@ class SBML2BNGL:
                     return rate, "", 1, 1, False, split_rxn
 
                 # prod_expr = prod_expr * -1
-                # TODO: We still need to figure out if we have
-                # our reactant/products in our expressions and
-                # if so set the nl/nr values accordingly
-
                 # Reproducing current behavior + expansion
                 re_proc = react_expr.nsimplify().evalf().simplify()
                 pe_proc = prod_expr.nsimplify().evalf().simplify()
@@ -886,7 +880,14 @@ class SBML2BNGL:
                     rateR = str(pe_proc)
                 nl = self.calculate_factor(react, prod, rateL, removedL)
                 nr = self.calculate_factor(prod, react, rateR, removedR)
-                # nl, nr = 2, 2
+
+                re_free = [str(x) for x in re_proc.free_symbols]
+                pe_free = [str(x) for x in pe_proc.free_symbols]
+                if any(x in re_free for x in react_bols + prod_bols):
+                    nl = max(nl, 1)
+                if any(x in pe_free for x in react_bols + prod_bols):
+                    nr = max(nr, 1)
+
                 # BNG power function is ^ and not **
                 rateL = rateL.replace("**", "^")
                 rateR = rateR.replace("**", "^")
@@ -941,6 +942,12 @@ class SBML2BNGL:
             else:
                 rateL = str(re_proc)
             nl = self.calculate_factor(react, prod, rateL, removedL)
+
+            prod_bols = [x[0] for x in prod]
+            re_free = [str(x) for x in re_proc.free_symbols]
+            if any(x in re_free for x in react_bols + prod_bols):
+                nl = max(nl, 1)
+
             rateL = rateL.replace("**", "^")
             # Make unidirectional
             rateR = "0"
@@ -2111,8 +2118,7 @@ class SBML2BNGL:
                 l, r = elem.as_two_terms()
                 resolve += [l, r]
             else:
-                # TODO: Do we have a better check?
-                if str(elem).startswith("-"):
+                if elem.could_extract_minus_sign():
                     neg.append(elem)
                 else:
                     pos.append(elem)
@@ -2263,13 +2269,7 @@ class SBML2BNGL:
         for initCond in initialConditions:
             splt = initCond.split()
             initCondSplit.append(splt)
-            # I'm a bit vary of this, not sure if this is
-            # the only way the $ might appear honestly
-            # keep an eye out for bugs here
-            if splt[0].startswith("$"):
-                check_name = splt[0][1:]
-            else:
-                check_name = splt[0]
+            check_name = splt[0].replace("$", "")
             # if the name is in the observable species defs
             if check_name in obs_map.keys():
                 # we slap that into our initial value map
@@ -2411,7 +2411,7 @@ class SBML2BNGL:
 
                 rateLaw1 = arule_obj.rates[0]
                 rateLaw2 = arule_obj.rates[1]
-                # TODO: Add to bngModel functions
+                # Note: Add to bngModel functions
                 arate_name = "arRate{0}".format(rawArule[0])
                 func_str = writer.bnglFunction(
                     rateLaw1,
@@ -2422,8 +2422,14 @@ class SBML2BNGL:
                 )
                 arules.append(func_str)
 
+                fobj1 = self.bngModel.make_function()
+                fobj1.Id = arate_name
+                fobj1.definition = func_str.split("=", 1)[1].strip()
+                fobj1.compartmentList = compartmentList
+                self.bngModel.add_function(fobj1)
+
                 if rateLaw2 != "0":
-                    # TODO: Add to bngModel functions
+                    # Note: Add to bngModel functions
                     armrate_name = "armRate{0}".format(rawArule[0])
                     func2_str = writer.bnglFunction(
                         rateLaw2,
@@ -2433,6 +2439,12 @@ class SBML2BNGL:
                         reactionDict=self.reactionDictionary,
                     )
                     arules.append(func2_str)
+
+                    fobj2 = self.bngModel.make_function()
+                    fobj2.Id = armrate_name
+                    fobj2.definition = func2_str.split("=", 1)[1].strip()
+                    fobj2.compartmentList = compartmentList
+                    self.bngModel.add_function(fobj2)
 
                 # ASS2019 - I'm not sure if this is the right place to fix the tags. Basically, up until this point, the artificial reactions don't have tags. This results in the 0 <-> A type reactions to lack a compartment, leading to a non-functional BNGL file. I think the better solution might be during rule (SBML rule, not BNGL rule) parsing and update the parser/SBML2BNGL tags instead.
                 try:
@@ -2545,6 +2557,9 @@ class SBML2BNGL:
                             self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
                             if rawArule[0] in observablesDict:
                                 observablesDict[rawArule[0]] = rawArule[0] + "_ar"
+                            for obs_k, obs_v in list(observablesDict.items()):
+                                if obs_v == rawArule[0]:
+                                    observablesDict[obs_k] = rawArule[0] + "_ar"
                             continue
                         else:
                             logMess(
@@ -2566,6 +2581,9 @@ class SBML2BNGL:
                             self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
                             if rawArule[0] in observablesDict:
                                 observablesDict[rawArule[0]] = rawArule[0] + "_ar"
+                            for obs_k, obs_v in list(observablesDict.items()):
+                                if obs_v == rawArule[0]:
+                                    observablesDict[obs_k] = rawArule[0] + "_ar"
                             continue
                     elif rawArule[0] in [observablesDict[x] for x in observablesDict]:
                         artificialObservables[rawArule[0] + "_ar"] = (
@@ -2580,6 +2598,9 @@ class SBML2BNGL:
                         self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
                         if rawArule[0] in observablesDict:
                             observablesDict[rawArule[0]] = rawArule[0] + "_ar"
+                        for obs_k, obs_v in list(observablesDict.items()):
+                            if obs_v == rawArule[0]:
+                                observablesDict[obs_k] = rawArule[0] + "_ar"
                         continue
 
                 elif rawArule[0] in molecules:
@@ -2594,7 +2615,13 @@ class SBML2BNGL:
                             reactionDict=self.reactionDictionary,
                         )
                         self.arule_map[rawArule[0]] = name + "_ar"
-                        # TODO: Let's store what we know are assignment rules. We can maybe assume that, if something has an assignment rule, it can't in turn be in a reaction? If this is wrong, we can't model this anyway, so we should probably just make an assumption and let people know.
+                        # Note: Let's store what we know are assignment rules. We assume that if something has an assignment rule, it can't in turn be in a reaction. If this is wrong, we can't model this anyway.
+                        logMess(
+                            "WARNING:ARUL004",
+                            "Assuming {} has an assignment rule and therefore cannot be in a reaction. If this is incorrect, the model cannot be correctly translated.".format(
+                                name
+                            ),
+                        )
                         self.only_assignment_dict[name] = name + "_ar"
                         self.bngModel.add_arule(arule_obj)
                         continue
@@ -2609,6 +2636,9 @@ class SBML2BNGL:
                         name = molecules[rawArule[0]]["returnID"]
                         if name in observablesDict:
                             observablesDict[name] = name + "_ar"
+                        for obs_k, obs_v in list(observablesDict.items()):
+                            if obs_v == name:
+                                observablesDict[obs_k] = name + "_ar"
                         artificialObservables[name + "_ar"] = writer.bnglFunction(
                             rawArule[1][0],
                             name + "_ar()",
@@ -2617,19 +2647,22 @@ class SBML2BNGL:
                             reactionDict=self.reactionDictionary,
                         )
                         self.arule_map[rawArule[0]] = name + "_ar"
+                        logMess(
+                            "WARNING:ARUL004",
+                            "Assuming {} has an assignment rule and therefore cannot be in a reaction. If this is incorrect, the model cannot be correctly translated.".format(
+                                name
+                            ),
+                        )
                         self.only_assignment_dict[name] = name + "_ar"
                         self.bngModel.add_arule(arule_obj)
                         continue
                 else:
                     # check if it is defined as an observable
-                    # FIXME: This doesn't check for parameter namespace
-                    # TODO: What is going on here?
                     candidates = [
                         idx for idx, x in enumerate(observablesDict) if rawArule[0] == x
                     ]
                     assigObsFlag = False
                     for idx in candidates:
-                        # if re.search('\s{0}\s'.format(rawArule[0]),observables[idx]):
                         artificialObservables[rawArule[0] + "_ar"] = (
                             writer.bnglFunction(
                                 rawArule[1][0],
@@ -2640,9 +2673,16 @@ class SBML2BNGL:
                             )
                         )
                         self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
+                        if rawArule[0] in observablesDict:
+                            observablesDict[rawArule[0]] = rawArule[0] + "_ar"
+                        for obs_k, obs_v in list(observablesDict.items()):
+                            if obs_v == rawArule[0]:
+                                observablesDict[obs_k] = rawArule[0] + "_ar"
                         assigObsFlag = True
                         break
                     if assigObsFlag:
+                        if rawArule[0] in param_map.keys():
+                            removeParameters.append(param_map[rawArule[0]])
                         continue
                 # if its not a param/species/observable
                 # TODO: now, if we replace this with the returnID do we
