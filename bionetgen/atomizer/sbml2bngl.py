@@ -2582,8 +2582,8 @@ class SBML2BNGL:
                         else:
                             logMess(
                                 "ERROR:SIM201",
-                                "Variables that are both changed by an assignment rule and reactions are not \
-                            supported in BioNetGen simulator. The variable will be split into two".format(
+                                "Variables that are both changed by an assignment rule and reactions are not "
+                                "supported in BioNetGen simulator. The variable {0} will be split into two".format(
                                     rawArule[0]
                                 ),
                             )
@@ -2622,18 +2622,9 @@ class SBML2BNGL:
                         continue
 
                 elif rawArule[0] in molecules:
-                    if molecules[rawArule[0]]["isBoundary"]:
-                        # We should probably re-write this with the name since that's what's used other places
-                        name = molecules[rawArule[0]]["returnID"]
-                        artificialObservables[name + "_ar"] = writer.bnglFunction(
-                            rawArule[1][0],
-                            name + "_ar()",
-                            [],
-                            compartments=compartmentList,
-                            reactionDict=self.reactionDictionary,
-                        )
+                    name = molecules[rawArule[0]]["returnID"]
+                    if not molecules[rawArule[0]]["isBoundary"]:
                         self.arule_map[rawArule[0]] = name + "_ar"
-                        # Note: Let's store what we know are assignment rules. We assume that if something has an assignment rule, it can't in turn be in a reaction. If this is wrong, we can't model this anyway.
                         logMess(
                             "WARNING:ARUL004",
                             "Assuming {} has an assignment rule and therefore cannot be in a reaction. If this is incorrect, the model cannot be correctly translated.".format(
