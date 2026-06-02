@@ -127,18 +127,25 @@ class NamingDatabase:
 
         speciesList = [x[1:] for x in cursor.execute(queryStatement)]
 
-        tmp = {x[0]: set([]) for x in speciesList}
-        tmp2 = {x[0]: set([]) for x in speciesList}
-        tmp3 = {x[0]: set([]) for x in speciesList}
-        tmp4 = {x[0]: set([]) for x in speciesList}
+        tmp = {}
+        tmp2 = {}
+        tmp3 = {}
+        tmp4 = {}
         for x in speciesList:
-            if x[3] in ["BQB_IS", "BQM_IS", "BQB_IS_VERSION_OF"]:
-                tmp[x[0]].add(x[1])
+            key = x[0]
+            if key not in tmp:
+                tmp[key] = set()
+                tmp2[key] = set()
+                tmp3[key] = set()
+                tmp4[key] = set()
+
+            if x[3] in ("BQB_IS", "BQM_IS", "BQB_IS_VERSION_OF"):
+                tmp[key].add(x[1])
                 if x[2] != "":
-                    tmp2[x[0]].add(x[2])
-                tmp3[x[0]].add(x[3])
+                    tmp2[key].add(x[2])
+                tmp3[key].add(x[3])
             else:
-                tmp4[x[0]].add((x[1], x[3]))
+                tmp4[key].add((x[1], x[3]))
 
         tmp = [
             {
@@ -184,18 +191,25 @@ class NamingDatabase:
                 continue
             speciesList = file_groups[fileName]
 
-            tmp = {x[0]: set([]) for x in speciesList}
-            tmp2 = {x[0]: set([]) for x in speciesList}
-            tmp3 = {x[0]: set([]) for x in speciesList}
-            tmp4 = {x[0]: set([]) for x in speciesList}
+            tmp = {}
+            tmp2 = {}
+            tmp3 = {}
+            tmp4 = {}
             for x in speciesList:
-                if x[3] in ["BQB_IS", "BQM_IS", "BQB_IS_VERSION_OF"]:
-                    tmp[x[0]].add(x[1])
+                key = x[0]
+                if key not in tmp:
+                    tmp[key] = set()
+                    tmp2[key] = set()
+                    tmp3[key] = set()
+                    tmp4[key] = set()
+
+                if x[3] in ("BQB_IS", "BQM_IS", "BQB_IS_VERSION_OF"):
+                    tmp[key].add(x[1])
                     if x[2] != "":
-                        tmp2[x[0]].add(x[2])
-                    tmp3[x[0]].add(x[3])
+                        tmp2[key].add(x[2])
+                    tmp3[key].add(x[3])
                 else:
-                    tmp4[x[0]].add((x[1], x[3]))
+                    tmp4[key].add((x[1], x[3]))
 
             file_tmp = [
                 {
