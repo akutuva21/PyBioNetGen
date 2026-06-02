@@ -734,24 +734,12 @@ class SBML2BNGL:
         # Remove compartments if we use them.
         # if not self.noCompartment:
         compartments_to_remove = [sympy.symbols(comp) for comp in compartmentList]
-        # TODO: This is not fully correct, we need to know what
-        # compartment is on what side which is not currently
-        # being provided to this function
         for comp in compartments_to_remove:
             if comp in sym.atoms():
-                # Further issue, I know that this should be
-                # a multiplication but for BMD2 this is actually a
-                # problem? In fact, it looks like this is the case
-                # for regular mass action in SBML?
-                # This doesn't look right and it is a current
-                # hack?
-                n, d = sym.as_numer_denom()
-                if comp in n.atoms():
-                    sym = sym / comp
-                elif comp in d.atoms():
-                    sym = sym * comp
-                else:
-                    pass
+                # By substituting 1 for the compartment size, we simply
+                # remove it from the rate equation appropriately regardless of
+                # where it appears in the expression
+                sym = sym.subs(comp, 1)
 
         # If we are splitting, we don't need to do much
         if split_rxn:
