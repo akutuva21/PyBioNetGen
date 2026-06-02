@@ -2621,9 +2621,10 @@ class SBML2BNGL:
                         self.bngModel.add_arule(arule_obj)
                         continue
                 else:
+                    if rawArule[0] in param_map.keys():
+                        removeParameters.append(param_map[rawArule[0]])
                     # check if it is defined as an observable
-                    # FIXME: This doesn't check for parameter namespace
-                    # TODO: What is going on here?
+                    # Note: What is going on here?
                     candidates = [
                         idx for idx, x in enumerate(observablesDict) if rawArule[0] == x
                     ]
@@ -2650,10 +2651,6 @@ class SBML2BNGL:
                 # name = molecules[rawArule[0]]['returnID']
                 # self.only_assignment_dict[name] = name+"_ar"
                 # artificialObservables[name+'_ar'] = writer.bnglFunction(rawArule[1][0],name+'()',[],compartments=compartmentList,reactionDict=self.reactionDictionary)
-                # This doesn't actually check for clashes with
-                # parameter namespace
-                if rawArule[0] in param_map.keys():
-                    removeParameters.append(param_map[rawArule[0]])
                 artificialObservables[rawArule[0] + "_ar"] = writer.bnglFunction(
                     rawArule[1][0],
                     rawArule[0] + "()",
