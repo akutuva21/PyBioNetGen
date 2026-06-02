@@ -145,3 +145,28 @@ def test_extract_function_body_nested_braces():
 def test_extract_function_body_not_found():
     text = "void otherfunc() {\n  body text;\n}\n"
     assert _extract_function_body(text, "myfunc") == ""
+
+def test_extract_function_body_newlines():
+    text = """void myfunc()
+{
+  body text;
+}
+"""
+    assert _extract_function_body(text, "myfunc") == "\n  body text;\n"
+
+def test_extract_function_body_parameters():
+    text = """void myfunc(int a, double b) {
+  body param;
+}
+"""
+    assert _extract_function_body(text, "myfunc") == "\n  body param;\n"
+
+def test_extract_function_body_multiple_funcs():
+    text = """void otherfunc() {
+  other;
+}
+void myfunc() {
+  target;
+}
+"""
+    assert _extract_function_body(text, "myfunc") == "\n  target;\n"
