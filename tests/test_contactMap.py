@@ -17,7 +17,6 @@ def contactMap_module():
         {
             "utils": MagicMock(),
             "utils.consoleCommands": MagicMock(),
-            "cPickle": MagicMock(),
         },
     ):
         import bionetgen.atomizer.contactMap as cm
@@ -99,7 +98,7 @@ def test_simpleGraph_superNode(contactMap_module):
 
 
 @patch("bionetgen.atomizer.contactMap.listdir")
-@patch("bionetgen.atomizer.contactMap.pickle.load")
+@patch("bionetgen.atomizer.contactMap.json.load")
 @patch("builtins.open", new_callable=mock_open)
 @patch("bionetgen.atomizer.contactMap.nx.write_gml")
 @patch("bionetgen.atomizer.contactMap.readBNGXML.parseXML")
@@ -109,7 +108,7 @@ def test_main(
     mock_parseXML,
     mock_write_gml,
     mock_file,
-    mock_pickle_load,
+    mock_json_load,
     mock_listdir,
     contactMap_module,
 ):
@@ -124,14 +123,14 @@ def test_main(
     # speciesEquivalence
     speciesEquivalence = {"spec1": "spec2"}
 
-    mock_pickle_load.side_effect = [linkArray, annotations, speciesEquivalence]
+    mock_json_load.side_effect = [linkArray, annotations, speciesEquivalence]
 
     mock_parseXML.return_value = ([], [], {}, [])
 
     contactMap_module.main()
 
     assert mock_listdir.called
-    assert mock_pickle_load.call_count == 3
+    assert mock_json_load.call_count == 3
     assert mock_file.call_count == 3
 
     assert mock_bngl2xml.called

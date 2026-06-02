@@ -1,6 +1,7 @@
 import sys
 import string
-from xml.dom import minidom, Node
+from defusedxml import minidom
+from xml.dom import Node
 
 
 def walk(parent, outFile, level, database):  # [1]
