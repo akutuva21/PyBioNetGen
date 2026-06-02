@@ -12,6 +12,40 @@ from bionetgen.atomizer.utils.safe_parse import safe_parse
 
 import functools
 import marshal
+import json
+
+
+def safe_parse_assumption(val):
+    if not isinstance(val, str):
+        return val
+    try:
+        return json.loads(val.replace("'", '"'))
+    except json.JSONDecodeError:
+        pass
+
+    try:
+        tree = ast.parse(val, mode="eval")
+
+        def _extract(node):
+            if isinstance(node, ast.Expression):
+                return _extract(node.body)
+            elif isinstance(node, ast.List):
+                return [_extract(elt) for elt in node.elts]
+            elif isinstance(node, ast.Tuple):
+                return tuple(_extract(elt) for elt in node.elts)
+            elif isinstance(node, ast.Constant):
+                return node.value
+            elif isinstance(node, ast.Str):
+                return node.s
+            elif isinstance(node, ast.Num):
+                return node.n
+            elif isinstance(node, ast.NameConstant):
+                return node.value
+            raise ValueError("Unsupported node type")
+
+        return _extract(tree)
+    except Exception:
+        return []
 
 
 def memoize(obj):
