@@ -2271,13 +2271,7 @@ class SBML2BNGL:
         for initCond in initialConditions:
             splt = initCond.split()
             initCondSplit.append(splt)
-            # I'm a bit vary of this, not sure if this is
-            # the only way the $ might appear honestly
-            # keep an eye out for bugs here
-            if splt[0].startswith("$"):
-                check_name = splt[0][1:]
-            else:
-                check_name = splt[0]
+            check_name = splt[0].replace("$", "")
             # if the name is in the observable species defs
             if check_name in obs_map.keys():
                 # we slap that into our initial value map
