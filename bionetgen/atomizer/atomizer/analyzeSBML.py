@@ -101,10 +101,10 @@ class SBMLAnalyzer:
         self.conservationOfMass = conservationOfMass
 
     def distanceToModification(self, particle, modifiedElement, translationKeys):
-        posparticlePos = [
-            m.start() + len(particle) for m in re.finditer(particle, modifiedElement)
-        ]
-        preparticlePos = [m.start() for m in re.finditer(particle, modifiedElement)]
+        particle_starts = [m.start() for m in re.finditer(particle, modifiedElement)]
+        particle_len = len(particle)
+        posparticlePos = [s + particle_len for s in particle_starts]
+        preparticlePos = particle_starts
         keyPos = [m.start() for m in re.finditer(translationKeys, modifiedElement)]
         distance = [abs(y - x) for x in posparticlePos for y in keyPos]
         distance.extend([abs(y - x) for x in preparticlePos for y in keyPos])
