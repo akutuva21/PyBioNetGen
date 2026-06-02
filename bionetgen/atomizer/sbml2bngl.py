@@ -2557,6 +2557,9 @@ class SBML2BNGL:
                             self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
                             if rawArule[0] in observablesDict:
                                 observablesDict[rawArule[0]] = rawArule[0] + "_ar"
+                            for obs_k, obs_v in list(observablesDict.items()):
+                                if obs_v == rawArule[0]:
+                                    observablesDict[obs_k] = rawArule[0] + "_ar"
                             continue
                         else:
                             logMess(
@@ -2578,6 +2581,9 @@ class SBML2BNGL:
                             self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
                             if rawArule[0] in observablesDict:
                                 observablesDict[rawArule[0]] = rawArule[0] + "_ar"
+                            for obs_k, obs_v in list(observablesDict.items()):
+                                if obs_v == rawArule[0]:
+                                    observablesDict[obs_k] = rawArule[0] + "_ar"
                             continue
                     elif rawArule[0] in [observablesDict[x] for x in observablesDict]:
                         artificialObservables[rawArule[0] + "_ar"] = (
@@ -2592,6 +2598,9 @@ class SBML2BNGL:
                         self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
                         if rawArule[0] in observablesDict:
                             observablesDict[rawArule[0]] = rawArule[0] + "_ar"
+                        for obs_k, obs_v in list(observablesDict.items()):
+                            if obs_v == rawArule[0]:
+                                observablesDict[obs_k] = rawArule[0] + "_ar"
                         continue
 
                 elif rawArule[0] in molecules:
@@ -2627,6 +2636,9 @@ class SBML2BNGL:
                         name = molecules[rawArule[0]]["returnID"]
                         if name in observablesDict:
                             observablesDict[name] = name + "_ar"
+                        for obs_k, obs_v in list(observablesDict.items()):
+                            if obs_v == name:
+                                observablesDict[obs_k] = name + "_ar"
                         artificialObservables[name + "_ar"] = writer.bnglFunction(
                             rawArule[1][0],
                             name + "_ar()",
@@ -2661,6 +2673,11 @@ class SBML2BNGL:
                             )
                         )
                         self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
+                        if rawArule[0] in observablesDict:
+                            observablesDict[rawArule[0]] = rawArule[0] + "_ar"
+                        for obs_k, obs_v in list(observablesDict.items()):
+                            if obs_v == rawArule[0]:
+                                observablesDict[obs_k] = rawArule[0] + "_ar"
                         assigObsFlag = True
                         break
                     if assigObsFlag:
