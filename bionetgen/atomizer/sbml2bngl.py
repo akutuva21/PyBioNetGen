@@ -2606,7 +2606,13 @@ class SBML2BNGL:
                             reactionDict=self.reactionDictionary,
                         )
                         self.arule_map[rawArule[0]] = name + "_ar"
-                        # TODO: Let's store what we know are assignment rules. We can maybe assume that, if something has an assignment rule, it can't in turn be in a reaction? If this is wrong, we can't model this anyway, so we should probably just make an assumption and let people know.
+                        # Note: Let's store what we know are assignment rules. We assume that if something has an assignment rule, it can't in turn be in a reaction. If this is wrong, we can't model this anyway.
+                        logMess(
+                            "WARNING:ARUL004",
+                            "Assuming {} has an assignment rule and therefore cannot be in a reaction. If this is incorrect, the model cannot be correctly translated.".format(
+                                name
+                            ),
+                        )
                         self.only_assignment_dict[name] = name + "_ar"
                         self.bngModel.add_arule(arule_obj)
                         continue
@@ -2629,6 +2635,12 @@ class SBML2BNGL:
                             reactionDict=self.reactionDictionary,
                         )
                         self.arule_map[rawArule[0]] = name + "_ar"
+                        logMess(
+                            "WARNING:ARUL004",
+                            "Assuming {} has an assignment rule and therefore cannot be in a reaction. If this is incorrect, the model cannot be correctly translated.".format(
+                                name
+                            ),
+                        )
                         self.only_assignment_dict[name] = name + "_ar"
                         self.bngModel.add_arule(arule_obj)
                         continue
