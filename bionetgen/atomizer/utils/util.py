@@ -277,32 +277,6 @@ def defaultReactionDefinition():
         json.dump(final, fp)
 
 
-# def setupLog(fileName, level, quietMode=False):
-#     if quietMode:
-#         colorlog.basicConfig(filename=fileName, level=level, filemode="w")
-#     else:
-#         colorlog.basicConfig(level=level)
-
-
-# def setupStreamLog(console):
-#     # set colorlog handler
-#     fmter = colorlog.ColoredFormatter(
-#         "%(log_color)s%(levelname)s:%(name)s:%(message)s",
-#         log_colors={
-#             "DEBUG": "cyan",
-#             "INFO": "green",
-#             "WARNING": "yellow",
-#             "ERROR": "red",
-#             "CRITICAL": "red",
-#         },
-#     )
-#     # tell the handler to use this format
-#     console.setFormatter(fmter)
-#     # colorlog.getLogger().addHandler(console)
-
-
-# def finishStreamLog(console):
-#     colorlog.getLogger().removeHandler(console)
 
 
 def logMess(logType, logMessage):
