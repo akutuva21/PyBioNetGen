@@ -277,8 +277,6 @@ def defaultReactionDefinition():
         json.dump(final, fp)
 
 
-
-
 def logMess(logType, logMessage):
     level = logType.split(":")[0]
     module = logType.split(":")[1]
