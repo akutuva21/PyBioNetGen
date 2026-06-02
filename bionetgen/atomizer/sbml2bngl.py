@@ -3171,9 +3171,9 @@ class SBML2BNGL:
             obs_obj.Id = modifiedName
             self.bngModel.add_observable(obs_obj)
 
-        # TODO: make sure this is replicated in bngModel
-        sorted(rawSpeciesName, key=len)
-        for species in rawSpeciesName:
+        # Note: Since bngModel relies on the order in which molecules are added,
+        # we process rawSpeciesName by length here to ensure consistent and length-ordered addition.
+        for species in sorted(rawSpeciesName, key=len):
             if (
                 get_size(translator[species]) == 1
                 and translator[species].molecules[0].name not in names
