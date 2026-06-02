@@ -328,10 +328,8 @@ def bnglFunction(
                         optionList,
                     )
                     for x in parsedParams:
-                        while re.search(r"(\W|^)({0})(\W|$)".format(x), tmp2) != None:
-                            tmp2 = re.sub(
-                                r"(\W|^)({0})(\W|$)".format(x), r"\1param_\2 \3", tmp2
-                            )
+                        pattern = re.compile(rf"(?<!\w)({x})(?!\w)")
+                        tmp2 = pattern.sub(r"param_\1 ", tmp2)
                     idx += 1
                     parsedString += tmp + tmp2
             else:
@@ -420,8 +418,8 @@ def bnglFunction(
     # change references to time for time()
     # tmp =re.sub(r'(\W|^)(time)(\W|$)',r'\1time()\3',tmp)
     # tmp =re.sub(r'(\W|^)(Time)(\W|$)',r'\1time()\3',tmp)
-    while re.search(r"(\W|^)inf(\W|$)", tmp) != None:
-        tmp = re.sub(r"(\W|^)(inf)(\W|$)", r"\1 1e20 \3", tmp)
+    pattern_inf = re.compile(r"(?<!\w)inf(?!\w)")
+    tmp = pattern_inf.sub(r" 1e20 ", tmp)
     # BNGL has ^ for power.
     if flag:
         finalString = "%s = %s" % (functionTitle, tmp)
@@ -476,10 +474,10 @@ def curateParameters(param):
     """
     The objective of this function is to remove elements extraneous to bionetgen
     """
+    pattern_inf = re.compile(r"(?<!\w)inf(?!\w)")
     for element in range(0, len(param)):
         tmp = param[element]
-        while re.search(r"(\W|^)inf(\W|$)", tmp) != None:
-            tmp = re.sub(r"(\W|^)(inf)(\W|$)", r"\g<1>1e20\g<3>", tmp)
+        tmp = pattern_inf.sub(r"1e20", tmp)
         param[element] = tmp
     return param
 
