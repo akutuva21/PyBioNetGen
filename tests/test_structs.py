@@ -22,6 +22,7 @@ def test_modelobj_delitem():
     del obj["test_key"]
     assert "test_key" not in obj
 
+
 def test_modelobj_line_label_setter():
     obj = ModelObj()
 
