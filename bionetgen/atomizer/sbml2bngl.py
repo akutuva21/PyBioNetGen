@@ -2613,12 +2613,7 @@ class SBML2BNGL:
                     if rawArule[0] in param_map.keys():
                         removeParameters.append(param_map[rawArule[0]])
                     # check if it is defined as an observable
-                    # Note: What is going on here?
-                    candidates = [
-                        idx for idx, x in enumerate(observablesDict) if rawArule[0] == x
-                    ]
-                    assigObsFlag = False
-                    for idx in candidates:
+                    if rawArule[0] in observablesDict:
                         artificialObservables[rawArule[0] + "_ar"] = (
                             writer.bnglFunction(
                                 rawArule[1][0],
@@ -2634,9 +2629,6 @@ class SBML2BNGL:
                         for obs_k, obs_v in list(observablesDict.items()):
                             if obs_v == rawArule[0]:
                                 observablesDict[obs_k] = rawArule[0] + "_ar"
-                        assigObsFlag = True
-                        break
-                    if assigObsFlag:
                         if rawArule[0] in param_map.keys():
                             removeParameters.append(param_map[rawArule[0]])
                         continue
