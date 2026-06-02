@@ -10,7 +10,37 @@ from bionetgen.atomizer.utils import readBNGXML
 
 import functools
 import marshal
+import json
 
+def safe_parse_assumption(val):
+    if not isinstance(val, str):
+        return val
+    try:
+        return json.loads(val.replace("'", '"'))
+    except json.JSONDecodeError:
+        pass
+
+    try:
+        tree = ast.parse(val, mode='eval')
+        def _extract(node):
+            if isinstance(node, ast.Expression):
+                return _extract(node.body)
+            elif isinstance(node, ast.List):
+                return [_extract(elt) for elt in node.elts]
+            elif isinstance(node, ast.Tuple):
+                return tuple(_extract(elt) for elt in node.elts)
+            elif isinstance(node, ast.Constant):
+                return node.value
+            elif isinstance(node, ast.Str):
+                return node.s
+            elif isinstance(node, ast.Num):
+                return node.n
+            elif isinstance(node, ast.NameConstant):
+                return node.value
+            raise ValueError('Unsupported node type')
+        return _extract(tree)
+    except Exception:
+        return []
 
 def memoize(obj):
     cache = obj.cache = {}
@@ -257,13 +287,13 @@ class ModelLearning:
                     for assumption in (
                         x
                         for x in assumptionList
-                        for y in ast.literal_eval(x[3][1])
+                        for y in safe_parse_assumption(x[3][1])
                         for z in y
                         if molecule in z
                     ):
-                        candidates = ast.literal_eval(assumption[1][1])
-                        alternativeCandidates = ast.literal_eval(assumption[2][1])
-                        original = ast.literal_eval(assumption[3][1])
+                        candidates = safe_parse_assumption(assumption[1][1])
+                        alternativeCandidates = safe_parse_assumption(assumption[2][1])
+                        original = safe_parse_assumption(assumption[3][1])
                         # further confirm that the change is about the pair of interest
                         # by iterating over all candidates and comparing one by one
                         for candidate in candidates:
