@@ -153,9 +153,6 @@ class ModelBlock:
         Adds an item to the block from the item tuple given.
         Exact mechanism is slightly different for each block.
         """
-        # TODO: try adding evaluation of the parameter here
-        # for the future, in case we want people to be able
-        # to adjust the math
         try:
             name, value = item_tpl
         except ValueError:
@@ -164,6 +161,18 @@ class ModelBlock:
             raise TypeError(
                 f"Item must be an iterable of length 2 (name, value), got {type(item_tpl)}"
             )
+
+        try:
+            import sympy
+
+            if hasattr(value, "value") and isinstance(value.value, str):
+                sval = sympy.sympify(value.value)
+                if sval.is_Number:
+                    value.value = str(float(sval))
+                elif sval.is_constant():
+                    value.value = str(float(sval.evalf()))
+        except Exception:
+            pass
         # allow for empty addition, uses index
         if name is None:
             name = len(self.items)
