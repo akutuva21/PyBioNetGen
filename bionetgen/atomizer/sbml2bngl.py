@@ -2111,8 +2111,7 @@ class SBML2BNGL:
                 l, r = elem.as_two_terms()
                 resolve += [l, r]
             else:
-                # TODO: Do we have a better check?
-                if str(elem).startswith("-"):
+                if elem.could_extract_minus_sign():
                     neg.append(elem)
                 else:
                     pos.append(elem)
