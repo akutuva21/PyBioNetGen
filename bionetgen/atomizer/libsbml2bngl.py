@@ -173,13 +173,6 @@ def readFromString(
     one of the library's main entry methods. Process data from a string
     """
 
-    # console = None
-    # if loggingStream:
-    #     console = logging.StreamHandler(loggingStream)
-    #     console.setLevel(logging.DEBUG)
-
-    #     # setupStreamLog(console)
-
     reader = libsbml.SBMLReader()
     document = reader.readSBMLFromString(inputString)
     parser = SBML2BNGL(
@@ -220,9 +213,6 @@ def readFromString(
         database.species = translator.keys()
     else:
         translator = {}
-    # logging.getLogger().flush()
-    # if loggingStream:
-    #     finishStreamLog(console)
     returnArray = analyzeHelper(
         document,
         reactionDefinitions,
@@ -717,11 +707,6 @@ def analyzeFile(
     pr = cProfile.Profile()
     pr.enable()
     """
-    # TODO: replace this setup log with our own logging system
-    # setupLog(
-    #     outputFile + ".log", getattr(logging, logLevel.upper()), quietMode=quietMode
-    # )
-
     logMess.log = []
     logMess.counter = -1
     reader = libsbml.SBMLReader()
