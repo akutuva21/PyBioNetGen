@@ -2340,8 +2340,8 @@ class SBML2BNGL:
         require special handling since rules are often both defined as rules
         and parameters initialized as 0, so they need to be removed from the parameters list
         """
-        # FIXME: This function removes compartment info and this leads to mis-replacement of variables downstream. e.g. Calc@ER and Calc@MIT both gets written as Calc and downstream the replacement is wrong.
-        # FIXME: This function gets a list of observables which sometimes are turned into assignment rules but then are not updated in the observablesDict. E.g. X_comp1 gets in, X_ar is created and you can't have BOTH X_comp1 in a reaction AND X_ar adjusting X itself. You MUST pick one, if both are happening raise and error and exit out. For now I'll say if we have _ar then we replace the X_comp1 with X_ar and test.
+        # TODO: This function removes compartment info and this leads to mis-replacement of variables downstream. e.g. Calc@ER and Calc@MIT both gets written as Calc and downstream the replacement is wrong.
+        # TODO: This function gets a list of observables which sometimes are turned into assignment rules but then are not updated in the observablesDict. E.g. X_comp1 gets in, X_ar is created and you can't have BOTH X_comp1 in a reaction AND X_ar adjusting X itself. You MUST pick one, if both are happening raise and error and exit out. For now I'll say if we have _ar then we replace the X_comp1 with X_ar and test.
 
         # Going to use this to match names and remove params
         # if need be
