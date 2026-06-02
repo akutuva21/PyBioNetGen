@@ -1,6 +1,11 @@
 import pytest
 from unittest.mock import patch
-from bionetgen.modelapi.sympy_odes import _safe_rmtree, _extract_nv_assignments, _extract_odes_from_cvode_mex
+from bionetgen.modelapi.sympy_odes import (
+    _safe_rmtree,
+    _extract_nv_assignments,
+    _extract_define_int,
+    _extract_odes_from_cvode_mex,
+)
 
 
 def test_extract_nv_assignments():
@@ -146,6 +151,7 @@ def test_extract_function_body_not_found():
     text = "void otherfunc() {\n  body text;\n}\n"
     assert _extract_function_body(text, "myfunc") == ""
 
+
 def test_extract_odes_from_cvode_mex_direct():
     mex_c_text = """
     #define __N_SPECIES__ 2
@@ -176,8 +182,8 @@ def test_extract_odes_from_cvode_mex_direct():
     assert len(result.species) == 2
     assert len(result.params) == 2
 
+
 def test_extract_odes_from_cvode_mex_inference():
-    # Omits __N_SPECIES__ and __N_PARAMETERS__ defines to test the inference fallback
     mex_c_text = """
     void calc_expressions(realtype t) {
         NV_Ith_S(expressions,0) = parameters[0] * 2;
@@ -203,3 +209,46 @@ def test_extract_odes_from_cvode_mex_inference():
     assert str(result.odes[1]) == "2*p0*s0"
     assert len(result.species) == 2
     assert len(result.params) == 1
+
+
+def test_extract_function_body_newlines():
+    text = """void myfunc()
+{
+  body text;
+}
+"""
+    assert _extract_function_body(text, "myfunc") == "\n  body text;\n"
+
+
+def test_extract_function_body_parameters():
+    text = """void myfunc(int a, double b) {
+  body param;
+}
+"""
+    assert _extract_function_body(text, "myfunc") == "\n  body param;\n"
+
+
+def test_extract_function_body_multiple_funcs():
+    text = """void otherfunc() {
+  other;
+}
+void myfunc() {
+  target;
+}
+"""
+    assert _extract_function_body(text, "myfunc") == "\n  target;\n"
+
+
+def test_extract_define_int():
+    assert _extract_define_int("#define MY_VAR 42", "MY_VAR") == 42
+    assert _extract_define_int("  #define   MY_VAR   42  ", "MY_VAR") == 42
+    assert _extract_define_int("\t#define\tMY_VAR\t42\t", "MY_VAR") == 42
+    text = """
+    #define OTHER 1
+    #define MY_VAR 42
+    #define ANOTHER 2
+    """
+    assert _extract_define_int(text, "MY_VAR") == 42
+    assert _extract_define_int("#define OTHER 1", "MY_VAR") is None
+    assert _extract_define_int("#define MY_VAR abc", "MY_VAR") is None
+    assert _extract_define_int("#define MY_VAR 42.5", "MY_VAR") is None

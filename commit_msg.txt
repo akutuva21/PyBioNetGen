@@ -1,0 +1,5 @@
+Add evaluation of parameters
+
+This adds the missing mathematical evaluation of parameters using `sympy` in `bionetgen/modelapi/blocks.py` and removes the old `TODO` comments from both `bionetgen/network/blocks.py` and `bionetgen/modelapi/blocks.py` that describe this functionality.
+
+Now, users can adjust the math and it will correctly evaluate.
