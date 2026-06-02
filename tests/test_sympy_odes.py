@@ -4,6 +4,7 @@ from bionetgen.modelapi.sympy_odes import (
     _safe_rmtree,
     _extract_nv_assignments,
     _extract_define_int,
+    _extract_odes_from_cvode_mex,
 )
 
 
@@ -149,6 +150,65 @@ def test_extract_function_body_nested_braces():
 def test_extract_function_body_not_found():
     text = "void otherfunc() {\n  body text;\n}\n"
     assert _extract_function_body(text, "myfunc") == ""
+
+
+def test_extract_odes_from_cvode_mex_direct():
+    mex_c_text = """
+    #define __N_SPECIES__ 2
+    #define __N_PARAMETERS__ 2
+
+    void calc_expressions(realtype t) {
+        NV_Ith_S(expressions,0) = parameters[0] * 2;
+}
+
+    void calc_observables(realtype t) {
+        NV_Ith_S(observables,0) = NV_Ith_S(species,0) + NV_Ith_S(species,1);
+}
+
+    void calc_ratelaws(realtype t) {
+        NV_Ith_S(ratelaws,0) = NV_Ith_S(expressions,0) * NV_Ith_S(species,0);
+}
+
+    void calc_species_deriv(realtype t) {
+        NV_Ith_S(Dspecies,0) = -NV_Ith_S(ratelaws,0);
+        NV_Ith_S(Dspecies,1) = NV_Ith_S(ratelaws,0);
+}
+    """
+    result = _extract_odes_from_cvode_mex(mex_c_text, "dummy_path.c")
+
+    assert len(result.odes) == 2
+    assert str(result.odes[0]) == "-2*p0*s0"
+    assert str(result.odes[1]) == "2*p0*s0"
+    assert len(result.species) == 2
+    assert len(result.params) == 2
+
+
+def test_extract_odes_from_cvode_mex_inference():
+    mex_c_text = """
+    void calc_expressions(realtype t) {
+        NV_Ith_S(expressions,0) = parameters[0] * 2;
+}
+
+    void calc_observables(realtype t) {
+        NV_Ith_S(observables,0) = NV_Ith_S(species,0) + NV_Ith_S(species,1);
+}
+
+    void calc_ratelaws(realtype t) {
+        NV_Ith_S(ratelaws,0) = NV_Ith_S(expressions,0) * NV_Ith_S(species,0);
+}
+
+    void calc_species_deriv(realtype t) {
+        NV_Ith_S(Dspecies,0) = -NV_Ith_S(ratelaws,0);
+        NV_Ith_S(Dspecies,1) = NV_Ith_S(ratelaws,0);
+}
+    """
+    result = _extract_odes_from_cvode_mex(mex_c_text, "dummy_path.c")
+
+    assert len(result.odes) == 2
+    assert str(result.odes[0]) == "-2*p0*s0"
+    assert str(result.odes[1]) == "2*p0*s0"
+    assert len(result.species) == 2
+    assert len(result.params) == 1
 
 
 def test_extract_function_body_newlines():
