@@ -22,13 +22,43 @@ def defineConsole():
     return parser
 
 
+class RestrictedUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        safe_builtins = {
+            "range",
+            "complex",
+            "set",
+            "frozenset",
+            "slice",
+            "dict",
+            "list",
+            "tuple",
+            "int",
+            "float",
+            "str",
+            "bool",
+        }
+        safe_modules = {
+            "collections",
+            "structures",
+            "smallStructures",
+            "bionetgen.atomizer.utils.structures",
+            "bionetgen.atomizer.utils.smallStructures",
+        }
+        if module in ("builtins", "__builtin__") and name in safe_builtins:
+            return super().find_class(module, name)
+        if module in safe_modules:
+            return super().find_class(module, name)
+        raise pickle.UnpicklingError(f"Global '{module}.{name}' is forbidden")
+
+
 def componentAnalysis(directory):
     componentCount = []
     bindingCount = []
     stateCount = []
     modelComponentDict = {}
     with open(os.path.join(directory, "moleculeTypeDataSet.dump"), "rb") as f:
-        moleculeTypesArray = pickle.load(f)
+        moleculeTypesArray = RestrictedUnpickler(f).load()
     for model in moleculeTypesArray:
         modelComponentCount = [len(x.components) for x in model[0]]
 
