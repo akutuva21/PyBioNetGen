@@ -1020,7 +1020,7 @@ class SCTSolver:
             # we can try to  choose the one that is most similar to the original
             # reactant
             # FIXME:Fails if there is a double modification
-            newModifiedElements = {}
+            newModifiedElements = [defaultdict(list) for x in range(len(candidates))]
             # modifiedElementsCounter = Counter()
             modifiedElementsCounters = [Counter() for x in range(len(candidates))]
             # keep track of how many times we need to modify elements in the candidate description
@@ -1029,24 +1029,27 @@ class SCTSolver:
                 modifiedElementsPerCandidate
             ):
                 for element in modifiedElementsInCandidate:
-                    if element[0] not in newModifiedElements or element[1] == reactant:
-                        newModifiedElements[element[0]] = element[1]
+                    if element[1] == reactant:
+                        newModifiedElements[idx][element[0]].insert(0, element[1])
+                    else:
+                        newModifiedElements[idx][element[0]].append(element[1])
                     modifiedElementsCounters[idx][element[0]] += 1
 
             # actually modify elements and store final version in tmpCandidates
             # if tmpCandidates[1:] == tmpCandidates[:-1] or len(tmpCandidates) ==
             # 1:
 
-            for tmpCandidate, modifiedElementsCounter in zip(
+            for cidx, (tmpCandidate, modifiedElementsCounter) in enumerate(zip(
                 tmpCandidates, modifiedElementsCounters
-            ):
+            )):
                 flag = True
                 while flag:
                     flag = False
                     for idx, chemical in enumerate(tmpCandidate):
                         if modifiedElementsCounter[chemical] > 0:
                             modifiedElementsCounter[chemical] -= 1
-                            tmpCandidate[idx] = newModifiedElements[chemical]
+                            mod = newModifiedElements[cidx][chemical].pop(0) if newModifiedElements[cidx][chemical] else chemical
+                            tmpCandidate[idx] = mod
                             flag = True
                             break
             candidateDict = {tuple(x): y for x, y in zip(tmpCandidates, candidates)}
