@@ -1294,8 +1294,6 @@ class SBML2BNGL:
         create symmetry factors for reactions with components and species with
         identical names. This checks for symmetry in the components names then.
         """
-        # FIXME: This is entirely broken
-
         zerospecies = ["emptyset", "trash", "sink", "source"]
         if self.useID:
             reactant = [
@@ -1328,41 +1326,6 @@ class SBML2BNGL:
 
         if kineticLaw is None:
             return 1, 1
-        rReactant = rProduct = []
-
-        for x in reaction.getListOfReactants():
-            if (
-                x.getSpecies().lower() not in zerospecies
-                and x.getStoichiometry() not in (0, "0")
-                and pymath.isnan(x.getStoichiometry())
-            ):
-                if not x.getConstant():
-                    logMess(
-                        "ERROR:SIM241",
-                        "BioNetGen does not support non constant stoichiometries. Reaction {0} is not correctly translated".format(
-                            reaction.getId()
-                        ),
-                    )
-                    return 1, 1
-                else:
-                    rReactant.append(x.getSpecies(), x.getStoichiometry())
-
-        for x in reaction.getListOfProducts():
-            if (
-                x.getSpecies().lower() not in zerospecies
-                and x.getStoichiometry() not in (0, "0")
-                and pymath.isnan(x.getStoichiometry())
-            ):
-                if not x.getConstant():
-                    logMess(
-                        "ERROR:SIM241",
-                        "BioNetGen does not support non constant stoichiometries. Reaction {0} is not correctly translated".format(
-                            reaction.getId()
-                        ),
-                    )
-                    return 1, 1
-                else:
-                    rProduct.append(x.getSpecies(), x.getStoichiometry())
 
         rcomponent = defaultdict(Counter)
         pcomponent = defaultdict(Counter)
@@ -1442,7 +1405,7 @@ class SBML2BNGL:
         for key in rcomponent:
             if key in pcomponent:
                 for element in rcomponent[key]:
-                    if rcomponent[key] == 1:
+                    if rcomponent[key][element] == 1:
                         continue
                     # if theres a component on one side of the equation that
                     # appears a different number of times on the other side of the equation
@@ -1483,7 +1446,7 @@ class SBML2BNGL:
             for key in pcomponent:
                 if key in rcomponent:
                     for element in pcomponent[key]:
-                        if pcomponent[key] == 1:
+                        if pcomponent[key][element] == 1:
                             continue
                         if element in rcomponent[key]:
                             if (
@@ -1739,12 +1702,12 @@ class SBML2BNGL:
             parameterDict = {}
             currParamConv = {}
             # symmetry factors for components with the same name
-            # FIXME: This reduceComponentSymmetryFactors is completely broken
-            # and will only give 1,1 right now
-            # sl, sr = self.reduceComponentSymmetryFactors(
-            #     reaction, translator, functions
-            # )
-            sl, sr = self.getSymmetryFactors(reaction)
+            sl_comp, sr_comp = self.reduceComponentSymmetryFactors(
+                reaction, translator, functions
+            )
+            sl_spec, sr_spec = self.getSymmetryFactors(reaction)
+            sl = sl_comp * sl_spec
+            sr = sr_comp * sr_spec
             sbmlfunctions = self.getSBMLFunctions()
 
             try:
