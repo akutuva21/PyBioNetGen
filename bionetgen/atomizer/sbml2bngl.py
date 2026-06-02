@@ -2599,25 +2599,24 @@ class SBML2BNGL:
                         self.bngModel.add_arule(arule_obj)
                         continue
                     else:
-                        # if not boundary but is a species, Jose
-                        # is turning this into an assignment rule
-                        # with a different name (uses ID).
-                        # It looks as if the goal was to handle
-                        # both situations via renaming.
-                        # FIXME: This is very likely broken but
-                        # I'm not 100% sure how it breaks things.
-                        name = molecules[rawArule[0]]["returnID"]
-                        if name in observablesDict:
-                            observablesDict[name] = name + "_ar"
-                        artificialObservables[name + "_ar"] = writer.bnglFunction(
+                        logMess(
+                            "ERROR:SIM201",
+                            "Variables that are both changed by an assignment rule and reactions are not "
+                            "supported in BioNetGen simulator. The variable {} will be split into two".format(
+                                rawArule[0]
+                            ),
+                        )
+                        artificialObservables[rawArule[0] + "_ar"] = writer.bnglFunction(
                             rawArule[1][0],
-                            name + "_ar()",
+                            rawArule[0] + "_ar()",
                             [],
                             compartments=compartmentList,
                             reactionDict=self.reactionDictionary,
                         )
-                        self.arule_map[rawArule[0]] = name + "_ar"
-                        self.only_assignment_dict[name] = name + "_ar"
+                        self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
+                        if rawArule[0] in observablesDict:
+                            observablesDict[rawArule[0]] = rawArule[0] + "_ar"
+                        self.only_assignment_dict[rawArule[0]] = rawArule[0] + "_ar"
                         self.bngModel.add_arule(arule_obj)
                         continue
                 else:
