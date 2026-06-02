@@ -468,7 +468,7 @@ class SBML2BNGL:
             if len(y) > 0:
                 bothSides = True
             y = y[0] if len(y) > 0 else 0
-            # TODO: check if this actually keeps the correct dynamics
+            # Note: check if this actually keeps the correct dynamics
             # this is basically there to address the case where theres more products
             # than reactants (synthesis)
             if x[1] > y:
