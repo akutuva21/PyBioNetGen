@@ -2786,7 +2786,10 @@ class SBML2BNGL:
             # reserved keywords
             param_obj = self.bngModel.make_parameter()
             if parameterSpecs[0] == "e":
-                # TODO: raise a warning
+                logMess(
+                    "WARNING:PARAM001",
+                    "Parameter 'e' is a reserved keyword. Renaming to '__e__'.",
+                )
                 parameterSpecs = ("__e__", parameterSpecs[1])
                 self.param_repl["e"] = "__e__"
             if parameterSpecs[1] == 0:
