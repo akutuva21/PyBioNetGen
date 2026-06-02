@@ -407,7 +407,9 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
         for i in range(0, len(uris_to_fetch), chunk_size):
             chunk = uris_to_fetch[i : i + chunk_size]
             placeholders = ",".join(["?"] * len(chunk))
-            query = "SELECT annotationURI, ROWID FROM annotation WHERE annotationURI IN ({0})".format(placeholders)
+            query = "SELECT annotationURI, ROWID FROM annotation WHERE annotationURI IN ({0})".format(
+                placeholders
+            )
             for uri, rowid in cursor.execute(query, chunk):
                 annotationIDs[uri] = rowid
     connection.commit()
