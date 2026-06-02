@@ -127,18 +127,25 @@ class NamingDatabase:
 
         speciesList = [x[1:] for x in cursor.execute(queryStatement)]
 
-        tmp = {x[0]: set([]) for x in speciesList}
-        tmp2 = {x[0]: set([]) for x in speciesList}
-        tmp3 = {x[0]: set([]) for x in speciesList}
-        tmp4 = {x[0]: set([]) for x in speciesList}
+        tmp = {}
+        tmp2 = {}
+        tmp3 = {}
+        tmp4 = {}
         for x in speciesList:
-            if x[3] in ["BQB_IS", "BQM_IS", "BQB_IS_VERSION_OF"]:
-                tmp[x[0]].add(x[1])
+            key = x[0]
+            if key not in tmp:
+                tmp[key] = set()
+                tmp2[key] = set()
+                tmp3[key] = set()
+                tmp4[key] = set()
+
+            if x[3] in ("BQB_IS", "BQM_IS", "BQB_IS_VERSION_OF"):
+                tmp[key].add(x[1])
                 if x[2] != "":
-                    tmp2[x[0]].add(x[2])
-                tmp3[x[0]].add(x[3])
+                    tmp2[key].add(x[2])
+                tmp3[key].add(x[3])
             else:
-                tmp4[x[0]].add((x[1], x[3]))
+                tmp4[key].add((x[1], x[3]))
 
         tmp = [
             {
@@ -184,18 +191,25 @@ class NamingDatabase:
                 continue
             speciesList = file_groups[fileName]
 
-            tmp = {x[0]: set([]) for x in speciesList}
-            tmp2 = {x[0]: set([]) for x in speciesList}
-            tmp3 = {x[0]: set([]) for x in speciesList}
-            tmp4 = {x[0]: set([]) for x in speciesList}
+            tmp = {}
+            tmp2 = {}
+            tmp3 = {}
+            tmp4 = {}
             for x in speciesList:
-                if x[3] in ["BQB_IS", "BQM_IS", "BQB_IS_VERSION_OF"]:
-                    tmp[x[0]].add(x[1])
+                key = x[0]
+                if key not in tmp:
+                    tmp[key] = set()
+                    tmp2[key] = set()
+                    tmp3[key] = set()
+                    tmp4[key] = set()
+
+                if x[3] in ("BQB_IS", "BQM_IS", "BQB_IS_VERSION_OF"):
+                    tmp[key].add(x[1])
                     if x[2] != "":
-                        tmp2[x[0]].add(x[2])
-                    tmp3[x[0]].add(x[3])
+                        tmp2[key].add(x[2])
+                    tmp3[key].add(x[3])
                 else:
-                    tmp4[x[0]].add((x[1], x[3]))
+                    tmp4[key].add((x[1], x[3]))
 
             file_tmp = [
                 {
@@ -402,14 +416,16 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
         # SQLite variable limits, we query for the new rows sequentially.
         # This is still significantly faster than fetching the entire table
         # for a second time, especially as the database grows.
-        for row in annotationNames:
-            uri = row[0]
-            cursor.execute(
-                "SELECT ROWID FROM annotation WHERE annotationURI == ?", (uri,)
+        chunk_size = 900
+        uris_to_fetch = [row[0] for row in annotationNames]
+        for i in range(0, len(uris_to_fetch), chunk_size):
+            chunk = uris_to_fetch[i : i + chunk_size]
+            placeholders = ",".join(["?"] * len(chunk))
+            query = "SELECT annotationURI, ROWID FROM annotation WHERE annotationURI IN ({0})".format(
+                placeholders
             )
-            result = cursor.fetchone()
-            if result:
-                annotationIDs[uri] = result[0]
+            for uri, rowid in cursor.execute(query, chunk):
+                annotationIDs[uri] = rowid
     connection.commit()
     cursor.executemany(
         "INSERT into moleculeNames(fileId,name) values (?, ?)", moleculeNames
