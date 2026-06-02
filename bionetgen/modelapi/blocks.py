@@ -231,6 +231,25 @@ class ParameterBlock(ModelBlock):
         super().__init__()
         self.name = "parameters"
 
+    def add_item(self, item_tpl) -> None:
+        try:
+            name, value = item_tpl
+        except (ValueError, TypeError):
+            pass
+        else:
+            try:
+                import sympy
+
+                if hasattr(value, "value") and isinstance(value.value, str):
+                    sval = sympy.sympify(value.value)
+                    if sval.is_Number:
+                        value.value = str(float(sval))
+                    elif sval.is_constant():
+                        value.value = str(float(sval.evalf()))
+            except Exception:
+                pass
+        super().add_item(item_tpl)
+
     def __setattr__(self, name, value) -> None:
         changed = False
         if hasattr(self, "items"):

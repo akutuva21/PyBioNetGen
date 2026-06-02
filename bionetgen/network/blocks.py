@@ -119,18 +119,6 @@ class NetworkBlock:
     def add_item(self, item_tpl) -> None:
         name, value = item_tpl
 
-        try:
-            import sympy
-
-            if hasattr(value, "value") and isinstance(value.value, str):
-                sval = sympy.sympify(value.value)
-                if sval.is_Number:
-                    value.value = str(float(sval))
-                elif sval.is_constant():
-                    value.value = str(float(sval.evalf()))
-        except Exception:
-            pass
-
         # allow for empty addition, uses index
         if name is None:
             name = len(self.items)
@@ -185,6 +173,21 @@ class NetworkParameterBlock(NetworkBlock):
     def __init__(self) -> None:
         super().__init__()
         self.name = "parameters"
+
+    def add_item(self, item_tpl) -> None:
+        name, value = item_tpl
+        try:
+            import sympy
+
+            if hasattr(value, "value") and isinstance(value.value, str):
+                sval = sympy.sympify(value.value)
+                if sval.is_Number:
+                    value.value = str(float(sval))
+                elif sval.is_constant():
+                    value.value = str(float(sval.evalf()))
+        except Exception:
+            pass
+        super().add_item((name, value))
 
     def __setattr__(self, name, value) -> None:
         changed = False
