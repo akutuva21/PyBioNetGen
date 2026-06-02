@@ -849,10 +849,6 @@ class SBML2BNGL:
                     return rate, "", 1, 1, False, split_rxn
 
                 # prod_expr = prod_expr * -1
-                # TODO: We still need to figure out if we have
-                # our reactant/products in our expressions and
-                # if so set the nl/nr values accordingly
-
                 # Reproducing current behavior + expansion
                 re_proc = react_expr.nsimplify().evalf().simplify()
                 pe_proc = prod_expr.nsimplify().evalf().simplify()
@@ -886,7 +882,14 @@ class SBML2BNGL:
                     rateR = str(pe_proc)
                 nl = self.calculate_factor(react, prod, rateL, removedL)
                 nr = self.calculate_factor(prod, react, rateR, removedR)
-                # nl, nr = 2, 2
+
+                re_free = [str(x) for x in re_proc.free_symbols]
+                pe_free = [str(x) for x in pe_proc.free_symbols]
+                if any(x in re_free for x in react_bols + prod_bols):
+                    nl = max(nl, 1)
+                if any(x in pe_free for x in react_bols + prod_bols):
+                    nr = max(nr, 1)
+
                 # BNG power function is ^ and not **
                 rateL = rateL.replace("**", "^")
                 rateR = rateR.replace("**", "^")
@@ -941,6 +944,12 @@ class SBML2BNGL:
             else:
                 rateL = str(re_proc)
             nl = self.calculate_factor(react, prod, rateL, removedL)
+
+            prod_bols = [x[0] for x in prod]
+            re_free = [str(x) for x in re_proc.free_symbols]
+            if any(x in re_free for x in react_bols + prod_bols):
+                nl = max(nl, 1)
+
             rateL = rateL.replace("**", "^")
             # Make unidirectional
             rateR = "0"
