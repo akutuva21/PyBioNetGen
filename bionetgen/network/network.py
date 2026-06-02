@@ -57,13 +57,6 @@ class Network:
             "species",
             "reactions",
             "groups",
-            # "compartments",
-            # "molecule_types",
-            # "species",
-            # "functions",
-            # "energy_patterns",
-            # "population_maps",
-            # "actions",
         ]
         self.network_name = ""
         self.bngnetworkparser = BNGNetworkParser(bngl_model)
@@ -155,20 +148,6 @@ class Network:
         else:
             self.parameters = NetworkParameterBlock()
 
-    # def add_compartments_block(self, block=None):
-    #     if block is not None:
-    #         if not isinstance(block, NetworkCompartmentBlock):
-    #             err_msg = "The given block is not a NetworkCompartmentBlock"
-    #             logger.error(
-    #                 err_msg, loc=f"{__file__} : Network.add_compartments_block()"
-    #             )
-    #             raise BNGModelError(self, message=err_msg)
-    #         self.compartments = block
-    #         if "compartments" not in self.active_blocks:
-    #             self.active_blocks.append("compartments")
-    #     else:
-    #         self.compartments = NetworkCompartmentBlock()
-
     def add_species_block(self, block=None):
         if block is not None:
             if not isinstance(block, NetworkSpeciesBlock):
@@ -204,48 +183,6 @@ class Network:
                 self.active_blocks.append("reactions")
         else:
             self.reactions = NetworkReactionBlock()
-
-    # def add_functions_block(self, block=None):
-    #     if block is not None:
-    #         if not isinstance(block, NetworkFunctionBlock):
-    #             err_msg = "The given block is not a NetworkFunctionBlock"
-    #             logger.error(
-    #                 err_msg, loc=f"{__file__} : Network.add_functions_block()"
-    #             )
-    #             raise BNGModelError(self, message=err_msg)
-    #         self.functions = block
-    #         if "functions" not in self.active_blocks:
-    #             self.active_blocks.append("functions")
-    #     else:
-    #         self.functions = NetworkFunctionBlock()
-
-    # def add_energy_patterns_block(self, block=None):
-    #     if block is not None:
-    #         if not isinstance(block, NetworkEnergyPatternBlock):
-    #             err_msg = "The given block is not a NetworkEnergyPatternBlock"
-    #             logger.error(
-    #                 err_msg, loc=f"{__file__} : Network.add_energy_patterns_block()"
-    #             )
-    #             raise BNGModelError(self, message=err_msg)
-    #         self.energy_patterns = block
-    #         if "energy_patterns" not in self.active_blocks:
-    #             self.active_blocks.append("energy_patterns")
-    #     else:
-    #         self.energy_patterns = NetworkEnergyPatternBlock()
-
-    # def add_population_maps_block(self, block=None):
-    #     if block is not None:
-    #         if not isinstance(block, NetworkPopulationMapBlock):
-    #             err_msg = "The given block is not a NetworkPopulationMapBlock"
-    #             logger.error(
-    #                 err_msg, loc=f"{__file__} : Network.add_population_maps_block()"
-    #             )
-    #             raise BNGModelError(self, message=err_msg)
-    #         self.population_maps = block
-    #         if "population_maps" not in self.active_blocks:
-    #             self.active_blocks.append("population_maps")
-    #     else:
-    #         self.population_maps = NetworkPopulationMapBlock()
 
     def write_model(self, file_name):
         """
