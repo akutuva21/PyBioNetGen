@@ -2635,6 +2635,7 @@ class SBML2BNGL:
                         self.bngModel.add_arule(arule_obj)
                         continue
                     else:
+                        name = molecules[rawArule[0]]["returnID"]
                         if name in observablesDict:
                             observablesDict[name] = name + "_ar"
                         for obs_k, obs_v in list(observablesDict.items()):
@@ -2642,7 +2643,7 @@ class SBML2BNGL:
                                 observablesDict[obs_k] = name + "_ar"
                         artificialObservables[name + "_ar"] = writer.bnglFunction(
                             rawArule[1][0],
-                            name + "_ar()",
+                            rawArule[0] + "_ar()",
                             [],
                             compartments=compartmentList,
                             reactionDict=self.reactionDictionary,
