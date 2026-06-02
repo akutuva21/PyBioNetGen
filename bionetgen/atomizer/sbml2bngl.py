@@ -2623,13 +2623,7 @@ class SBML2BNGL:
                 else:
                     # check if it is defined as an observable
                     # FIXME: This doesn't check for parameter namespace
-                    # TODO: What is going on here?
-                    candidates = [
-                        idx for idx, x in enumerate(observablesDict) if rawArule[0] == x
-                    ]
-                    assigObsFlag = False
-                    for idx in candidates:
-                        # if re.search('\s{0}\s'.format(rawArule[0]),observables[idx]):
+                    if rawArule[0] in observablesDict:
                         artificialObservables[rawArule[0] + "_ar"] = (
                             writer.bnglFunction(
                                 rawArule[1][0],
@@ -2640,9 +2634,6 @@ class SBML2BNGL:
                             )
                         )
                         self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
-                        assigObsFlag = True
-                        break
-                    if assigObsFlag:
                         continue
                 # if its not a param/species/observable
                 # TODO: now, if we replace this with the returnID do we
