@@ -341,10 +341,10 @@ def analyzeTrends(inputFile):
         data = json.load(f)
 
     counter = Counter(
-        {ast.literal_eval(k): v for k, v in data.get("differenceCounter", {}).items()}
+        {_parse_pattern_key(k): v for k, v in data.get("differenceCounter", {}).items()}
     )
     fileCounter = Counter(
-        {ast.literal_eval(k): v for k, v in data.get("fileCounter", {}).items()}
+        {_parse_pattern_key(k): v for k, v in data.get("fileCounter", {}).items()}
     )
 
     totalCounter = Counter()
