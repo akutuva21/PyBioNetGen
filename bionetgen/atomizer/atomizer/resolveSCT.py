@@ -5,6 +5,7 @@ from collections import Counter, defaultdict
 import itertools
 from copy import deepcopy, copy
 from bionetgen.atomizer.utils.util import logMess, memoize, memoizeMapped
+import json
 from . import atomizationAux as atoAux
 import bionetgen.atomizer.utils.pathwaycommons as pwcm
 
@@ -1019,7 +1020,7 @@ class SCTSolver:
             # we can try to  choose the one that is most similar to the original
             # reactant
             # FIXME:Fails if there is a double modification
-            newModifiedElements = {}
+            newModifiedElements = [defaultdict(list) for x in range(len(candidates))]
             # modifiedElementsCounter = Counter()
             modifiedElementsCounters = [Counter() for x in range(len(candidates))]
             # keep track of how many times we need to modify elements in the candidate description
@@ -1028,24 +1029,27 @@ class SCTSolver:
                 modifiedElementsPerCandidate
             ):
                 for element in modifiedElementsInCandidate:
-                    if element[0] not in newModifiedElements or element[1] == reactant:
-                        newModifiedElements[element[0]] = element[1]
+                    if element[1] == reactant:
+                        newModifiedElements[idx][element[0]].insert(0, element[1])
+                    else:
+                        newModifiedElements[idx][element[0]].append(element[1])
                     modifiedElementsCounters[idx][element[0]] += 1
 
             # actually modify elements and store final version in tmpCandidates
             # if tmpCandidates[1:] == tmpCandidates[:-1] or len(tmpCandidates) ==
             # 1:
 
-            for tmpCandidate, modifiedElementsCounter in zip(
+            for cidx, (tmpCandidate, modifiedElementsCounter) in enumerate(zip(
                 tmpCandidates, modifiedElementsCounters
-            ):
+            )):
                 flag = True
                 while flag:
                     flag = False
                     for idx, chemical in enumerate(tmpCandidate):
                         if modifiedElementsCounter[chemical] > 0:
                             modifiedElementsCounter[chemical] -= 1
-                            tmpCandidate[idx] = newModifiedElements[chemical]
+                            mod = newModifiedElements[cidx][chemical].pop(0) if newModifiedElements[cidx][chemical] else chemical
+                            tmpCandidate[idx] = mod
                             flag = True
                             break
             candidateDict = {tuple(x): y for x, y in zip(tmpCandidates, candidates)}
@@ -1236,6 +1240,7 @@ class SCTSolver:
                         # if modificationCandidates == {}:
 
                         activeCandidates = []
+                        active_site_memo = {}
                         for individualCandidate in tmpCandidates:
                             for tmpCandidate in individualCandidate:
                                 activeQuery = None
@@ -1244,7 +1249,9 @@ class SCTSolver:
                                 )
                                 if len(uniprotkey) > 0:
                                     uniprotkey = uniprotkey[0].split("/")[-1]
-                                    activeQuery = pwcm.queryActiveSite(uniprotkey, None)
+                                    if uniprotkey not in active_site_memo:
+                                        active_site_memo[uniprotkey] = pwcm.queryActiveSite(uniprotkey, None)
+                                    activeQuery = active_site_memo[uniprotkey]
                                 if activeQuery and len(activeQuery) > 0:
                                     activeCandidates.append(tmpCandidate)
                                     # enter modification information to self.database
@@ -1256,9 +1263,9 @@ class SCTSolver:
                                     individualMajorCandidates = [
                                         y for x in candidates for y in x
                                     ]
-                                    activeQuery = pwcm.queryActiveSite(
-                                        tmpCandidate, None
-                                    )
+                                    if tmpCandidate not in active_site_memo:
+                                        active_site_memo[tmpCandidate] = pwcm.queryActiveSite(tmpCandidate, None)
+                                    activeQuery = active_site_memo[tmpCandidate]
                                     if activeQuery and len(activeQuery) > 0:
                                         otherMatches = [
                                             x
@@ -1455,9 +1462,9 @@ class SCTSolver:
                             "lexicalVsstoch",
                             (
                                 reactant,
-                                ("lexical", str(namingTmpCandidates)),
-                                ("stoch", str(tmpCandidates)),
-                                ("original", str(originalTmpCandidates)),
+                                ("lexical", json.dumps(namingTmpCandidates)),
+                                ("stoch", json.dumps(tmpCandidates)),
+                                ("original", json.dumps(originalTmpCandidates)),
                             ),
                             self.database.assumptions,
                         )
@@ -1494,10 +1501,10 @@ class SCTSolver:
                         "lexicalVsstoch",
                         (
                             reactant,
-                            ("current", str(replacementCandidate)),
+                            ("current", json.dumps(replacementCandidate)),
                             (
                                 "alternatives",
-                                str(
+                                json.dumps(
                                     [
                                         x
                                         for x in tmpCandidates
@@ -1505,7 +1512,7 @@ class SCTSolver:
                                     ]
                                 ),
                             ),
-                            ("original", str(originalTmpCandidates)),
+                            ("original", json.dumps(originalTmpCandidates)),
                         ),
                         self.database.assumptions,
                     )
@@ -1586,9 +1593,9 @@ class SCTSolver:
                             "lexicalVsstoch",
                             (
                                 reactant,
-                                ("stoch", str(tmpCandidates)),
-                                ("lexical", str(namingtmpCandidates)),
-                                ("original", str(originalTmpCandidates)),
+                                ("stoch", json.dumps(tmpCandidates)),
+                                ("lexical", json.dumps(namingtmpCandidates)),
+                                ("original", json.dumps(originalTmpCandidates)),
                             ),
                             self.database.assumptions,
                         )

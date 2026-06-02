@@ -5,8 +5,10 @@ import pprint
 from collections import defaultdict
 import itertools
 import ast
+import json
 from copy import copy
 from bionetgen.atomizer.utils import readBNGXML
+from bionetgen.atomizer.utils.safe_parse import safe_parse
 
 import functools
 import marshal
@@ -257,13 +259,13 @@ class ModelLearning:
                     for assumption in (
                         x
                         for x in assumptionList
-                        for y in ast.literal_eval(x[3][1])
+                        for y in json.loads(x[3][1])
                         for z in y
                         if molecule in z
                     ):
-                        candidates = ast.literal_eval(assumption[1][1])
-                        alternativeCandidates = ast.literal_eval(assumption[2][1])
-                        original = ast.literal_eval(assumption[3][1])
+                        candidates = json.loads(assumption[1][1])
+                        alternativeCandidates = json.loads(assumption[2][1])
+                        original = json.loads(assumption[3][1])
                         # further confirm that the change is about the pair of interest
                         # by iterating over all candidates and comparing one by one
                         for candidate in candidates:
