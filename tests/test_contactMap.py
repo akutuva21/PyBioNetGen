@@ -17,7 +17,6 @@ def contactMap_module():
         {
             "utils": MagicMock(),
             "utils.consoleCommands": MagicMock(),
-
         },
     ):
         import bionetgen.atomizer.contactMap as cm
