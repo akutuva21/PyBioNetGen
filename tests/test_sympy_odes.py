@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from bionetgen.modelapi.sympy_odes import _safe_rmtree, _extract_nv_assignments
+from bionetgen.modelapi.sympy_odes import _safe_rmtree, _extract_nv_assignments, _extract_define_int
 
 
 def test_extract_nv_assignments():
@@ -145,3 +145,29 @@ def test_extract_function_body_nested_braces():
 def test_extract_function_body_not_found():
     text = "void otherfunc() {\n  body text;\n}\n"
     assert _extract_function_body(text, "myfunc") == ""
+
+
+def test_extract_define_int():
+    # standard extraction
+    assert _extract_define_int("#define MY_VAR 42", "MY_VAR") == 42
+
+    # whitespace handling
+    assert _extract_define_int("  #define   MY_VAR   42  ", "MY_VAR") == 42
+    assert _extract_define_int("\t#define\tMY_VAR\t42\t", "MY_VAR") == 42
+
+    # multiline
+    text = """
+    #define OTHER 1
+    #define MY_VAR 42
+    #define ANOTHER 2
+    """
+    assert _extract_define_int(text, "MY_VAR") == 42
+
+    # missing definition
+    assert _extract_define_int("#define OTHER 1", "MY_VAR") is None
+
+    # non-digit value (should not match according to regex \d+)
+    assert _extract_define_int("#define MY_VAR abc", "MY_VAR") is None
+
+    # value with decimals (regex only matches digits)
+    assert _extract_define_int("#define MY_VAR 42.5", "MY_VAR") is None
