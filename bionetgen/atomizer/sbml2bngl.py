@@ -764,8 +764,28 @@ class SBML2BNGL:
         exp = sympy.expand(sym)
         # This shows if we can get X - Y
         ###### SPLIT RXN #######
-        # TODO: Figure out if something CAN be mass action
+        # Figure out if something CAN be mass action
         # and if not, just skip the rest and use split_rxn
+        react_bols = [x[0] for x in react]
+        prod_bols = [x[0] for x in prod]
+        react_symbols = sympy.symbols(react_bols) if react_bols else ()
+        prod_symbols = sympy.symbols(prod_bols) if prod_bols else ()
+        all_syms = list(react_symbols) + list(prod_symbols)
+
+        # check if it can be mass action
+        is_mass_action = True
+        try:
+            if all_syms and not exp.is_polynomial(*all_syms):
+                is_mass_action = False
+        except Exception:
+            is_mass_action = False
+
+        if not is_mass_action:
+            split_rxn = True
+            rate = str(sym).replace("**", "^")
+            for it in replace_dict.items():
+                rate = rate.replace(it[1], it[0])
+            return rate, "", 1, 1, False, split_rxn
         ###### SPLIT RXN #######
         if exp.is_Add:
             react_expr, prod_expr = self.gather_terms(exp)
