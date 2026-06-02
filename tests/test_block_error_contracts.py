@@ -37,3 +37,12 @@ def test_action_block_add_action_invalid_type_raises_parse_error():
         block.add_action("not_a_real_action", {})
 
     assert len(block.items) == 0
+
+def test_model_block_add_item_invalid_tuple_raises_valueerror():
+    block = ModelBlock()
+
+    with pytest.raises(ValueError, match="Item must be a 2-tuple"):
+        block.add_item(("too", "many", "items"))
+
+    with pytest.raises(TypeError, match="Item must be an iterable of length 2"):
+        block.add_item(123)
