@@ -42,11 +42,7 @@ def test_run_command_timeout_suppress():
         assert rc == 0
         assert out == mock_rc
         mock_run.assert_called_once_with(
-            command,
-            timeout=10,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            cwd=None,
+            command, timeout=10, capture_output=True, cwd=None
         )
 
 

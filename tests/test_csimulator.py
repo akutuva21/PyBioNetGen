@@ -188,8 +188,12 @@ def test_csimulator_init_str():
     dummy_bngl = "tests/models/test_Hill.bngl"
 
     with unittest.mock.patch(
-        "bionetgen.simulator.csimulator.ccompiler", create=True
-    ) as mock_ccompiler:
+        "bionetgen.simulator.csimulator._new_ccompiler", create=True
+    ) as mock_new_ccompiler:
+        mock_ccompiler = unittest.mock.MagicMock()
+        mock_compiler_instance = mock_new_ccompiler.return_value
+        mock_compiler_instance.compile.return_value = None
+        mock_compiler_instance.link_shared_lib.return_value = None
         with unittest.mock.patch("bionetgen.simulator.csimulator.conf") as mock_conf:
             mock_conf.get.return_value = "dummy"
 
@@ -197,7 +201,6 @@ def test_csimulator_init_str():
                 "bionetgen.simulator.csimulator.bionetgen.run"
             ) as mock_run:
                 with unittest.mock.patch("bionetgen.simulator.csimulator.CSimWrapper"):
-                    mock_compiler_instance = mock_ccompiler.new_compiler.return_value
 
                     csim = CSimulator(dummy_bngl, generate_network=True)
 
@@ -215,8 +218,12 @@ def test_csimulator_init_bngmodel():
     mock_model = bionetgen.bngmodel(dummy_bngl, generate_network=True)
 
     with unittest.mock.patch(
-        "bionetgen.simulator.csimulator.ccompiler", create=True
-    ) as mock_ccompiler:
+        "bionetgen.simulator.csimulator._new_ccompiler", create=True
+    ) as mock_new_ccompiler:
+        mock_ccompiler = unittest.mock.MagicMock()
+        mock_compiler_instance = mock_new_ccompiler.return_value
+        mock_compiler_instance.compile.return_value = None
+        mock_compiler_instance.link_shared_lib.return_value = None
         with unittest.mock.patch("bionetgen.simulator.csimulator.conf") as mock_conf:
             mock_conf.get.return_value = "dummy"
 
@@ -224,7 +231,6 @@ def test_csimulator_init_bngmodel():
                 "bionetgen.simulator.csimulator.bionetgen.run"
             ) as mock_run:
                 with unittest.mock.patch("bionetgen.simulator.csimulator.CSimWrapper"):
-                    mock_compiler_instance = mock_ccompiler.new_compiler.return_value
 
                     csim = CSimulator(mock_model, generate_network=True)
 

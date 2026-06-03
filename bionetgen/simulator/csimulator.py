@@ -247,11 +247,16 @@ class CSimulator(BNGSimulator):
         obj_file = f"{self.model.model_name}_cvode_py.o"
         lib_file = f"{self.model.model_name}_cvode_py"
         # compile objects with fPIC for the shared lib we'll link
-        self.compiler.compile([c_file], extra_preargs=["-fPIC"])
-        # now link cvode and nvecserial and make a shared lib
-        self.compiler.link_shared_lib(
-            [obj_file], lib_file, libraries=["sundials_cvode", "sundials_nvecserial"]
-        )
+        try:
+            self.compiler.compile([c_file], extra_preargs=["-fPIC"])
+            # now link cvode and nvecserial and make a shared lib
+            self.compiler.link_shared_lib(
+                [obj_file],
+                lib_file,
+                libraries=["sundials_cvode", "sundials_nvecserial"],
+            )
+        except Exception as e:
+            raise BNGCompileError(self.model, message=str(e))
         # # keep a record of what we got
         self.cfile = os.path.abspath(c_file)
         self.obj_file = os.path.abspath(obj_file)
@@ -307,7 +312,7 @@ class CSimulator(BNGSimulator):
                 num_params=n_param,
                 num_spec_init=len(self.model.species),
             )
-        except (AttributeError, KeyError, OSError, TypeError, ValueError) as exc:
+        except Exception as exc:
             logger.error(
                 f"Failed to initialize C simulator wrapper: {exc}",
                 loc=f"{__file__} : CSimulator.simulator.setter()",
