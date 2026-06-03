@@ -76,7 +76,7 @@ def test_csimulator_simulator_property():
 
     with unittest.mock.patch(
         "bionetgen.simulator.csimulator.CSimWrapper",
-            side_effect=OSError("Test Error"),
+        side_effect=OSError("Test Error"),
     ):
         with pytest.raises(BNGCompileError):
             csim.simulator = "dummy_lib_file"
