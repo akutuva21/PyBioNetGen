@@ -2229,7 +2229,9 @@ class SBMLAnalyzer:
             # FIXME: instead of doing a simple split by '_' we should be comparing against the molecules in stripped molecules and split by smallest actionable units.
             if externalDependencyGraph == {}:
                 # print('-----',reaction)
-                reactantString, productString = self.breakByActionableUnit(reaction, strippedMolecules)
+                reactantString, productString = self.breakByActionableUnit(
+                    reaction, strippedMolecules
+                )
                 # print('...',reaction, reactantString, productString)
                 if not reactantString or not productString:
                     reactantString = [x.split("_") for x in reaction[0]]
