@@ -44,7 +44,10 @@ def name2uniprot(nameStr):
 def queryBioGridByName(name1, name2, organism, truename1, truename2):
     api_key = os.environ.get("BIOGRID_API_KEY")
     if not api_key:
-        logMess("WARNING:ATO006", "BIOGRID_API_KEY environment variable not set. Skipping BioGrid query.")
+        logMess(
+            "WARNING:ATO006",
+            "BIOGRID_API_KEY environment variable not set. Skipping BioGrid query.",
+        )
         return False
 
     url = "http://webservice.thebiogrid.org/interactions/?"
