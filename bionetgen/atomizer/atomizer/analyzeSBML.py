@@ -1590,7 +1590,9 @@ class SBMLAnalyzer:
 
                 for idx in range(0, len(matches) - 1):
                     acc = 0
-                    while matches[idx][1] + matches[idx][2] + acc < len(tmpRuleList[1][0]):
+                    while matches[idx][1] + matches[idx][2] + acc < len(
+                        tmpRuleList[1][0]
+                    ):
                         current_idx = matches[idx][1] + matches[idx][2] + acc
                         matched_sym = False
                         for s in sorted_sym:
