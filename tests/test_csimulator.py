@@ -190,8 +190,8 @@ def test_csimulator_init_str():
     with unittest.mock.patch(
         "bionetgen.simulator.csimulator._new_ccompiler", create=True
     ) as mock_new_ccompiler:
-        mock_ccompiler = unittest.mock.MagicMock()
         mock_compiler_instance = mock_new_ccompiler.return_value
+
         mock_compiler_instance.compile.return_value = None
         mock_compiler_instance.link_shared_lib.return_value = None
         with unittest.mock.patch("bionetgen.simulator.csimulator.conf") as mock_conf:
@@ -220,8 +220,8 @@ def test_csimulator_init_bngmodel():
     with unittest.mock.patch(
         "bionetgen.simulator.csimulator._new_ccompiler", create=True
     ) as mock_new_ccompiler:
-        mock_ccompiler = unittest.mock.MagicMock()
         mock_compiler_instance = mock_new_ccompiler.return_value
+
         mock_compiler_instance.compile.return_value = None
         mock_compiler_instance.link_shared_lib.return_value = None
         with unittest.mock.patch("bionetgen.simulator.csimulator.conf") as mock_conf:
