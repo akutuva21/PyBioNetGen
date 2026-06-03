@@ -60,23 +60,22 @@ def test_csimulator_simulator_property():
 
     csim.model = MockModel()
 
-    with unittest.mock.patch(
-        "os.path.abspath", side_effect=lambda x: x
-    ), unittest.mock.patch(
-        "bionetgen.simulator.csimulator.CSimWrapper"
-    ) as mock_wrapper:
-        csim.simulator = "dummy_lib_file"
-        mock_wrapper.assert_called_once()
-        args, kwargs = mock_wrapper.call_args
-        assert kwargs["num_params"] == 2  # param1 and param3
-        assert kwargs["num_spec_init"] == 2  # 2 species
-        assert args[0] == "dummy_lib_file"
+    with unittest.mock.patch("os.path.abspath", side_effect=lambda x: x):
+        with unittest.mock.patch(
+            "bionetgen.simulator.csimulator.CSimWrapper"
+        ) as mock_wrapper:
+            csim.simulator = "dummy_lib_file"
+            mock_wrapper.assert_called_once()
+            args, kwargs = mock_wrapper.call_args
+            assert kwargs["num_params"] == 2  # param1 and param3
+            assert kwargs["num_spec_init"] == 2  # 2 species
+            assert args[0] == "dummy_lib_file"
 
-        assert csim.simulator == mock_wrapper.return_value
+            assert csim.simulator == mock_wrapper.return_value
 
     with unittest.mock.patch(
         "bionetgen.simulator.csimulator.CSimWrapper",
-        side_effect=Exception("Test Error"),
+        side_effect=ValueError("Test Error"),
     ):
         with pytest.raises(BNGCompileError):
             csim.simulator = "dummy_lib_file"
@@ -176,7 +175,7 @@ def test_simulator_setter_compile_error():
 
     with unittest.mock.patch(
         "bionetgen.simulator.csimulator.CSimWrapper",
-        side_effect=Exception("Wrapper failed"),
+        side_effect=ValueError("Wrapper failed"),
     ):
         with pytest.raises(BNGCompileError):
             sim.simulator = "dummy_lib"
@@ -188,8 +187,8 @@ def test_csimulator_init_str():
     dummy_bngl = "tests/models/test_Hill.bngl"
 
     with unittest.mock.patch(
-        "bionetgen.simulator.csimulator.ccompiler", create=True
-    ) as mock_ccompiler:
+        "bionetgen.simulator.csimulator._new_ccompiler"
+    ) as mock_new_comp:
         with unittest.mock.patch("bionetgen.simulator.csimulator.conf") as mock_conf:
             mock_conf.get.return_value = "dummy"
 
@@ -197,7 +196,8 @@ def test_csimulator_init_str():
                 "bionetgen.simulator.csimulator.bionetgen.run"
             ) as mock_run:
                 with unittest.mock.patch("bionetgen.simulator.csimulator.CSimWrapper"):
-                    mock_compiler_instance = mock_ccompiler.new_compiler.return_value
+                    mock_compiler_instance = unittest.mock.MagicMock()
+                    mock_new_comp.return_value = mock_compiler_instance
 
                     csim = CSimulator(dummy_bngl, generate_network=True)
 
@@ -215,8 +215,8 @@ def test_csimulator_init_bngmodel():
     mock_model = bionetgen.bngmodel(dummy_bngl, generate_network=True)
 
     with unittest.mock.patch(
-        "bionetgen.simulator.csimulator.ccompiler", create=True
-    ) as mock_ccompiler:
+        "bionetgen.simulator.csimulator._new_ccompiler"
+    ) as mock_new_comp:
         with unittest.mock.patch("bionetgen.simulator.csimulator.conf") as mock_conf:
             mock_conf.get.return_value = "dummy"
 
@@ -224,7 +224,8 @@ def test_csimulator_init_bngmodel():
                 "bionetgen.simulator.csimulator.bionetgen.run"
             ) as mock_run:
                 with unittest.mock.patch("bionetgen.simulator.csimulator.CSimWrapper"):
-                    mock_compiler_instance = mock_ccompiler.new_compiler.return_value
+                    mock_compiler_instance = unittest.mock.MagicMock()
+                    mock_new_comp.return_value = mock_compiler_instance
 
                     csim = CSimulator(mock_model, generate_network=True)
 
