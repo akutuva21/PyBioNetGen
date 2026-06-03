@@ -70,6 +70,23 @@ def test_bionetgen_info():
         assert app.exit_code == 0
 
 
+def test_printInfo():
+    from unittest.mock import patch, MagicMock
+    from bionetgen.core.main import printInfo
+
+    app_mock = MagicMock()
+    app_mock.config = {"some": "config"}
+
+    with patch("bionetgen.core.main.BNGInfo") as MockBNGInfo:
+        printInfo(app_mock)
+
+        MockBNGInfo.assert_called_once_with(config=app_mock.config, app=app_mock)
+        MockBNGInfo.return_value.gatherInfo.assert_called_once()
+        MockBNGInfo.return_value.messageGeneration.assert_called_once()
+        MockBNGInfo.return_value.run.assert_called_once()
+        app_mock.log.debug.assert_called()
+
+
 def test_plotDAT_valid_input():
     from unittest.mock import patch
     from unittest.mock import MagicMock
