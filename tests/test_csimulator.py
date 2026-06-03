@@ -199,6 +199,10 @@ def test_csimulator_init_str():
                 with unittest.mock.patch("bionetgen.simulator.csimulator.CSimWrapper"):
                     mock_compiler_instance = mock_ccompiler.return_value
 
+                    # Also mock the methods of the compiler instance so distutils does not actually invoke cc
+                    mock_compiler_instance.compile = unittest.mock.MagicMock()
+                    mock_compiler_instance.link_shared_lib = unittest.mock.MagicMock()
+
                     csim = CSimulator(dummy_bngl, generate_network=True)
 
                     mock_compiler_instance.compile.assert_called_once()
@@ -225,6 +229,10 @@ def test_csimulator_init_bngmodel():
             ) as mock_run:
                 with unittest.mock.patch("bionetgen.simulator.csimulator.CSimWrapper"):
                     mock_compiler_instance = mock_ccompiler.return_value
+
+                    # Also mock the methods of the compiler instance so distutils does not actually invoke cc
+                    mock_compiler_instance.compile = unittest.mock.MagicMock()
+                    mock_compiler_instance.link_shared_lib = unittest.mock.MagicMock()
 
                     csim = CSimulator(mock_model, generate_network=True)
 
