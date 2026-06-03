@@ -60,11 +60,12 @@ def test_csimulator_simulator_property():
 
     csim.model = MockModel()
 
-    with unittest.mock.patch(
-        "os.path.abspath", side_effect=lambda x: x
-    ), unittest.mock.patch(
-        "bionetgen.simulator.csimulator.CSimWrapper"
-    ) as mock_wrapper:
+    with (
+        unittest.mock.patch("os.path.abspath", side_effect=lambda x: x),
+        unittest.mock.patch(
+            "bionetgen.simulator.csimulator.CSimWrapper"
+        ) as mock_wrapper,
+    ):
         csim.simulator = "dummy_lib_file"
         mock_wrapper.assert_called_once()
         args, kwargs = mock_wrapper.call_args
@@ -76,7 +77,7 @@ def test_csimulator_simulator_property():
 
     with unittest.mock.patch(
         "bionetgen.simulator.csimulator.CSimWrapper",
-        side_effect=Exception("Test Error"),
+        side_effect=ValueError("Test Error"),
     ):
         with pytest.raises(BNGCompileError):
             csim.simulator = "dummy_lib_file"
@@ -176,7 +177,7 @@ def test_simulator_setter_compile_error():
 
     with unittest.mock.patch(
         "bionetgen.simulator.csimulator.CSimWrapper",
-        side_effect=Exception("Wrapper failed"),
+        side_effect=ValueError("Wrapper failed"),
     ):
         with pytest.raises(BNGCompileError):
             sim.simulator = "dummy_lib"
