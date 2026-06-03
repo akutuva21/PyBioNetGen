@@ -110,6 +110,7 @@ def test_model_add_empty_block_dispatches_supported_name(
 
 from bionetgen.core.exc import BNGModelError
 
+
 def test_model_add_block_invalid_name_raises_value_error():
     model = _make_model_bypass_init()
 
