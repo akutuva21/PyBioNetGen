@@ -204,12 +204,16 @@ def test_csimulator_init_str():
                     mock_compiler_instance.link_shared_lib.return_value = None
 
                     # Also need to bypass actually compiling the C file and just set self.lib_file
-                    with unittest.mock.patch.object(CSimulator, 'compile_shared_lib', autospec=True) as mock_compile_shared_lib:
+                    with unittest.mock.patch.object(
+                        CSimulator, "compile_shared_lib", autospec=True
+                    ) as mock_compile_shared_lib:
+
                         def fake_compile(self):
                             self.lib_file = "dummy_lib_file"
                             mock_compiler_instance.compile()
                             mock_compiler_instance.link_shared_lib()
-                            mock_run() # Simulate the call
+                            mock_run()  # Simulate the call
+
                         mock_compile_shared_lib.side_effect = fake_compile
 
                         csim = CSimulator(dummy_bngl, generate_network=True)
@@ -242,12 +246,16 @@ def test_csimulator_init_bngmodel():
                     mock_compiler_instance.compile.return_value = None
                     mock_compiler_instance.link_shared_lib.return_value = None
 
-                    with unittest.mock.patch.object(CSimulator, 'compile_shared_lib', autospec=True) as mock_compile_shared_lib:
+                    with unittest.mock.patch.object(
+                        CSimulator, "compile_shared_lib", autospec=True
+                    ) as mock_compile_shared_lib:
+
                         def fake_compile(self):
                             self.lib_file = "dummy_lib_file"
                             mock_compiler_instance.compile()
                             mock_compiler_instance.link_shared_lib()
-                            mock_run() # Simulate the call
+                            mock_run()  # Simulate the call
+
                         mock_compile_shared_lib.side_effect = fake_compile
 
                         csim = CSimulator(mock_model, generate_network=True)

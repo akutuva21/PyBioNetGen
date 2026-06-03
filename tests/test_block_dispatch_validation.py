@@ -110,6 +110,7 @@ def test_model_add_empty_block_dispatches_supported_name(
 
 def test_model_add_block_invalid_name_raises_value_error():
     from bionetgen.core.exc import BNGModelError
+
     model = _make_model_bypass_init()
 
     class FakeBlock:
@@ -124,6 +125,7 @@ def test_model_add_block_invalid_name_raises_value_error():
 
 def test_model_add_empty_block_invalid_name_raises_value_error():
     from bionetgen.core.exc import BNGModelError
+
     model = _make_model_bypass_init()
 
     with pytest.raises(BNGModelError, match="Block type not_a_block is not supported."):
