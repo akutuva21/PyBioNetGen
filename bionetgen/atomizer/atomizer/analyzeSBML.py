@@ -103,13 +103,18 @@ class SBMLAnalyzer:
     def distanceToModification(self, particle, modifiedElement, translationKeys):
         particle_starts = [m.start() for m in re.finditer(particle, modifiedElement)]
         particle_len = len(particle)
-        posparticlePos = [s + particle_len for s in particle_starts]
-        preparticlePos = particle_starts
         keyPos = [m.start() for m in re.finditer(translationKeys, modifiedElement)]
-        distance = [abs(y - x) for x in posparticlePos for y in keyPos]
-        distance.extend([abs(y - x) for x in preparticlePos for y in keyPos])
-        distance.append(9999)
-        return min(distance)
+
+        distance = 9999
+        for x in particle_starts:
+            pos_x = x + particle_len
+            for y in keyPos:
+                d1 = abs(y - x)
+                d2 = abs(y - pos_x)
+                if d1 < distance: distance = d1
+                if d2 < distance: distance = d2
+
+        return distance
 
     def fuzzyArtificialReaction(self, baseElements, modifiedElement, molecules):
         """
