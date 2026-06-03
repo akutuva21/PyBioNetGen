@@ -609,8 +609,7 @@ class ActionList:
         # BNGL/Perl `=>` auto-quotes its left operand, so dict keys
         # may be either bareword (max_stoich=>{R=>6}) or quoted
         # (max_stoich=>{"R"=>6}). Accept both.
-        curly_arg_token = (base_name ^ quote_word) + "=>" + arg_type_int
-        # TODO: handle 0 case
+        curly_arg_token = (base_name ^ quote_word ^ pp.Literal("0")) + "=>" + arg_type_int
         arg_type_curly = "{" + pp.delimitedList(curly_arg_token) + "}"
         arg_types = (
             arg_type_bool
