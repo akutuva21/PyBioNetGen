@@ -67,6 +67,21 @@ def getMetaElement(matchedArray):
         element[0][1].compare(element[1][1])
 
 
+def groupEquivalentItems(participantList, differences):
+    molList = {}
+    for participant in participantList:
+        for key in differences:
+            for molecule in participant.molecules:
+                if molecule.name + "(" in key:
+                    for component in molecule.components:
+                        if "(" + component.name + ")" in key:
+                            # print molecule.name, component.name, key
+                            if key not in molList:
+                                molList[key] = []
+                            molList[key].append([participant, molecule, component])
+    return molList
+
+
 def createMetaRule(ruleSet, differences):
     """
     Creates a metaRule from an array 'ruleSet' of rules. The differences parameter contains a dictionary
@@ -76,32 +91,10 @@ def createMetaRule(ruleSet, differences):
     productsDict = []
 
     for ruleDescription in ruleSet:
-        # todo:i have to find the way to group together equivalent
-        # molecules from different rules and find the metarule
-        molListR = {}
-        for reactant in ruleDescription[0].reactants:
-            for key in differences:
-                for molecule in reactant.molecules:
-                    if molecule.name + "(" in key:
-                        for component in molecule.components:
-                            if "(" + component.name + ")" in key:
-                                # print molecule.name, component.name, key
-                                if key not in molListR:
-                                    molListR[key] = []
-                                molListR[key].append([reactant, molecule, component])
+        molListR = groupEquivalentItems(ruleDescription[0].reactants, differences)
         reactantsDict.append(molListR)
 
-        molListP = {}
-        for reactant in ruleDescription[0].products:
-            for key in differences:
-                for molecule in reactant.molecules:
-                    if molecule.name + "(" in key:
-                        for component in molecule.components:
-                            if "(" + component.name + ")" in key:
-                                # print molecule.name, component.name, key
-                                if key not in molListP:
-                                    molListP[key] = []
-                                molListP[key].append([reactant, molecule, component])
+        molListP = groupEquivalentItems(ruleDescription[0].products, differences)
         productsDict.append(molListP)
 
     metaRuleR = reactantsDict[0]
