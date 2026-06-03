@@ -154,7 +154,7 @@ def test_visualizeModel():
             output="test_out.png",
             vtype="contactmap",
             bngpath="/path/to/bng",
-            app=app_mock
+            app=app_mock,
         )
         MockBNGVisualize.return_value.run.assert_called_once()
         app_mock.log.debug.assert_called()
