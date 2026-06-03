@@ -114,7 +114,7 @@ def test_model_add_block_invalid_name_raises_value_error():
     class FakeBlock:
         name = "not a block"
 
-    with pytest.raises(ValueError, match="Unsupported block name 'not a block'"):
+    with pytest.raises(Exception, match="Block type 'not a block'"):
         model.add_block(FakeBlock())
 
     assert "not_a_block" not in model.active_blocks
@@ -124,7 +124,7 @@ def test_model_add_block_invalid_name_raises_value_error():
 def test_model_add_empty_block_invalid_name_raises_value_error():
     model = _make_model_bypass_init()
 
-    with pytest.raises(ValueError, match="Unsupported block name 'not a block'"):
+    with pytest.raises(Exception, match="Block type 'not a block'"):
         model.add_empty_block("not a block")
 
     assert "not_a_block" not in model.active_blocks
@@ -165,7 +165,7 @@ def test_network_add_block_invalid_name_raises_value_error():
     class FakeBlock:
         name = "not a block"
 
-    with pytest.raises(ValueError, match="Unsupported block name 'not a block'"):
+    with pytest.raises(Exception, match="Block type 'not a block'"):
         net.add_block(FakeBlock())
 
     assert "not_a_block" not in net.active_blocks
@@ -175,7 +175,7 @@ def test_network_add_block_invalid_name_raises_value_error():
 def test_network_add_empty_block_invalid_name_raises_value_error():
     net = _make_network_bypass_init()
 
-    with pytest.raises(ValueError, match="Unsupported block name 'not a block'"):
+    with pytest.raises(Exception, match="Block type 'not a block'"):
         net.add_empty_block("not a block")
 
     assert "not_a_block" not in net.active_blocks

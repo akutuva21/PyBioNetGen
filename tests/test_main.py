@@ -64,6 +64,36 @@ def test_main_caught_signal_error(capsys):
         assert mock_app.exit_code == 0
 
 
+def test_core_main_graphdiff():
+    from bionetgen.core.main import graphDiff
+    from unittest.mock import patch, MagicMock
+
+    with patch("bionetgen.core.main.BNGGdiff") as mock_bnggdiff:
+        mock_gdiff_instance = MagicMock()
+        mock_bnggdiff.return_value = mock_gdiff_instance
+
+        mock_app = MagicMock()
+        mock_app.pargs.input = "in1.graphml"
+        mock_app.pargs.input2 = "in2.graphml"
+        mock_app.pargs.output = "out1.graphml"
+        mock_app.pargs.output2 = "out2.graphml"
+        mock_app.pargs.mode = "matrix"
+        mock_app.pargs.colors = "colors.json"
+
+        graphDiff(mock_app)
+
+        mock_bnggdiff.assert_called_once_with(
+            "in1.graphml",
+            "in2.graphml",
+            out="out1.graphml",
+            out2="out2.graphml",
+            mode="matrix",
+            colors="colors.json",
+            app=mock_app,
+        )
+        mock_gdiff_instance.run.assert_called_once()
+
+
 def test_graphdiff_cli_arguments():
     import os
     from bionetgen.main import BioNetGenTest
