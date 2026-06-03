@@ -38,6 +38,7 @@ def test_action_block_add_action_invalid_type_raises_parse_error():
 
     assert len(block.items) == 0
 
+
 def test_model_block_add_item_invalid_tuple_raises_valueerror():
     block = ModelBlock()
 

@@ -53,6 +53,7 @@ def test_runner_exception(mock_bngcli):
     with pytest.raises(Exception, match="Test Exception"):
         run(inp, out=out)
 
+
 @patch("bionetgen.modelapi.runner.logger")
 @patch("bionetgen.modelapi.runner.BNGCLI")
 def test_runner_exception_with_stdout_stderr(mock_bngcli, mock_logger):
@@ -65,7 +66,9 @@ def test_runner_exception_with_stdout_stderr(mock_bngcli, mock_logger):
             self.stdout = stdout
             self.stderr = stderr
 
-    mock_cli_instance.run.side_effect = CustomException("Test Exception", "test stdout", "test stderr")
+    mock_cli_instance.run.side_effect = CustomException(
+        "Test Exception", "test stdout", "test stderr"
+    )
 
     inp = "test.bngl"
     out = "test_out"
@@ -91,7 +94,9 @@ def test_runner_exception_without_out(mock_mkdtemp, mock_bngcli, mock_logger):
             self.stdout = stdout
             self.stderr = stderr
 
-    mock_cli_instance.run.side_effect = CustomException("Test Exception", "test stdout", "test stderr")
+    mock_cli_instance.run.side_effect = CustomException(
+        "Test Exception", "test stdout", "test stderr"
+    )
 
     mock_mkdtemp.return_value = "temp_out"
     inp = "test.bngl"

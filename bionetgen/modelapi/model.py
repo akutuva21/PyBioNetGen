@@ -222,9 +222,12 @@ class bngmodel:
         }
         if normalized_name not in block_adders:
             supported_names = ", ".join(block_adders)
-            raise ValueError(
-                f"Unsupported block name '{block_name}'. "
-                f"Supported block names: {supported_names}"
+            raise BNGModelError(
+                self,
+                message=(
+                    f"Block type {normalized_name} is not supported. "
+                    f"Supported block names: {supported_names}"
+                ),
             )
         return block_adders[normalized_name]
 

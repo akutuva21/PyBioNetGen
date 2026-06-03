@@ -1039,16 +1039,20 @@ class SCTSolver:
             # if tmpCandidates[1:] == tmpCandidates[:-1] or len(tmpCandidates) ==
             # 1:
 
-            for cidx, (tmpCandidate, modifiedElementsCounter) in enumerate(zip(
-                tmpCandidates, modifiedElementsCounters
-            )):
+            for cidx, (tmpCandidate, modifiedElementsCounter) in enumerate(
+                zip(tmpCandidates, modifiedElementsCounters)
+            ):
                 flag = True
                 while flag:
                     flag = False
                     for idx, chemical in enumerate(tmpCandidate):
                         if modifiedElementsCounter[chemical] > 0:
                             modifiedElementsCounter[chemical] -= 1
-                            mod = newModifiedElements[cidx][chemical].pop(0) if newModifiedElements[cidx][chemical] else chemical
+                            mod = (
+                                newModifiedElements[cidx][chemical].pop(0)
+                                if newModifiedElements[cidx][chemical]
+                                else chemical
+                            )
                             tmpCandidate[idx] = mod
                             flag = True
                             break
@@ -1250,7 +1254,9 @@ class SCTSolver:
                                 if len(uniprotkey) > 0:
                                     uniprotkey = uniprotkey[0].split("/")[-1]
                                     if uniprotkey not in active_site_memo:
-                                        active_site_memo[uniprotkey] = pwcm.queryActiveSite(uniprotkey, None)
+                                        active_site_memo[uniprotkey] = (
+                                            pwcm.queryActiveSite(uniprotkey, None)
+                                        )
                                     activeQuery = active_site_memo[uniprotkey]
                                 if activeQuery and len(activeQuery) > 0:
                                     activeCandidates.append(tmpCandidate)
@@ -1264,7 +1270,9 @@ class SCTSolver:
                                         y for x in candidates for y in x
                                     ]
                                     if tmpCandidate not in active_site_memo:
-                                        active_site_memo[tmpCandidate] = pwcm.queryActiveSite(tmpCandidate, None)
+                                        active_site_memo[tmpCandidate] = (
+                                            pwcm.queryActiveSite(tmpCandidate, None)
+                                        )
                                     activeQuery = active_site_memo[tmpCandidate]
                                     if activeQuery and len(activeQuery) > 0:
                                         otherMatches = [

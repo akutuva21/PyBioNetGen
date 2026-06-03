@@ -1,4 +1,5 @@
 import os, glob
+import pytest
 from pytest import raises
 import bionetgen as bng
 from bionetgen.main import BioNetGenTest
@@ -350,14 +351,11 @@ def test_setup_simulator():
     bng_path = defaults.BNGDefaults().bng_path
     bngexec = os.path.join(bng_path, "BNG2.pl")
     if bngexec is None or not os.path.exists(bngexec):
-        return  # skip if bng2.pl is not installed
+        pytest.skip("BNG2.pl not installed, skipping simulator test")
 
-    try:
-        m = bng.bngmodel(fpath)
-        librr_simulator = m.setup_simulator()
-        res = librr_simulator.simulate(0, 1, 10)
-    except:
-        res = None
+    m = bng.bngmodel(fpath)
+    librr_simulator = m.setup_simulator()
+    res = librr_simulator.simulate(0, 1, 10)
     assert res is not None
 
 

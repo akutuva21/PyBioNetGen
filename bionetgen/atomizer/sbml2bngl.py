@@ -1954,9 +1954,9 @@ class SBML2BNGL:
                                 % functionName,
                             )
                         defn = self.bngModel.functions[rule_obj.rate_cts[0]].definition
-                        self.bngModel.functions[
-                            rule_obj.rate_cts[0]
-                        ].definition = f"({defn})/({rule_obj.symm_factors[0]})"
+                        self.bngModel.functions[rule_obj.rate_cts[0]].definition = (
+                            f"({defn})/({rule_obj.symm_factors[0]})"
+                        )
                 if rule_obj.reversible:
                     logMess(
                         "ERROR:SIM205",
@@ -2492,7 +2492,9 @@ class SBML2BNGL:
                             logMess(
                                 "WARNING:SIM106",
                                 "Parameter {0} corresponds both as a non zero parameter \
-                            and a rate rule, verify behavior".format(element),
+                            and a rate rule, verify behavior".format(
+                                    element
+                                ),
                             )
                             removeParameters.append(element)
             # it is an assigment rule
@@ -2865,8 +2867,8 @@ class SBML2BNGL:
                     rawSpecies["compartment"] = ""
                     self.tags[rawSpecies["identifier"]] = ""
                 else:
-                    self.tags[rawSpecies["identifier"]] = (
-                        "@%s" % (rawSpecies["compartment"])
+                    self.tags[rawSpecies["identifier"]] = "@%s" % (
+                        rawSpecies["compartment"]
                     )
             if rawSpecies["returnID"] in translator:
                 if rawSpecies["returnID"] in rawSpeciesName:

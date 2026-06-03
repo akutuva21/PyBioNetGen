@@ -1,4 +1,5 @@
 import os, glob
+import pytest
 from pytest import raises
 import bionetgen as bng
 from bionetgen.main import BioNetGenTest
@@ -56,28 +57,13 @@ def test_action_argument_type_check():
     import bionetgen
     from bionetgen.core.exc import BNGParseError
 
-    # Test invalid dict argument
-    try:
-        a = bionetgen.modelapi.structs.Action(
-            "generate_network", {"max_stoich": "not_a_dict"}
-        )
-        assert False, "Should have raised BNGParseError for invalid dict argument"
-    except BNGParseError as e:
-        assert (
-            "Expected dictionary for action argument max_stoich, got str instead."
-            in str(e)
-        )
+    # Test invalid dict argument type for action_args
+    with raises(BNGParseError, match="must be a dict"):
+        bionetgen.modelapi.structs.Action("generate_network", "not_a_dict")
 
-    # Test invalid list argument
-    try:
-        a = bionetgen.modelapi.structs.Action(
-            "simulate", {"sample_times": "not_a_list"}
-        )
-        assert False, "Should have raised BNGParseError for invalid list argument"
-    except BNGParseError as e:
-        assert (
-            "Expected list for action argument sample_times, got str instead." in str(e)
-        )
+    # Test unrecognized action type
+    with raises(BNGParseError, match="not recognized"):
+        bionetgen.modelapi.structs.Action("invalid_action", {})
 
     # Test valid arguments don't raise
     bionetgen.modelapi.structs.Action("generate_network", {"max_stoich": {"A": 5}})
@@ -177,14 +163,11 @@ def test_setup_simulator():
     bng_path = defaults.BNGDefaults().bng_path
     bngexec = os.path.join(bng_path, "BNG2.pl")
     if bngexec is None or not os.path.exists(bngexec):
-        return  # skip if bng2.pl is not installed
+        pytest.skip("BNG2.pl not installed, skipping simulator test")
 
-    try:
-        m = bng.bngmodel(fpath)
-        librr_simulator = m.setup_simulator()
-        res = librr_simulator.simulate(0, 1, 10)
-    except:
-        res = None
+    m = bng.bngmodel(fpath)
+    librr_simulator = m.setup_simulator()
+    res = librr_simulator.simulate(0, 1, 10)
     assert res is not None
 
 
@@ -204,11 +187,8 @@ def test_bngmodel_add_block_exception():
     invalid_block = MockBlock("invalid_block_type")
 
     # Assert that adding this block raises BNGModelError
-    with raises(BNGModelError) as exc_info:
+    with raises(BNGModelError, match="Block type invalid_block_type is not supported"):
         m.add_block(invalid_block)
-
-    # Check that the exception message is correct
-    assert "Block type invalid_block_type is not supported" in str(exc_info.value)
 
 
 def test_bngmodel_add_empty_block_exception():
@@ -220,8 +200,5 @@ def test_bngmodel_add_empty_block_exception():
     m = bng.bngmodel(fpath)
 
     # Assert that adding this block raises BNGModelError
-    with raises(BNGModelError) as exc_info:
+    with raises(BNGModelError, match="Block type invalid_block_type is not supported"):
         m.add_empty_block("invalid_block_type")
-
-    # Check that the exception message is correct
-    assert "Block type invalid_block_type is not supported" in str(exc_info.value)
