@@ -89,3 +89,29 @@ def test_graphdiff_cli_arguments():
             assert pargs.colors == os.path.join(tfold, "models", "colors.json")
             assert pargs.input == os.path.join(tfold, "models", "testviz1_cm.graphml")
             assert pargs.input2 == os.path.join(tfold, "models", "testviz2_cm.graphml")
+
+def test_plot_cli_arguments():
+    import os
+    from bionetgen.main import BioNetGenTest
+    from unittest.mock import patch
+
+    tfold = os.path.dirname("tests/test_bionetgen.py")
+    argv = [
+        "plot",
+        "-i",
+        os.path.join(tfold, "models", "test.gdat"),
+        "-o",
+        os.path.join(tfold, "models", "test.png"),
+        "--title",
+        "Test Plot",
+    ]
+    with patch("bionetgen.main.plotDAT") as mock_plotdat:
+        with BioNetGenTest(argv=argv) as app:
+            app.run()
+            assert app.exit_code == 0
+            mock_plotdat.assert_called_once()
+
+            pargs = mock_plotdat.call_args[0][0].pargs
+            assert pargs.input == os.path.join(tfold, "models", "test.gdat")
+            assert pargs.output == os.path.join(tfold, "models", "test.png")
+            assert pargs.title == "Test Plot"
