@@ -134,3 +134,27 @@ def test_plotDAT_current_folder(MockBNGPlotter):
                 MockBNGPlotter.return_value.plot.assert_called_once()
             finally:
                 bionetgen.core.tools.BNGPlotter = original_plotter
+
+
+def test_visualizeModel():
+    from unittest.mock import MagicMock, patch
+    from bionetgen.core.main import visualizeModel
+
+    app_mock = MagicMock()
+    app_mock.pargs.input = "test.bngl"
+    app_mock.pargs.output = "test_out.png"
+    app_mock.pargs.type = "contactmap"
+    app_mock.config.get.return_value = "/path/to/bng"
+
+    with patch("bionetgen.core.main.BNGVisualize") as MockBNGVisualize:
+        visualizeModel(app_mock)
+
+        MockBNGVisualize.assert_called_once_with(
+            "test.bngl",
+            output="test_out.png",
+            vtype="contactmap",
+            bngpath="/path/to/bng",
+            app=app_mock
+        )
+        MockBNGVisualize.return_value.run.assert_called_once()
+        app_mock.log.debug.assert_called()
