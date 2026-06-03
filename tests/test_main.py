@@ -90,6 +90,7 @@ def test_graphdiff_cli_arguments():
             assert pargs.input == os.path.join(tfold, "models", "testviz1_cm.graphml")
             assert pargs.input2 == os.path.join(tfold, "models", "testviz2_cm.graphml")
 
+
 def test_plot_cli_arguments():
     import os
     from bionetgen.main import BioNetGenTest
