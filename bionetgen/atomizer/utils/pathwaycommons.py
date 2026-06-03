@@ -2,6 +2,7 @@ import urllib.request, urllib.parse, urllib.error
 import urllib.request, urllib.error, urllib.parse
 import functools
 import marshal
+import os
 from .util import logMess
 import json
 
@@ -53,7 +54,7 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
             "geneList": "|".join([name1, name2]),
             "taxId": "|".join(valid_organisms),
             "format": "json",
-            "accesskey": "f74b8d6f4c394fcc9d97b11c8c83d7f3",
+            "accesskey": os.environ.get("BIOGRID_ACCESS_KEY", ""),
             "includeInteractors": "false",
         }
         data = urllib.parse.urlencode(d).encode("utf-8")
@@ -72,7 +73,7 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
         d = {
             "geneList": "|".join([name1, name2]),
             "format": "json",
-            "accesskey": "f74b8d6f4c394fcc9d97b11c8c83d7f3",
+            "accesskey": os.environ.get("BIOGRID_ACCESS_KEY", ""),
             "includeInteractors": "false",
         }
         data = urllib.parse.urlencode(d).encode("utf-8")
