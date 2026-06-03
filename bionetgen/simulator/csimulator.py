@@ -307,7 +307,7 @@ class CSimulator(BNGSimulator):
                 num_params=n_param,
                 num_spec_init=len(self.model.species),
             )
-        except (AttributeError, KeyError, OSError, TypeError, ValueError) as exc:
+        except Exception as exc:
             logger.error(
                 f"Failed to initialize C simulator wrapper: {exc}",
                 loc=f"{__file__} : CSimulator.simulator.setter()",
