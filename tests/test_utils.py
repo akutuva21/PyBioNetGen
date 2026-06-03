@@ -44,8 +44,7 @@ def test_run_command_timeout_suppress():
         mock_run.assert_called_once_with(
             command,
             timeout=10,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            capture_output=True,
             cwd=None,
         )
 
