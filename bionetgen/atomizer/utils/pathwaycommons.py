@@ -4,6 +4,7 @@ import functools
 import marshal
 from .util import logMess
 import json
+import os
 
 
 def memoize(obj):
@@ -41,6 +42,11 @@ def name2uniprot(nameStr):
 
 @memoize
 def queryBioGridByName(name1, name2, organism, truename1, truename2):
+    api_key = os.environ.get("BIOGRID_API_KEY")
+    if not api_key:
+        logMess("WARNING:ATO006", "BIOGRID_API_KEY environment variable not set. Skipping BioGrid query.")
+        return False
+
     url = "http://webservice.thebiogrid.org/interactions/?"
     response = None
     valid_organisms = (
@@ -53,7 +59,7 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
             "geneList": "|".join([name1, name2]),
             "taxId": "|".join(valid_organisms),
             "format": "json",
-            "accesskey": "f74b8d6f4c394fcc9d97b11c8c83d7f3",
+            "accesskey": api_key,
             "includeInteractors": "false",
         }
         data = urllib.parse.urlencode(d).encode("utf-8")
@@ -72,7 +78,7 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
         d = {
             "geneList": "|".join([name1, name2]),
             "format": "json",
-            "accesskey": "f74b8d6f4c394fcc9d97b11c8c83d7f3",
+            "accesskey": api_key,
             "includeInteractors": "false",
         }
         data = urllib.parse.urlencode(d).encode("utf-8")

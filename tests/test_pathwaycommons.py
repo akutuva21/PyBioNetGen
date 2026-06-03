@@ -9,7 +9,7 @@ from bionetgen.atomizer.utils.pathwaycommons import (
 def test_queryBioGridByName_httperror_with_organism():
     with patch("urllib.request.urlopen") as mock_urlopen, patch(
         "bionetgen.atomizer.utils.pathwaycommons.logMess"
-    ) as mock_logMess:
+    ) as mock_logMess, patch.dict("os.environ", {"BIOGRID_API_KEY": "test_key"}):
 
         # Setup mock to raise HTTPError
         mock_urlopen.side_effect = urllib.error.HTTPError(
@@ -40,7 +40,7 @@ def test_queryBioGridByName_httperror_with_organism():
 def test_queryBioGridByName_httperror_no_organism():
     with patch("urllib.request.urlopen") as mock_urlopen, patch(
         "bionetgen.atomizer.utils.pathwaycommons.logMess"
-    ) as mock_logMess:
+    ) as mock_logMess, patch.dict("os.environ", {"BIOGRID_API_KEY": "test_key"}):
 
         # Setup mock to raise HTTPError
         mock_urlopen.side_effect = urllib.error.HTTPError(
