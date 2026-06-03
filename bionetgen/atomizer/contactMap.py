@@ -68,10 +68,7 @@ def main():
         with open("complex/{0}".format(x), "r") as f:
             speciesEquivalence[int(x.split(".")[0][6:])] = json.load(f)
 
-    for cidx, cluster in enumerate(linkArray):
-        # FIXME:only do the first cluster
-        cidx = 0
-        cluster = linkArray[0]
+    for cidx, cluster in enumerate(linkArray[:1]):
         if len(cluster) == 1:
             continue
         annotationsDict = {idx: x for idx, x in enumerate(annotations)}
