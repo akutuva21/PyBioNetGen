@@ -111,8 +111,10 @@ class SBMLAnalyzer:
             for y in keyPos:
                 d1 = abs(y - x)
                 d2 = abs(y - pos_x)
-                if d1 < distance: distance = d1
-                if d2 < distance: distance = d2
+                if d1 < distance:
+                    distance = d1
+                if d2 < distance:
+                    distance = d2
 
         return distance
 
