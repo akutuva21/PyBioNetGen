@@ -45,6 +45,36 @@ def test_csimulator_init_logs_missing_cvode_paths():
     )
 
 
+def test_csimulator_init_rmtree_exception(tmp_path):
+    import shutil
+
+    import bionetgen
+    from bionetgen.simulator import csimulator as csim_module
+
+    model_path = tmp_path / "test.bngl"
+    model_path.write_text("begin model\nend model\n")
+
+    fake_model = bionetgen.bngmodel(str(model_path))
+    fake_compiler = mock.MagicMock()
+    mock_conf_get = mock.MagicMock(side_effect=lambda key: None)
+
+    def fake_compile(self):
+        self.lib_file = "/tmp/fake/libcsim.so"
+
+    with mock.patch.object(csim_module.conf, "get", mock_conf_get), mock.patch.object(
+        csim_module, "_new_ccompiler", return_value=fake_compiler
+    ), mock.patch.object(
+        csim_module.CSimulator, "compile_shared_lib", fake_compile
+    ), mock.patch.object(
+        csim_module, "CSimWrapper"
+    ), mock.patch(
+        "shutil.rmtree", side_effect=OSError("Permission denied")
+    ) as mock_rmtree:
+        csim_module.CSimulator(fake_model)
+
+        assert mock_rmtree.called
+
+
 def test_csimulator_init_invalid_model_type_raises_bng_format_error():
     from bionetgen.core.exc import BNGFormatError
     from bionetgen.simulator import csimulator as csim_module
