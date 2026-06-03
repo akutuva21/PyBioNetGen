@@ -2575,7 +2575,8 @@ class SBML2BNGL:
                         continue
 
                 elif rawArule[0] in molecules:
-                    name = molecules[rawArule[0]]["returnID"]
+                    name = rawArule[0]
+                    ret_id = molecules[rawArule[0]]["returnID"]
                     if not molecules[rawArule[0]]["isBoundary"]:
                         self.arule_map[rawArule[0]] = name + "_ar"
                         logMess(
@@ -2588,11 +2589,11 @@ class SBML2BNGL:
                         self.bngModel.add_arule(arule_obj)
                         continue
                     else:
-                        name = molecules[rawArule[0]]["returnID"]
-                        if name in observablesDict:
-                            observablesDict[name] = name + "_ar"
+                        obs_name = name if name in observablesDict else ret_id
+                        if obs_name in observablesDict:
+                            observablesDict[obs_name] = name + "_ar"
                         for obs_k, obs_v in list(observablesDict.items()):
-                            if obs_v == name:
+                            if obs_v == obs_name:
                                 observablesDict[obs_k] = name + "_ar"
                         artificialObservables[name + "_ar"] = writer.bnglFunction(
                             rawArule[1][0],
