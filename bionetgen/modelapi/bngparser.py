@@ -230,7 +230,8 @@ class BNGParser:
                         self.bngfile.path,
                         message=f"XML file couldn't be generated: {exc.message}",
                     ) from exc
-                # TODO: Add verbosity option to the library
+                if self.verbose:
+                    print("Parsing XML")
                 xmlstr = xml_file.read()
                 # < is not a valid XML character, we need to replace it
                 xmlstr = xmlstr.replace('relation="<', 'relation="&lt;')
