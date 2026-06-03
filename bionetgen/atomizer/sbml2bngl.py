@@ -2403,7 +2403,9 @@ class SBML2BNGL:
                         reactionDict=self.reactionDictionary,
                     )
                     arules.append(func2_str)
-                    self.bngModel.add_bngl_function(func2_str, armrate_name, compartmentList)
+                    self.bngModel.add_bngl_function(
+                        func2_str, armrate_name, compartmentList
+                    )
 
                 # ASS2019 - I'm not sure if this is the right place to fix the tags. Basically, up until this point, the artificial reactions don't have tags. This results in the 0 <-> A type reactions to lack a compartment, leading to a non-functional BNGL file. I think the better solution might be during rule (SBML rule, not BNGL rule) parsing and update the parser/SBML2BNGL tags instead.
                 try:
