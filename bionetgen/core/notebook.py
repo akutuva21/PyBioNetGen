@@ -40,7 +40,7 @@ class BNGNotebook:
         new_lines = []
         for line in temp_lines:
             for key in self.odict:
-                line = re.sub(key, self.odict[key], line)
+                line = line.replace(key, self.odict[key])
             new_lines.append(line)
 
         with open(outfile, "w") as f:
