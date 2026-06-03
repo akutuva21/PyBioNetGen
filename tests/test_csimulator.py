@@ -60,20 +60,18 @@ def test_csimulator_simulator_property():
 
     csim.model = MockModel()
 
-    with (
-        unittest.mock.patch("os.path.abspath", side_effect=lambda x: x),
-        unittest.mock.patch(
+    with unittest.mock.patch("os.path.abspath", side_effect=lambda x: x):
+        with unittest.mock.patch(
             "bionetgen.simulator.csimulator.CSimWrapper"
-        ) as mock_wrapper,
-    ):
-        csim.simulator = "dummy_lib_file"
-        mock_wrapper.assert_called_once()
-        args, kwargs = mock_wrapper.call_args
-        assert kwargs["num_params"] == 2  # param1 and param3
-        assert kwargs["num_spec_init"] == 2  # 2 species
-        assert args[0] == "dummy_lib_file"
+        ) as mock_wrapper:
+            csim.simulator = "dummy_lib_file"
+            mock_wrapper.assert_called_once()
+            args, kwargs = mock_wrapper.call_args
+            assert kwargs["num_params"] == 2  # param1 and param3
+            assert kwargs["num_spec_init"] == 2  # 2 species
+            assert args[0] == "dummy_lib_file"
 
-        assert csim.simulator == mock_wrapper.return_value
+            assert csim.simulator == mock_wrapper.return_value
 
     with unittest.mock.patch(
         "bionetgen.simulator.csimulator.CSimWrapper",
