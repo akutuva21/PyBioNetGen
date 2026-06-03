@@ -314,8 +314,15 @@ def bnglFunction(
                     except ValueError:
                         idx += 1
                         continue
-                    parsedParams = [x for x in argList[idx + 1][0:upperLimit] if x != ","]
-                    tmp += "".join([", " if x == "," else "param_" + x for x in argList[idx + 1][0:upperLimit]])
+                    parsedParams = [
+                        x for x in argList[idx + 1][0:upperLimit] if x != ","
+                    ]
+                    tmp += "".join(
+                        [
+                            ", " if x == "," else "param_" + x
+                            for x in argList[idx + 1][0:upperLimit]
+                        ]
+                    )
 
                     # tmp = ''.join([x for x in constructFromList(argList[idx+1][0:upperLimit])])
                     tmp2 = ") = " + constructFromList(
