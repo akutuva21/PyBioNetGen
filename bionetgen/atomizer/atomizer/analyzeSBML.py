@@ -911,7 +911,9 @@ class SBMLAnalyzer:
                         break
         return ruleResult
 
-    def levenshtein(self, s1, s2):
+    @staticmethod
+    @memoize
+    def levenshtein(s1, s2):
         l1 = len(s1)
         l2 = len(s2)
 
