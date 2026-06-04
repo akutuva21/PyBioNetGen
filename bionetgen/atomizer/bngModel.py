@@ -1730,6 +1730,13 @@ class bngModel:
     def add_function(self, func):
         self.functions[func.Id] = func
 
+    def add_bngl_function(self, func_str, func_id, compartment_list=None):
+        fobj = self.make_function()
+        fobj.Id = func_id
+        fobj.definition = func_str.split("=", 1)[1].strip()
+        fobj.compartmentList = compartment_list
+        self.add_function(fobj)
+
     def make_rule(self):
         return Rule()
 
