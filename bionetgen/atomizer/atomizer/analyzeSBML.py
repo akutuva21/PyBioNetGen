@@ -1585,18 +1585,24 @@ class SBMLAnalyzer:
 
                 # greedymatching
 
-                # FIXME:its not properly copying all the string
+                # Sort sym by length in descending order to match longer symbols first
+                sorted_sym = sorted(sym, key=len, reverse=True)
+
                 for idx in range(0, len(matches) - 1):
                     acc = 0
-                    while (
-                        matches[idx][1] + matches[idx][2] + acc < len(tmpRuleList[1][0])
-                        and tmpRuleList[1][0][matches[idx][1] + matches[idx][2] + acc]
-                        in sym
+                    while matches[idx][1] + matches[idx][2] + acc < len(
+                        tmpRuleList[1][0]
                     ):
-                        productPartitions[idx] += tmpRuleList[1][0][
-                            matches[idx][1] + matches[idx][2] + acc
-                        ]
-                        acc += 1
+                        current_idx = matches[idx][1] + matches[idx][2] + acc
+                        matched_sym = False
+                        for s in sorted_sym:
+                            if tmpRuleList[1][0].startswith(s, current_idx):
+                                productPartitions[idx] += s
+                                acc += len(s)
+                                matched_sym = True
+                                break
+                        if not matched_sym:
+                            break
 
                 # idx = 0
                 # while(tmpString[matches[0][2]+ idx]  in sym):
