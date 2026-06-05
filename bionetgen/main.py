@@ -136,12 +136,12 @@ class BNGBase(cement.Controller):
     # This overwrites the default behavior and runs the CLI object from core/main
     # which in turn just calls BNG2.pl with the supplied options
     @cement.ex(
-        help="Runs a given model using BNG2.pl",
+        help="Runs a given model using BNG2.pl or BNGsim",
         arguments=[
             (
                 ["-i", "--input"],
                 {
-                    "help": "Path to BNGL file (required)",
+                    "help": "Path to input file (.bngl, .net, .xml, or .ant)",
                     "default": None,
                     "type": str,
                     "required": True,
@@ -174,19 +174,133 @@ class BNGBase(cement.Controller):
                     "dest": "traceback_depth",
                 },
             ),
+            (
+                ["--format"],
+                {
+                    "help": "Explicit input format: bngl, net, sbml, bng-xml, antimony. "
+                    "If omitted, auto-detected from file extension and content.",
+                    "default": None,
+                    "type": str,
+                    "dest": "format",
+                },
+            ),
+            (
+                ["--no-bngsim"],
+                {
+                    "help": "Force subprocess path (BNG2.pl/run_network/NFsim) "
+                    "even when BNGsim is available.",
+                    "default": False,
+                    "action": "store_true",
+                    "dest": "no_bngsim",
+                },
+            ),
+            (
+                ["--method"],
+                {
+                    "help": "Optional simulation method override: ode, ssa, psa, nf. "
+                    "For BNGL inputs, omit this to preserve the model's "
+                    "simulate_* actions when routing through BNGsim. "
+                    "For direct BioNetGen XML inputs, only nf is supported.",
+                    "default": None,
+                    "type": str,
+                    "dest": "method",
+                },
+            ),
+            (
+                ["--timeout"],
+                {
+                    "help": "Optional timeout in seconds for the BNG2.pl preprocessing "
+                    "or subprocess execution step. Applies to BNGL inputs, including "
+                    "the hybrid BNGsim path.",
+                    "default": None,
+                    "type": int,
+                    "dest": "timeout",
+                },
+            ),
         ],
     )
     def run(self):
         """
         This is the main run functionality of the CLI.
 
-        It uses a convenience function defined in core/main
-        to run BNG2.pl using subprocess, given the set of arguments
-        in the command line and the configuraions set by the defaults
-        as well as the end-user.
+        Supports BNGL, .net, SBML (.xml), BioNetGen XML, and Antimony (.ant)
+        files. When BNGsim is installed, it is used for fast in-process
+        simulation. Use --no-bngsim to force the traditional BNG2.pl path.
+        For BNGL inputs, ``--method`` is an explicit override; if omitted,
+        the model's declared ``simulate_*`` actions are preserved. For
+        direct BioNetGen XML inputs, ``--method`` defaults to ``nf`` and
+        network-based methods are rejected.
         """
-        test_perl(app=self.app)
-        runCLI(self.app)
+        from bionetgen.core.tools.bngsim_bridge import (
+            FORMAT_BNG_XML,
+            FORMAT_BNGL,
+            FORMAT_NET,
+            ROUTE_BNGL_BNGSIM,
+            ROUTE_DIRECT_BNGSIM,
+            ROUTE_ERROR,
+            ROUTE_SUBPROCESS,
+            classify_bngsim_route,
+            detect_input_format,
+            run_bngl_with_bngsim,
+            run_with_bngsim,
+        )
+
+        args = self.app.pargs
+        sys.tracebacklimit = args.traceback_depth
+
+        # Detect format
+        fmt = detect_input_format(args.input, explicit_format=args.format)
+
+        route = classify_bngsim_route(
+            args.input,
+            fmt,
+            simulator="subprocess" if args.no_bngsim else "auto",
+            method=args.method,
+        )
+        if route.route == ROUTE_ERROR:
+            from bionetgen.core.exc import BNGSimError
+
+            raise BNGSimError(route.reason)
+
+        if route.route == ROUTE_BNGL_BNGSIM and fmt == FORMAT_BNGL:
+            # BNGL path: BNG2.pl owns workflow semantics and delegates
+            # normalized simulation jobs through the BNGsim backend hook.
+            test_perl(app=self.app)
+            config_bngpath = self.app.config.get("bionetgen", "bngpath")
+            run_bngl_with_bngsim(
+                args.input,
+                args.output,
+                config_bngpath,
+                method=args.method,
+                suppress=False,
+                log_file=args.log_file,
+                timeout=args.timeout,
+                app=self.app,
+            )
+        elif route.route == ROUTE_DIRECT_BNGSIM:
+            # Direct BNGsim path for non-BNGL formats
+            run_with_bngsim(
+                args.input,
+                args.output,
+                fmt=fmt,
+                method=args.method,
+            )
+        elif route.route == ROUTE_SUBPROCESS and fmt == FORMAT_BNGL:
+            # Traditional subprocess path for BNGL
+            test_perl(app=self.app)
+            runCLI(self.app)
+        elif route.route == ROUTE_SUBPROCESS and fmt in (FORMAT_NET, FORMAT_BNG_XML):
+            # Subprocess fallback for .net and BNG XML
+            # These can be run via BNG2.pl or run_network directly
+            test_perl(app=self.app)
+            runCLI(self.app)
+        else:
+            from bionetgen.core.exc import BNGSimError
+
+            raise BNGSimError(
+                f"No simulation backend available for format '{fmt}'. "
+                "Install BNGsim with: pip install bngsim"
+            )
 
     @cement.ex(
         help="Starts a Jupyter notebook to help run and analyze \

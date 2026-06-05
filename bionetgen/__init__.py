@@ -1,4 +1,5 @@
 from .core.defaults import defaults
+from .core.tools.bngsim_bridge import BNGSIM_AVAILABLE, BNGSIM_VERSION
 from .modelapi import bngmodel
 from .modelapi.runner import run
 from .simulator.simulators import sim_getter
@@ -8,6 +9,8 @@ from .simulator.simulators import sim_getter
 
 __all__ = [
     "defaults",
+    "BNGSIM_AVAILABLE",
+    "BNGSIM_VERSION",
     "bngmodel",
     "run",
     "sim_getter",
