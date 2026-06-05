@@ -41,7 +41,6 @@ NETWORK_METHOD_ALIASES = {
     "ode": "ode",
     "ssa": "ssa",
     "psa": "psa",
-    "pla": "pla",
     "rm": "rm",
 }
 
