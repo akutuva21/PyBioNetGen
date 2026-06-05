@@ -64,7 +64,7 @@ def _patch_real_bng_action(bng_root):
     hook = r"""
     # PyBioNetGen/BNGsim backend hook. BNG2.pl has already normalized the
     # model state, artifact path, method, options, and output prefix.
-    if ($ENV{'BIONETGEN_BNGSIM_BACKEND'} && $method =~ /^(cvode|ssa|psa)$/)
+    if ($ENV{'BIONETGEN_BNGSIM_BACKEND'} && $method =~ /^(cvode|ssa|psa|pla)$/)
     {
         my @helper_command;
         if ($ENV{'BIONETGEN_BNGSIM_BACKEND_HELPER'})
@@ -640,7 +640,7 @@ def test_fake_helper_receives_psa_as_psa(tmp_path, real_bng_backend_runtime):
     assert jobs[0]["simulation_options"]["poplevel"] == 100
 
 
-def test_pla_action_does_not_call_helper(tmp_path, real_bng_backend_runtime):
+def test_fake_helper_receives_pla_as_pla(tmp_path, real_bng_backend_runtime):
     _run_real_hook(
         tmp_path,
         real_bng_backend_runtime,
@@ -648,7 +648,9 @@ def test_pla_action_does_not_call_helper(tmp_path, real_bng_backend_runtime):
         "generate_network({overwrite=>1})\nsimulate_pla({t_end=>1,n_steps=>1})",
     )
 
-    assert _captured_jobs(real_bng_backend_runtime["capture"]) == []
+    jobs = _captured_jobs(real_bng_backend_runtime["capture"])
+    assert len(jobs) == 1
+    assert jobs[0]["method"] == "pla"
 
 
 @pytest.mark.parametrize(

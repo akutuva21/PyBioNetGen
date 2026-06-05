@@ -1199,7 +1199,7 @@ _DIRECT_BNGSIM_FORMATS = {
     FORMAT_ANTIMONY,
 }
 
-_BNGSIM_NETWORK_METHODS = frozenset({"ode", "ssa", "psa", "rm"})
+_BNGSIM_NETWORK_METHODS = frozenset({"ode", "ssa", "psa", "pla", "rm"})
 
 _BNGL_ROUTING_COMPLEX_ACTIONS = frozenset(
     {
@@ -1424,40 +1424,11 @@ def _classify_bngl_actions_for_bngsim(
     if len(sim_actions) > 1:
         has_backend_hook_workflow = True
 
-    if any(workflow_method == "pla" for workflow_method in workflow_methods):
-        return BngsimRouteDecision(
-            ROUTE_SUBPROCESS,
-            "BNGL PLA is not supported by BNGsim",
-            method="pla",
-        )
-
     if method is not None:
         method_name = _strip_quotes(str(method).strip()).lower()
         if sim_actions:
-            if any(
-                _bngl_action_method_for_routing(action) == "pla"
-                for action in sim_actions
-            ):
-                return BngsimRouteDecision(
-                    ROUTE_SUBPROCESS,
-                    "BNGL PLA is not supported by BNGsim",
-                    method="pla",
-                )
-            action_method = _bngl_action_method_for_routing(sim_actions[0])
-            if action_method == "pla":
-                return BngsimRouteDecision(
-                    ROUTE_SUBPROCESS,
-                    "BNGL PLA is not supported by BNGsim",
-                    method="pla",
-                )
             if method_name == "ssa" and "poplevel" in (sim_actions[0].args or {}):
                 method_name = "psa"
-        if method_name == "pla":
-            return BngsimRouteDecision(
-                ROUTE_SUBPROCESS,
-                "BNGL PLA is not supported by BNGsim",
-                method="pla",
-            )
         if _method_supported_by_bngsim_for_routing(method_name, bngsim_has_nfsim):
             return BngsimRouteDecision(
                 ROUTE_BNGL_BNGSIM,
@@ -1473,21 +1444,9 @@ def _classify_bngl_actions_for_bngsim(
     candidate_methods = []
     for action in sim_actions:
         method_name = _bngl_action_method_for_routing(action)
-        if method_name == "pla":
-            return BngsimRouteDecision(
-                ROUTE_SUBPROCESS,
-                "BNGL PLA is not supported by BNGsim",
-                method="pla",
-            )
         candidate_methods.append(method_name)
 
     for method_name in workflow_methods:
-        if method_name == "pla":
-            return BngsimRouteDecision(
-                ROUTE_SUBPROCESS,
-                "BNGL PLA is not supported by BNGsim",
-                method="pla",
-            )
         if method_name != "protocol":
             candidate_methods.append(method_name)
 
@@ -1602,18 +1561,6 @@ def classify_bngsim_route(
                 method=method_name,
             )
         method_name = _strip_quotes(str(method).strip()).lower() if method else None
-        if method_name == "pla":
-            if fmt in FALLBACK_FORMATS:
-                return BngsimRouteDecision(
-                    ROUTE_SUBPROCESS,
-                    "PLA is not supported by the direct BNGsim route",
-                    method=method_name,
-                )
-            return BngsimRouteDecision(
-                ROUTE_ERROR,
-                f"Format '{fmt}' requires BNGsim but method='pla' is not supported",
-                method=method_name,
-            )
         return BngsimRouteDecision(
             ROUTE_DIRECT_BNGSIM,
             f"Format '{fmt}' routes directly to BNGsim",
