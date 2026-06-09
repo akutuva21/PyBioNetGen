@@ -67,10 +67,8 @@ class NamingDatabase:
 
     def getAnnotationsFromSpecies(self, speciesName):
         cursor = self._get_connection()
-        queryStatement = 'SELECT annotationURI,annotationName from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID join annotation as A on A.ROWID == I.annotationID and M.name == "{0}"'.format(
-            speciesName
-        )
-        queryResult = [x[0] for x in cursor.execute(queryStatement)]
+        queryStatement = 'SELECT annotationURI,annotationName from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID join annotation as A on A.ROWID == I.annotationID and M.name == ?'
+        queryResult = [x[0] for x in cursor.execute(queryStatement, (speciesName,))]
         return queryResult
 
     def getFileNameFromSpecies(self, speciesName):
