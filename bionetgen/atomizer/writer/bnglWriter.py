@@ -331,7 +331,11 @@ def bnglFunction(
                         # Sort by length descending so longer parameters are matched first
                         # to prevent partial replacement if one parameter name is a prefix of another
                         sortedParams = sorted(parsedParams, key=len, reverse=True)
-                        pattern_str = r"(?<!\w)(" + "|".join(re.escape(x) for x in sortedParams) + r")(?!\w)"
+                        pattern_str = (
+                            r"(?<!\w)("
+                            + "|".join(re.escape(x) for x in sortedParams)
+                            + r")(?!\w)"
+                        )
                         pattern = re.compile(pattern_str)
                         tmp2 = pattern.sub(r"param_\1 ", tmp2)
                     idx += 1
