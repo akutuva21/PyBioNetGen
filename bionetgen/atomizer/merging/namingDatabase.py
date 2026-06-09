@@ -67,10 +67,8 @@ class NamingDatabase:
 
     def getAnnotationsFromSpecies(self, speciesName):
         cursor = self._get_connection()
-        queryStatement = 'SELECT annotationURI,annotationName from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID join annotation as A on A.ROWID == I.annotationID and M.name == "{0}"'.format(
-            speciesName
-        )
-        queryResult = [x[0] for x in cursor.execute(queryStatement)]
+        queryStatement = 'SELECT annotationURI,annotationName from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID join annotation as A on A.ROWID == I.annotationID and M.name == ?'
+        queryResult = [x[0] for x in cursor.execute(queryStatement, (speciesName,))]
         return queryResult
 
     def getFileNameFromSpecies(self, speciesName):
@@ -78,10 +76,8 @@ class NamingDatabase:
         species name refers to a molecular species
         """
         cursor = self._get_connection()
-        queryStatement = 'SELECT B.file,M.name from moleculeNames as M join biomodels as B on B.ROWID == M.fileID WHERE M.name == "{0}"'.format(
-            speciesName
-        )
-        queryResult = [x[0] for x in cursor.execute(queryStatement)]
+        queryStatement = 'SELECT B.file,M.name from moleculeNames as M join biomodels as B on B.ROWID == M.fileID WHERE M.name == ?'
+        queryResult = [x[0] for x in cursor.execute(queryStatement, (speciesName,))]
         return queryResult
 
     def getFileNameFromOrganism(self, organismName):
@@ -89,10 +85,8 @@ class NamingDatabase:
         pass
         """
         cursor = self._get_connection()
-        queryStatement = 'SELECT B.file,A.annotationName from biomodels as B join annotation as A on B.organismID == A.ROWID WHERE A.annotationName == "{0}"'.format(
-            organismName
-        )
-        queryResult = [x[0] for x in cursor.execute(queryStatement)]
+        queryStatement = 'SELECT B.file,A.annotationName from biomodels as B join annotation as A on B.organismID == A.ROWID WHERE A.annotationName == ?'
+        queryResult = [x[0] for x in cursor.execute(queryStatement, (organismName,))]
         return queryResult
 
     def getOrganismNames(self):
@@ -103,10 +97,8 @@ class NamingDatabase:
 
     def getSpeciesFromAnnotations(self, annotation):
         cursor = self._get_connection()
-        queryStatement = 'SELECT name,A.annotationURI from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID join annotation as A on A.ROWID == I.annotationID and A.annotationURI == "{0}"'.format(
-            annotation
-        )
-        queryResult = [x[0] for x in cursor.execute(queryStatement)]
+        queryStatement = 'SELECT name,A.annotationURI from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID join annotation as A on A.ROWID == I.annotationID and A.annotationURI == ?'
+        queryResult = [x[0] for x in cursor.execute(queryStatement, (annotation,))]
         return queryResult
 
     def getFilesInDatabase(self):
@@ -118,14 +110,12 @@ class NamingDatabase:
     def getSpeciesFromFileName(self, fileName):
         cursor = self._get_connection()
         queryStatement = 'SELECT B.file,name,A.annotationURI,A.annotationName,qualifier from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID \
-                            join annotation as A on A.ROWID == I.annotationID join biomodels as B on B.ROWID == M.fileID and B.file == "{0}"'.format(
-            fileName
-        )
+                            join annotation as A on A.ROWID == I.annotationID join biomodels as B on B.ROWID == M.fileID and B.file == ?'
 
         # I.qualifier != "BQB_HAS_PART" and \
         # I.qualifier != "BQB_HAS_VERSION" AND I.qualifier != "BQB_HAS_PROPERTY"'.format(fileName)
 
-        speciesList = [x[1:] for x in cursor.execute(queryStatement)]
+        speciesList = [x[1:] for x in cursor.execute(queryStatement, (fileName,))]
 
         tmp = {}
         tmp2 = {}
@@ -295,8 +285,8 @@ class NamingDatabase:
 def isFileInDatabase(databaseName, fileName):
     connection = sqlite3.connect(databaseName)
     cursor = connection.cursor()
-    queryStatement = 'select file from biomodels WHERE file == "{0}"'.format(fileName)
-    matchingFileNames = [x[0] for x in cursor.execute(queryStatement)]
+    queryStatement = 'select file from biomodels WHERE file == ?'
+    matchingFileNames = [x[0] for x in cursor.execute(queryStatement, (fileName,))]
     connection.close()
     return len(matchingFileNames) > 0
 
@@ -374,9 +364,8 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
 
     connection.commit()
     cursor.execute(
-        'select ROWID from annotation WHERE annotationURI == "{0}"'.format(
-            annotationNames[-1][0]
-        )
+        'select ROWID from annotation WHERE annotationURI == ?',
+        (annotationNames[-1][0],)
     )
     annotationID = cursor.fetchone()[0]
     annotationNames = []
@@ -386,7 +375,7 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
     )
     connection.commit()
 
-    cursor.execute('select ROWID from biomodels WHERE file == "{0}"'.format(fileName2))
+    cursor.execute('select ROWID from biomodels WHERE file == ?', (fileName2,))
     modelID = cursor.fetchone()[0]
 
     # insert moleculeNames
@@ -435,9 +424,8 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
     moleculeIDs = {
         x[1]: x[0]
         for x in cursor.execute(
-            "select ROWID,name from moleculeNames WHERE moleculeNames.fileId == '{0}'".format(
-                modelID
-            )
+            "select ROWID,name from moleculeNames WHERE moleculeNames.fileId == ?",
+            (modelID,)
         )
     }
 
