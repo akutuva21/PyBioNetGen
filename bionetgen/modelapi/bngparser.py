@@ -195,10 +195,13 @@ class BNGParser:
         verbose=False,
     ) -> None:
         from bionetgen.core.utils.logging import BNGLogger
+
         self.logger = BNGLogger()
         self.to_parse_actions = parse_actions
         self.verbose = verbose
-        self.bngfile = BNGFile(path, generate_network=generate_network, suppress=suppress)
+        self.bngfile = BNGFile(
+            path, generate_network=generate_network, suppress=suppress
+        )
         self.alist = ActionList()
         self.alist.define_parser()
 
