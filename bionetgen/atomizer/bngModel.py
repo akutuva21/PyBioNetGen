@@ -308,7 +308,6 @@ class Function:
     def __repr__(self):
         return str(self)
 
-
     @staticmethod
     def _comp_parse(match):
         translator = {
@@ -324,7 +323,6 @@ class Function:
         exponent = match.group(3)
         operator = translator[match.group(1)]
         return "{0} {1} {2}".format(match.group(2), operator, exponent)
-
 
     @staticmethod
     def _change_to_bngl(functionList, rule, function):
@@ -342,7 +340,6 @@ class Function:
             if rule == oldrule:
                 logMess("ERROR:TRS001", "Malformed pow or root function %s" % rule)
         return rule
-
 
     def _resolve_rule_ptr(self, fdef):
         if self.rule_ptr is not None:
@@ -369,7 +366,6 @@ class Function:
                         )
         return fdef
 
-
     @staticmethod
     def _construct_from_list(argList, optionList):
         parsedString = ""
@@ -386,17 +382,17 @@ class Function:
                     )
                     idx += 1
                 elif argList[idx] == "floor":
-                    parsedString += (
-                        "min(rint(({0}) -0.5),rint(({0}) + 0.5))".format(
-                            Function._construct_from_list(argList[idx + 1], optionList)
-                        )
+                    parsedString += "min(rint(({0}) -0.5),rint(({0}) + 0.5))".format(
+                        Function._construct_from_list(argList[idx + 1], optionList)
                     )
                     idx += 1
                 elif argList[idx] in ["pow"]:
                     index = rindex(argList[idx + 1], ",")
                     parsedString += (
                         "(("
-                        + Function._construct_from_list(argList[idx + 1][0:index], optionList)
+                        + Function._construct_from_list(
+                            argList[idx + 1][0:index], optionList
+                        )
                         + ")"
                     )
                     parsedString += (
@@ -420,7 +416,9 @@ class Function:
                     index = rindex(argList[idx + 1], ",")
                     tmp = (
                         "1/("
-                        + Function._construct_from_list(argList[idx + 1][0:index], optionList)
+                        + Function._construct_from_list(
+                            argList[idx + 1][0:index], optionList
+                        )
                         + "))"
                     )
                     parsedString += (
@@ -435,14 +433,10 @@ class Function:
                 elif argList[idx] == "piecewise":
                     index1 = argList[idx + 1].index(",")
                     try:
-                        index2 = (
-                            argList[idx + 1][index1 + 1 :].index(",") + index1 + 1
-                        )
+                        index2 = argList[idx + 1][index1 + 1 :].index(",") + index1 + 1
                         try:
                             index3 = (
-                                argList[idx + 1][index2 + 1 :].index(",")
-                                + index2
-                                + 1
+                                argList[idx + 1][index2 + 1 :].index(",") + index2 + 1
                             )
                         except ValueError:
                             index3 = -1
@@ -508,9 +502,7 @@ class Function:
                         optionList,
                     )
                     for x in parsedParams:
-                        while (
-                            re.search(r"(\W|^)({0})(\W|$)".format(x), tmp2) != None
-                        ):
+                        while re.search(r"(\W|^)({0})(\W|$)".format(x), tmp2) != None:
                             tmp2 = re.sub(
                                 r"(\W|^)({0})(\W|$)".format(x),
                                 r"\g<1>param_\g<2> \g<3>",
@@ -534,7 +526,9 @@ class Function:
 
         # This is where the changes happen
         # comparison operators sorted here
-        fdef = Function._change_to_bngl(["gt", "lt", "leq", "geq", "eq"], fdef, Function._comp_parse)
+        fdef = Function._change_to_bngl(
+            ["gt", "lt", "leq", "geq", "eq"], fdef, Function._comp_parse
+        )
 
         contentRule = (
             pyparsing.Word(pyparsing.alphanums + "_")
@@ -571,7 +565,9 @@ class Function:
         # remove references to lambda functions
         if "lambda(" in fdef:
             lambdaList = parens.parseString("(" + fdef + ")")
-            functionBody = Function._construct_from_list(lambdaList[0].asList(), ["lambda"])
+            functionBody = Function._construct_from_list(
+                lambdaList[0].asList(), ["lambda"]
+            )
             fdef = "{0}{1}".format(self.Id, functionBody)
 
         # change references to time for time()
