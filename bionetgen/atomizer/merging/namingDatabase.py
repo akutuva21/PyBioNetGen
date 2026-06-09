@@ -295,7 +295,7 @@ class NamingDatabase:
 def isFileInDatabase(databaseName, fileName):
     connection = sqlite3.connect(databaseName)
     cursor = connection.cursor()
-    queryStatement = 'select file from biomodels WHERE file == ?'
+    queryStatement = "select file from biomodels WHERE file == ?"
     matchingFileNames = [x[0] for x in cursor.execute(queryStatement, (fileName,))]
     connection.close()
     return len(matchingFileNames) > 0
