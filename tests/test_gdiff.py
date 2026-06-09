@@ -194,24 +194,40 @@ def test_keylist_finds_leaf_in_single_dict_child_graph(gdiff_obj):
     assert result["@id"] == "n1::n0"
     assert gdiff_obj._get_node_name(result) == "b1"
 
+
 def test_color_node_raises_generic_exception(gdiff_obj):
     node = {"@id": "n0", "data": {"@key": "d6", "y:ShapeNode": {"y:Fill": {}}}}
 
-    with mock.patch.object(gdiff_obj, '_get_node_fill', side_effect=Exception("Generic Error")):
+    with mock.patch.object(
+        gdiff_obj, "_get_node_fill", side_effect=Exception("Generic Error")
+    ):
         with mock.patch.object(gdiff_obj.logger, "error") as mock_error:
-            with pytest.raises(BNGFileError, match="Couldn't color GraphML node n0: Generic Error"):
+            with pytest.raises(
+                BNGFileError, match="Couldn't color GraphML node n0: Generic Error"
+            ):
                 gdiff_obj._color_node(node, "#AABBCC")
 
         mock_error.assert_called_once()
-        assert "Couldn't color GraphML node n0: Generic Error" in mock_error.call_args.args[0]
+        assert (
+            "Couldn't color GraphML node n0: Generic Error"
+            in mock_error.call_args.args[0]
+        )
+
 
 def test_color_node_raises_bng_file_error(gdiff_obj):
     node = {"@id": "n0", "data": {"@key": "d6", "y:ShapeNode": {"y:Fill": {}}}}
 
-    with mock.patch.object(gdiff_obj, '_get_node_fill', side_effect=BNGFileError(None, "Specific Error")):
+    with mock.patch.object(
+        gdiff_obj,
+        "_get_node_fill",
+        side_effect=BNGFileError(bngl_path=None, message="Specific Error"),
+    ):
         with mock.patch.object(gdiff_obj.logger, "error") as mock_error:
             with pytest.raises(BNGFileError, match="Specific Error"):
                 gdiff_obj._color_node(node, "#AABBCC")
 
         mock_error.assert_called_once()
-        assert "Couldn't color GraphML node n0: Specific Error" in mock_error.call_args.args[0]
+        assert (
+            "Couldn't color GraphML node n0: Specific Error"
+            in mock_error.call_args.args[0]
+        )
