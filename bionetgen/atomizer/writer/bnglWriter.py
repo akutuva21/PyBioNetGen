@@ -327,8 +327,9 @@ def bnglFunction(
                         argList[idx + 1][rindex(argList[idx + 1], ",") + 1 :],
                         optionList,
                     )
-                    for x in parsedParams:
-                        pattern = re.compile(rf"(?<!\w)({x})(?!\w)")
+                    if parsedParams:
+                        sorted_params = sorted(parsedParams, key=len, reverse=True)
+                        pattern = re.compile(r"(?<!\w)(" + "|".join(re.escape(x) for x in sorted_params) + r")(?!\w)")
                         tmp2 = pattern.sub(r"param_\1 ", tmp2)
                     idx += 1
                     parsedString += tmp + tmp2
