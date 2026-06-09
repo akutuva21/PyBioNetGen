@@ -53,6 +53,20 @@ def test_bionetgen_visualize():
             pass
 
 
+def test_visualize_oserror():
+    import pytest
+    from unittest.mock import patch
+    from bionetgen.core.tools.visualize import BNGVisualize
+    from bionetgen.core.exc import BNGFileError
+
+    vis = BNGVisualize(os.path.join(tfold, "test.bngl"), vtype="contactmap")
+
+    with patch('bionetgen.core.main.BNGCLI.run') as mock_run:
+        mock_run.side_effect = OSError("Mocked OSError")
+        with pytest.raises(BNGFileError, match="Failed to generate visualization files: Mocked OSError"):
+            vis.run()
+
+
 # def test_graphdiff_matrix():
 #     valid = []
 #     invalid = []
