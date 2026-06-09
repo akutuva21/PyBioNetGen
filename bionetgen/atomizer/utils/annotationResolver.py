@@ -58,14 +58,14 @@ def resolveAnnotationHelper(annotation):
         if "obo.go" in annotation or "/go/GO" in annotation:
             res = resolveAnnotation.qg.Term(tAnnotation)
             finalArray = []
-            if type(res) not in [int]:
+            if type(res) not in {int}:
                 res = bioservices.Service("name").easyXML(res)
                 tmp = res.findAll("name")
 
                 for x in tmp:
                     try:
                         tagString = str(goGrammar.parseString(str(x))[0])
-                        if tagString not in ["Systematic synonym"]:
+                        if tagString not in {"Systematic synonym"}:
                             finalArray.append(str(goGrammar.parseString(str(x))[0]))
                     except pyp.ParseBaseException:
                         continue
