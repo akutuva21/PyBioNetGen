@@ -401,7 +401,7 @@ class Function:
                             )
                         )
                         idx += 1
-                    elif argList[idx] in ["pow"]:
+                    elif argList[idx] in {"pow"}:
                         index = rindex(argList[idx + 1], ",")
                         parsedString += (
                             "(("
@@ -417,7 +417,7 @@ class Function:
                             + "))"
                         )
                         idx += 1
-                    elif argList[idx] in ["sqr", "sqrt"]:
+                    elif argList[idx] in {"sqr", "sqrt"}:
                         tag = "1/" if argList[idx] == "sqrt" else ""
                         parsedString += (
                             "(("
@@ -480,7 +480,7 @@ class Function:
                                 condition, result, result2
                             )
                         idx += 1
-                    elif argList[idx] in ["and", "or"]:
+                    elif argList[idx] in {"and", "or"}:
                         symbolDict = {"and": " && ", "or": " || "}
                         indexArray = [-1]
                         elementArray = []
