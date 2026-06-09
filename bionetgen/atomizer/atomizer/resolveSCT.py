@@ -1245,6 +1245,22 @@ class SCTSolver:
 
                         activeCandidates = []
                         active_site_memo = {}
+
+                        uniprot_queries = set()
+                        tmp_queries = set()
+                        for individualCandidate in tmpCandidates:
+                            for tmpCandidate in individualCandidate:
+                                uniprotkey = atoAux.getURIFromSBML(
+                                    tmpCandidate, self.database.parser, ["uniprot"]
+                                )
+                                if len(uniprotkey) > 0:
+                                    uniprot_queries.add(uniprotkey[0].split("/")[-1])
+                                if len(tmpCandidate) >= 3:
+                                    tmp_queries.add(tmpCandidate)
+
+                        active_site_memo.update(pwcm.queryActiveSites(list(uniprot_queries), None))
+                        active_site_memo.update(pwcm.queryActiveSites(list(tmp_queries), None))
+
                         for individualCandidate in tmpCandidates:
                             for tmpCandidate in individualCandidate:
                                 activeQuery = None
@@ -1253,11 +1269,7 @@ class SCTSolver:
                                 )
                                 if len(uniprotkey) > 0:
                                     uniprotkey = uniprotkey[0].split("/")[-1]
-                                    if uniprotkey not in active_site_memo:
-                                        active_site_memo[uniprotkey] = (
-                                            pwcm.queryActiveSite(uniprotkey, None)
-                                        )
-                                    activeQuery = active_site_memo[uniprotkey]
+                                    activeQuery = active_site_memo.get(uniprotkey)
                                 if activeQuery and len(activeQuery) > 0:
                                     activeCandidates.append(tmpCandidate)
                                     # enter modification information to self.database
@@ -1269,11 +1281,7 @@ class SCTSolver:
                                     individualMajorCandidates = [
                                         y for x in candidates for y in x
                                     ]
-                                    if tmpCandidate not in active_site_memo:
-                                        active_site_memo[tmpCandidate] = (
-                                            pwcm.queryActiveSite(tmpCandidate, None)
-                                        )
-                                    activeQuery = active_site_memo[tmpCandidate]
+                                    activeQuery = active_site_memo.get(tmpCandidate)
                                     if activeQuery and len(activeQuery) > 0:
                                         otherMatches = [
                                             x
