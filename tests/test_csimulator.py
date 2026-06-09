@@ -216,6 +216,7 @@ def test_csimulator_init_bngmodel():
         mock_model = bionetgen.bngmodel(dummy_bngl, generate_network=True)
     except bionetgen.core.exc.BNGModelError:
         import pytest
+
         pytest.skip("BNG2.pl is missing, skipping CSimulator test")
 
     with unittest.mock.patch(
@@ -235,6 +236,7 @@ def test_csimulator_init_bngmodel():
                         csim = CSimulator(mock_model, generate_network=True)
                     except bionetgen.core.exc.BNGModelError:
                         import pytest
+
                         pytest.skip("BNG2.pl is missing, skipping CSimulator test")
 
                     mock_compiler_instance.compile.assert_called_once()

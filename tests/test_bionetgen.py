@@ -152,7 +152,9 @@ def test_action_loading():
         m2 = bng.bngmodel(no_action_model)
         assert len(m2.actions) == 0
     except BNGModelError:
-        pytest.skip("BNG2.pl is missing, active_blocks is empty, skipping action loading test")
+        pytest.skip(
+            "BNG2.pl is missing, active_blocks is empty, skipping action loading test"
+        )
 
 
 def test_bionetgen_info():
