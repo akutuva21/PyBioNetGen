@@ -2,7 +2,7 @@ from unittest import mock
 
 import pytest
 
-from bionetgen.core.exc import BNGFileError, BNGRunError
+from bionetgen.core.exc import BNGError, BNGFileError, BNGRunError
 
 
 @pytest.mark.parametrize("use_output", [False, True])
@@ -63,4 +63,28 @@ def test_normal_mode_wraps_dump_failures(capsys):
     visualize.logger.error.assert_called_once()
     error_args, error_kwargs = visualize.logger.error.call_args
     assert "Failed to generate visualization files: disk full" in error_args[0]
+    assert "BNGVisualize._normal_mode()" in error_kwargs["loc"]
+
+
+def test_normal_mode_handles_bngerror():
+    from bionetgen.core.tools.visualize import BNGVisualize
+
+    fake_model = mock.MagicMock()
+    fake_model.model_name = "test_model"
+    visualize = BNGVisualize("test.bngl")
+    visualize.logger = mock.MagicMock()
+
+    with mock.patch(
+        "bionetgen.core.tools.visualize.bionetgen.modelapi.bngmodel",
+        return_value=fake_model,
+    ), mock.patch("bionetgen.core.main.BNGCLI") as mock_cli_cls:
+        mock_cli_cls.return_value.run.side_effect = BNGError("Test BNGError")
+
+        with pytest.raises(BNGError, match="Test BNGError"):
+            visualize._normal_mode()
+
+    visualize.logger.error.assert_called_once()
+    error_args, error_kwargs = visualize.logger.error.call_args
+    assert error_args[0].startswith("Failed to generate visualization files:")
+    assert "Test BNGError" in error_args[0]
     assert "BNGVisualize._normal_mode()" in error_kwargs["loc"]
