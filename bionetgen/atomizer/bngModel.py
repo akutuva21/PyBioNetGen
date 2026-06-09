@@ -401,7 +401,7 @@ class Function:
                             )
                         )
                         idx += 1
-                    elif argList[idx] in ["pow"]:
+                    elif argList[idx] == "pow":
                         index = rindex(argList[idx + 1], ",")
                         parsedString += (
                             "(("
@@ -417,7 +417,7 @@ class Function:
                             + "))"
                         )
                         idx += 1
-                    elif argList[idx] in ["sqr", "sqrt"]:
+                    elif argList[idx] in {"sqr", "sqrt"}:
                         tag = "1/" if argList[idx] == "sqrt" else ""
                         parsedString += (
                             "(("
@@ -480,7 +480,7 @@ class Function:
                                 condition, result, result2
                             )
                         idx += 1
-                    elif argList[idx] in ["and", "or"]:
+                    elif argList[idx] in {"and", "or"}:
                         symbolDict = {"and": " && ", "or": " || "}
                         indexArray = [-1]
                         elementArray = []
@@ -557,21 +557,21 @@ class Function:
         if any(
             [
                 re.search(r"(\W|^)({0})(\W|$)".format(x), fdef) != None
-                for x in ["ceil", "floor", "pow", "sqrt", "sqr", "root", "and", "or"]
+                for x in {"ceil", "floor", "pow", "sqrt", "sqr", "root", "and", "or"}
             ]
         ):
             argList = parens.parseString("(" + fdef + ")").asList()
             fdef = constructFromList(
-                argList[0], ["floor", "ceil", "pow", "sqrt", "sqr", "root", "and", "or"]
+                argList[0], {"floor", "ceil", "pow", "sqrt", "sqr", "root", "and", "or"}
             )
 
         while "piecewise" in fdef:
             argList = parens.parseString("(" + fdef + ")").asList()
-            fdef = constructFromList(argList[0], ["piecewise"])
+            fdef = constructFromList(argList[0], {"piecewise"})
         # remove references to lambda functions
         if "lambda(" in fdef:
             lambdaList = parens.parseString("(" + fdef + ")")
-            functionBody = constructFromList(lambdaList[0].asList(), ["lambda"])
+            functionBody = constructFromList(lambdaList[0].asList(), {"lambda"})
             fdef = "{0}{1}".format(self.Id, functionBody)
 
         # change references to time for time()
