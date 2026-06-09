@@ -403,10 +403,10 @@ class SBML2BNGL:
                 return True
 
             else:
-                if (math.getLeftChild().getCharacter()) in ["*", "/", "-"]:
+                if (math.getLeftChild().getCharacter()) in {"*", "/", "-"}:
                     if self.getIsTreeNegative(math.getLeftChild()):
                         return True
-                if (math.getRightChild().getCharacter()) in ["*", "/", "-"]:
+                if (math.getRightChild().getCharacter()) in {"*", "/", "-"}:
                     if self.getIsTreeNegative(math.getRightChild()):
                         return True
         elif math.getCharacter() == "-" and math.getNumChildren() == 1:
