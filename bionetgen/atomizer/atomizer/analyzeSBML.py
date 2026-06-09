@@ -294,7 +294,9 @@ class SBMLAnalyzer:
 
                 viable = True
                 for perm in permutations:
-                    sequenceMatcher = difflib.SequenceMatcher(None, perm, modifiedElement)
+                    sequenceMatcher = difflib.SequenceMatcher(
+                        None, perm, modifiedElement
+                    )
                     match = "".join(
                         modifiedElement[j : j + n]
                         for i, j, n in sequenceMatcher.get_matching_blocks()
