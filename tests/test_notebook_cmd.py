@@ -63,7 +63,6 @@ def test_bionetgen_notebook_attribute_error(mock_popen, tmp_path):
         "--open",
     ]
     with BioNetGenTest(argv=argv) as app:
-        app.setup()
         app.config.set("bionetgen", "stdout", "INVALID_ATTR")
         app.config.set("bionetgen", "stderr", "INVALID_ATTR")
         app.run()
@@ -97,7 +96,6 @@ def test_bionetgen_notebook_key_error(mock_popen, tmp_path):
         "--open",
     ]
     with BioNetGenTest(argv=argv) as app:
-        app.setup()
         del app.config["bionetgen"]["stdout"]
         del app.config["bionetgen"]["stderr"]
         app.run()
