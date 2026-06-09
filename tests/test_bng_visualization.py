@@ -61,9 +61,11 @@ def test_visualize_oserror():
 
     vis = BNGVisualize(os.path.join(tfold, "test.bngl"), vtype="contactmap")
 
-    with patch('bionetgen.core.main.BNGCLI.run') as mock_run:
+    with patch("bionetgen.core.main.BNGCLI.run") as mock_run:
         mock_run.side_effect = OSError("Mocked OSError")
-        with pytest.raises(BNGFileError, match="Failed to generate visualization files: Mocked OSError"):
+        with pytest.raises(
+            BNGFileError, match="Failed to generate visualization files: Mocked OSError"
+        ):
             vis.run()
 
 
