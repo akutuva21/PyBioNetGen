@@ -4,7 +4,7 @@ import fnmatch
 import argparse
 import os
 import progressbar
-import cPickle as pickle
+import json
 import numpy as np
 
 # import SBMLparser.utils.characterizeAnnotationLog as cal
@@ -22,52 +22,22 @@ def defineConsole():
     return parser
 
 
-class RestrictedUnpickler(pickle.Unpickler):
-    def find_class(self, module, name):
-        safe_builtins = {
-            "range",
-            "complex",
-            "set",
-            "frozenset",
-            "slice",
-            "dict",
-            "list",
-            "tuple",
-            "int",
-            "float",
-            "str",
-            "bool",
-        }
-        safe_modules = {
-            "collections",
-            "structures",
-            "smallStructures",
-            "bionetgen.atomizer.utils.structures",
-            "bionetgen.atomizer.utils.smallStructures",
-        }
-        if module in ("builtins", "__builtin__") and name in safe_builtins:
-            return super().find_class(module, name)
-        if module in safe_modules:
-            return super().find_class(module, name)
-        raise pickle.UnpicklingError(f"Global '{module}.{name}' is forbidden")
-
-
 def componentAnalysis(directory):
     componentCount = []
     bindingCount = []
     stateCount = []
     modelComponentDict = {}
-    with open(os.path.join(directory, "moleculeTypeDataSet.dump"), "rb") as f:
-        moleculeTypesArray = RestrictedUnpickler(f).load()
+    with open(os.path.join(directory, "moleculeTypeDataSet.json"), "r") as f:
+        moleculeTypesArray = json.load(f)
     for model in moleculeTypesArray:
-        modelComponentCount = [len(x.components) for x in model[0]]
+        modelComponentCount = [len(x.get("components", [])) for x in model[0]]
 
         bindingComponentCount = [
-            len([y for y in x.components if len(y.states) == 0]) for x in model[0]
+            len([y for y in x.get("components", []) if len(y.get("states", [])) == 0]) for x in model[0]
         ]
 
         modificationComponentCount = [
-            sum([max(1, len(y.states)) for y in x.components]) for x in model[0]
+            sum([max(1, len(y.get("states", []))) for y in x.get("components", [])]) for x in model[0]
         ]
 
         modelComponentDict[model[-2]] = {
