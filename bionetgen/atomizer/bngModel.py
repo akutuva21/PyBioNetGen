@@ -978,53 +978,51 @@ class bngModel:
         self.used_in_rrule = []
 
     def __str__(self):
-        txt = self.metaString
-
-        txt += "begin model\n"
+        parts = [self.metaString, "begin model\n"]
 
         if len(self.parameters.values()) > 0:
-            txt += "begin parameters\n"
+            parts.append("begin parameters\n")
             for param in self.parameters.values():
-                txt += "  " + str(param) + "\n"
-            txt += "end parameters\n"
+                parts.append("  " + str(param) + "\n")
+            parts.append("end parameters\n")
 
         if not self.noCompartment:
-            txt += "begin compartments\n"
+            parts.append("begin compartments\n")
             for comp in self.compartments.values():
-                txt += "  " + str(comp) + "\n"
-            txt += "end compartments\n"
+                parts.append("  " + str(comp) + "\n")
+            parts.append("end compartments\n")
 
         if len(self.molecules.values()) > 0:
-            txt += "begin molecule types\n"
+            parts.append("begin molecule types\n")
             for molec in self.molecules.values():
                 molec.translator = self.translator
-                txt += "  " + str(molec) + "\n"
-            txt += "end molecule types\n"
+                parts.append("  " + str(molec) + "\n")
+            parts.append("end molecule types\n")
 
         if len(self.species.values()) > 0:
-            txt += "begin seed species\n"
+            parts.append("begin seed species\n")
             for spec in self.species.values():
                 spec.translator = self.translator
                 if spec.Id in self.used_in_rrule:
                     spec.isBoundary = False
                 if isinstance(spec.val, str):
                     spec.noCompartment = self.noCompartment
-                    txt += f"{str(spec)}\n"
+                    parts.append(f"{str(spec)}\n")
                 elif spec.val > 0 or spec.isConstant or spec.isBoundary:
                     spec.noCompartment = self.noCompartment
-                    txt += f"{str(spec)}\n"
-            txt += "end seed species\n"
+                    parts.append(f"{str(spec)}\n")
+            parts.append("end seed species\n")
 
         if len(self.observables.values()) > 0:
-            txt += "begin observables\n"
+            parts.append("begin observables\n")
             for obs in self.observables.values():
                 obs.translator = self.translator
                 obs.noCompartment = self.noCompartment
-                txt += "  " + str(obs) + "\n"
-            txt += "end observables\n"
+                parts.append("  " + str(obs) + "\n")
+            parts.append("end observables\n")
 
         if len(self.functions) > 0:
-            txt += "begin functions\n"
+            parts.append("begin functions\n")
             if self.function_order is None:
                 for func in self.functions.values():
                     func.sbmlFunctions = self.sbmlFunctions
@@ -1044,7 +1042,7 @@ class bngModel:
                     if func.Id in self.parsed_func:
                         func.sympy_parsed = self.parsed_func[func.Id]
                     func.all_syms = self.all_syms
-                    txt += "  " + str(func) + "\n"
+                    parts.append("  " + str(func) + "\n")
             else:
                 for fkey in self.function_order:
                     func = self.functions[fkey]
@@ -1065,22 +1063,22 @@ class bngModel:
                     if func.Id in self.parsed_func:
                         func.sympy_parsed = self.parsed_func[fkey]
                     func.all_syms = self.all_syms
-                    txt += "  " + str(func) + "\n"
-            txt += "end functions\n"
+                    parts.append("  " + str(func) + "\n")
+            parts.append("end functions\n")
 
         if len(self.rules.values()) > 0:
-            txt += "begin reaction rules\n"
+            parts.append("begin reaction rules\n")
             for rule in self.rules.values():
                 rule.translator = self.translator
                 rule.tags = self.tags
                 rule.noCompartment = self.noCompartment
                 rule.model = self
-                txt += "  " + str(rule) + "\n"
-            txt += "end reaction rules\n"
+                parts.append("  " + str(rule) + "\n")
+            parts.append("end reaction rules\n")
 
-        txt += "end model"
+        parts.append("end model")
 
-        return txt
+        return "".join(parts)
 
     def __repr__(self):
         return str((self.parameters, self.molecules))
