@@ -1258,8 +1258,12 @@ class SCTSolver:
                                 if len(tmpCandidate) >= 3:
                                     tmp_queries.add(tmpCandidate)
 
-                        active_site_memo.update(pwcm.queryActiveSites(list(uniprot_queries), None))
-                        active_site_memo.update(pwcm.queryActiveSites(list(tmp_queries), None))
+                        active_site_memo.update(
+                            pwcm.queryActiveSites(list(uniprot_queries), None)
+                        )
+                        active_site_memo.update(
+                            pwcm.queryActiveSites(list(tmp_queries), None)
+                        )
 
                         for individualCandidate in tmpCandidates:
                             for tmpCandidate in individualCandidate:

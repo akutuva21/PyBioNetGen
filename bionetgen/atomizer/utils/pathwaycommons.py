@@ -159,11 +159,11 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
 
 def queryActiveSites(nameStrs, organism):
     import concurrent.futures
+
     results = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         future_to_name = {
-            executor.submit(queryActiveSite, name, organism): name
-            for name in nameStrs
+            executor.submit(queryActiveSite, name, organism): name for name in nameStrs
         }
         for future in concurrent.futures.as_completed(future_to_name):
             name = future_to_name[future]
