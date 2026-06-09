@@ -1767,29 +1767,7 @@ class SBMLAnalyzer:
         reaction uses
         """
 
-        # TODO: once we transition completely to a naming convention delete
-        # this ----
         reactionTypeProperties = {}
-        reactionDefinition = self.loadConfigFiles(self.configurationFile)
-        if self.speciesEquivalences != None:
-            self.userEquivalences = self.loadConfigFiles(self.speciesEquivalences)[
-                "reactionDefinition"
-            ]
-        for reactionType, properties in zip(
-            reactionDefinition["reactionsNames"], reactionDefinition["definitions"]
-        ):
-            # if its a reaction defined by its naming convention
-            # xxxxxxxxxxxxxxxxxxx
-            for alternative in properties:
-                if "n" in list(alternative.keys()):
-                    try:
-                        site = reactionDefinition["reactionSite"][alternative["rsi"]]
-                        state = reactionDefinition["reactionState"][alternative["rst"]]
-                    except:
-                        site = reactionType
-                        state = reactionType[0]
-                    reactionTypeProperties[reactionType] = [site, state]
-        # TODO: end of delete
         reactionDefinition = self.namingConventions
         for idx, reactionType in enumerate(reactionDefinition["modificationList"]):
             site = reactionDefinition["reactionSite"][
