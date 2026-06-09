@@ -49,6 +49,7 @@ def test_bionetgen_notebook(mock_popen, tmp_path):
 @patch("bionetgen.core.main.subprocess.Popen")
 def test_bionetgen_notebook_attribute_error(mock_popen, tmp_path):
     import subprocess
+
     mock_process = MagicMock()
     mock_process.wait.return_value = 0
     mock_popen.return_value = mock_process
@@ -82,6 +83,7 @@ def test_bionetgen_notebook_attribute_error(mock_popen, tmp_path):
 @patch("bionetgen.core.main.subprocess.Popen")
 def test_bionetgen_notebook_key_error(mock_popen, tmp_path):
     import subprocess
+
     mock_process = MagicMock()
     mock_process.wait.return_value = 0
     mock_popen.return_value = mock_process
