@@ -104,7 +104,7 @@ class bngmodel:
         self.bngparser = BNGParser(
             bngl_model,
             generate_network=generate_network,
-            suppress=True,
+            suppress=suppress,
             verbose=self.verbose,
         )
         self.bngparser.parse_model(self)
