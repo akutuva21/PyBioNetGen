@@ -102,6 +102,7 @@ def test_bionetgen_notebook_fallback(mock_popen, tmp_path):
 
     # Ensure subprocess.Popen was called with fallback arguments
     import subprocess
+
     found_nbopen = False
     for c in mock_popen.call_args_list:
         if "nbopen" in c[0][0]:
@@ -139,6 +140,7 @@ def test_bionetgen_notebook_fallback_keyerror(mock_popen, tmp_path):
 
     # Ensure subprocess.Popen was called with fallback arguments
     import subprocess
+
     found_nbopen = False
     for c in mock_popen.call_args_list:
         if "nbopen" in c[0][0]:
