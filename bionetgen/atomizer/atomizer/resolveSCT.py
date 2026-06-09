@@ -56,7 +56,7 @@ class SCTSolver:
         )
 
         syndecs = [
-            1 if i == "Generation" or i == "Decay" else 0
+            1 if "Generation" in i or "Decay" in i else 0
             for i in self.database.classifications
         ]
         # user defined and lexical analysis naming conventions are stored here
@@ -737,7 +737,7 @@ class SCTSolver:
         totalElements = [item for sublist in reaction for item in sublist]
         for element in totalElements:
             atoAux.addToDependencyGraph(dependencyGraph, element, [])
-            if classification == "Binding":
+            if "Binding" in classification:
                 if len(reaction[1]) == 1 and element not in reaction[0]:
                     atoAux.addToDependencyGraph(dependencyGraph, element, reaction[0])
                 elif len(reaction[0]) == 1 and element not in reaction[1]:
