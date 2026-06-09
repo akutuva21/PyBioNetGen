@@ -969,9 +969,7 @@ class SCTSolver:
                     rootChemical = self.resolveDependencyGraph(
                         dependencyGraph, chemical
                     )
-                    mod = self.resolveDependencyGraph(
-                        dependencyGraph, chemical, True
-                    )
+                    mod = self.resolveDependencyGraph(dependencyGraph, chemical, True)
                     if mod != []:
                         modifiedElements.extend(mod)
                     for element in rootChemical:
@@ -1012,9 +1010,7 @@ class SCTSolver:
         modifiedElementsCounters = [Counter() for x in range(len(candidates))]
         # keep track of how many times we need to modify elements in the candidate description
         # FIXME: This only keeps track of the stuff in the fist candidates list
-        for idx, modifiedElementsInCandidate in enumerate(
-            modifiedElementsPerCandidate
-        ):
+        for idx, modifiedElementsInCandidate in enumerate(modifiedElementsPerCandidate):
             for element in modifiedElementsInCandidate:
                 if element[1] == reactant:
                     newModifiedElements[idx][element[0]].insert(0, element[1])
@@ -1182,14 +1178,14 @@ this the correct behavior or provide an alternative for {0}".format(
                     if greedyMatch not in [-1, -2]:
                         return (
                             self._selectBestCandidate(
-                                    reactant,
-                                    [greedyMatch],
-                                    dependencyGraph,
-                                    sbmlAnalyzer,
-                                    equivalenceTranslator,
-                                    equivalenceDictionary,
-                                    loginformation
-                                )[0],
+                                reactant,
+                                [greedyMatch],
+                                dependencyGraph,
+                                sbmlAnalyzer,
+                                equivalenceTranslator,
+                                equivalenceDictionary,
+                                loginformation,
+                            )[0],
                             unevenElements,
                             candidates,
                         )
@@ -1215,10 +1211,7 @@ this the correct behavior or provide an alternative for {0}".format(
                             if element not in equivalenceDictionary:
                                 equivalenceDictionary[element] = []
                             for equivalence in tmpEquivalence[element]:
-                                if (
-                                    equivalence[0]
-                                    not in equivalenceDictionary[element]
-                                ):
+                                if equivalence[0] not in equivalenceDictionary[element]:
                                     equivalenceDictionary[element].append(
                                         equivalence[0]
                                     )
@@ -1244,8 +1237,8 @@ this the correct behavior or provide an alternative for {0}".format(
                             if len(uniprotkey) > 0:
                                 uniprotkey = uniprotkey[0].split("/")[-1]
                                 if uniprotkey not in active_site_memo:
-                                    active_site_memo[uniprotkey] = (
-                                        pwcm.queryActiveSite(uniprotkey, None)
+                                    active_site_memo[uniprotkey] = pwcm.queryActiveSite(
+                                        uniprotkey, None
                                     )
                                 activeQuery = active_site_memo[uniprotkey]
                             if activeQuery and len(activeQuery) > 0:
@@ -1266,9 +1259,7 @@ this the correct behavior or provide an alternative for {0}".format(
                                 activeQuery = active_site_memo[tmpCandidate]
                                 if activeQuery and len(activeQuery) > 0:
                                     otherMatches = [
-                                        x
-                                        for x in tmpCandidates[0]
-                                        if x in activeQuery
+                                        x for x in tmpCandidates[0] if x in activeQuery
                                     ]
                                     if any(
                                         [
@@ -1298,9 +1289,7 @@ this the correct behavior or provide an alternative for {0}".format(
                                 ),
                             )
 
-                        for tmpCandidate, candidate in zip(
-                            tmpCandidates, candidates
-                        ):
+                        for tmpCandidate, candidate in zip(tmpCandidates, candidates):
                             fuzzyList = sbmlAnalyzer.processAdHocNamingConventions(
                                 reactant,
                                 candidate[0],
@@ -1311,9 +1300,7 @@ this the correct behavior or provide an alternative for {0}".format(
                             if len(fuzzyList) > 0 and fuzzyList[0][1]:
                                 if sbmlAnalyzer.testAgainstExistingConventions(
                                     fuzzyList[0][1],
-                                    sbmlAnalyzer.namingConventions[
-                                        "modificationList"
-                                    ],
+                                    sbmlAnalyzer.namingConventions["modificationList"],
                                 ):
                                     self.database.eequivalenceTranslator2[
                                         fuzzyList[0][1]
@@ -1375,10 +1362,8 @@ this the correct behavior or provide an alternative for {0}".format(
                     else:
                         if not self.database.softConstraints:
                             if loginformation:
-                                modification = (
-                                    sbmlAnalyzer.findMatchingModification(
-                                        reactant, candidates[0][0]
-                                    )
+                                modification = sbmlAnalyzer.findMatchingModification(
+                                    reactant, candidates[0][0]
                                 )
                                 modification = (
                                     modification[0] if modification else "mod"
@@ -1402,8 +1387,7 @@ this the correct behavior or provide an alternative for {0}".format(
             if all(sorted(x) == sorted(tmpCandidates[0]) for x in tmpCandidates):
                 tmpCandidates = [tmpCandidates[0]]
             elif (
-                reactant in self.database.alternativeDependencyGraph
-                and loginformation
+                reactant in self.database.alternativeDependencyGraph and loginformation
             ):
                 # candidates contradict each other but we have naming convention information in alternativeDependencyGraph
                 if not all(
@@ -1415,9 +1399,7 @@ this the correct behavior or provide an alternative for {0}".format(
                             "INFO:SCT001",
                             "{0}:Using lexical analysis since stoichiometry gives non-consistent information naming({1})!=stoichiometry({2})".format(
                                 reactant,
-                                self.database.alternativeDependencyGraph[reactant][
-                                    0
-                                ],
+                                self.database.alternativeDependencyGraph[reactant][0],
                                 tmpCandidates,
                             ),
                         )
@@ -1433,8 +1415,14 @@ this the correct behavior or provide an alternative for {0}".format(
                 # resolve naming convention candidate to its basic components
                 # (molecule types)
                 namingTmpCandidates = self._selectBestCandidate(
-                        reactant, [candidate[0]], dependencyGraph, sbmlAnalyzer, equivalenceTranslator, equivalenceDictionary, loginformation
-                    )[0]
+                    reactant,
+                    [candidate[0]],
+                    dependencyGraph,
+                    sbmlAnalyzer,
+                    equivalenceTranslator,
+                    equivalenceDictionary,
+                    loginformation,
+                )[0]
                 if not namingTmpCandidates:
                     logMess(
                         "ERROR:SCT211",
@@ -1469,9 +1457,7 @@ this the correct behavior or provide an alternative for {0}".format(
 
                 tmpCandidates = namingTmpCandidates
                 if loginformation:
-                    self.database.alternativeDependencyGraph[reactant] = (
-                        tmpCandidates
-                    )
+                    self.database.alternativeDependencyGraph[reactant] = tmpCandidates
             elif all(
                 sorted(x) == sorted(originalTmpCandidates[0])
                 for x in originalTmpCandidates
@@ -1526,8 +1512,14 @@ this the correct behavior or provide an alternative for {0}".format(
                     tmpCandidates2
                 ):
                     return self._selectBestCandidate(
-                            reactant, tmpCandidates2, dependencyGraph, sbmlAnalyzer, equivalenceTranslator, equivalenceDictionary, loginformation
-                        )
+                        reactant,
+                        tmpCandidates2,
+                        dependencyGraph,
+                        sbmlAnalyzer,
+                        equivalenceTranslator,
+                        equivalenceDictionary,
+                        loginformation,
+                    )
                 elif len(tmpCandidates2) == 0:
                     # the differences is between species that we created so its the LAE fault. Just choose one.
                     tmpCandidates.sort(key=len)
@@ -1541,9 +1533,7 @@ this the correct behavior or provide an alternative for {0}".format(
                             ),
                         )
                     return None, None, None
-        elif (
-            reactant in self.database.alternativeDependencyGraph and loginformation
-        ):
+        elif reactant in self.database.alternativeDependencyGraph and loginformation:
             # there is one stoichionetry candidate but the naming convention
             # and the stoichionetry dotn agree
             if (
@@ -1557,14 +1547,17 @@ this the correct behavior or provide an alternative for {0}".format(
                 if loginformation:
                     del self.database.alternativeDependencyGraph[reactant]
                 namingtmpCandidates = self._selectBestCandidate(
-                        reactant, [candidate[0]], dependencyGraph, sbmlAnalyzer, equivalenceTranslator, equivalenceDictionary, loginformation
-                    )[0]
+                    reactant,
+                    [candidate[0]],
+                    dependencyGraph,
+                    sbmlAnalyzer,
+                    equivalenceTranslator,
+                    equivalenceDictionary,
+                    loginformation,
+                )[0]
 
                 # if they still disagree print error and use stoichiometry
-                if (
-                    namingtmpCandidates
-                    and tmpCandidates[0] != namingtmpCandidates[0]
-                ):
+                if namingtmpCandidates and tmpCandidates[0] != namingtmpCandidates[0]:
                     if loginformation:
                         if (
                             namingtmpCandidates[0][0]
@@ -1581,9 +1574,7 @@ this the correct behavior or provide an alternative for {0}".format(
                                 "{0}:stoichiometry analysis:{1}:conflicts with and naming conventions:{2}:Selecting lexical analysis".format(
                                     reactant,
                                     tmpCandidates,
-                                    self.database.alternativeDependencyGraph[
-                                        reactant
-                                    ],
+                                    self.database.alternativeDependencyGraph[reactant],
                                 ),
                             )
                     tmpCandidates = namingtmpCandidates
@@ -1633,7 +1624,6 @@ this the correct behavior or provide an alternative for {0}".format(
 
         equivalenceTranslator = {}
 
-
         prunnedDependencyGraph = deepcopy(dependencyGraph)
 
         tempMergedDependencyGraph = deepcopy(prunnedDependencyGraph)
@@ -1653,7 +1643,13 @@ this the correct behavior or provide an alternative for {0}".format(
                 prunnedDependencyGraph[element[0]] = []
             if len(candidates) >= 1:
                 candidates, uneven, originalCandidate = self._selectBestCandidate(
-                    element[0], candidates, prunnedDependencyGraph, sbmlAnalyzer, equivalenceTranslator, equivalenceDictionary, loginformation
+                    element[0],
+                    candidates,
+                    prunnedDependencyGraph,
+                    sbmlAnalyzer,
+                    equivalenceTranslator,
+                    equivalenceDictionary,
+                    loginformation,
                 )
                 # except CycleError:
                 #    candidates = None
