@@ -722,8 +722,6 @@ def createBindingRBM(
             species.addMolecule(mol)
     dependencyGraphCounter = Counter(dependencyGraph[element[0]][0])
 
-    # XXX: this wont work for species with more than one molecule with the
-    # same name
     changeFlag = False
     partialBonds = defaultdict(list)
     for partialUserEntry in database.partialUserLabelDictionary:
@@ -732,17 +730,21 @@ def createBindingRBM(
             [partialCounter[x] <= dependencyGraphCounter[x] for x in partialCounter]
         ):
             changeFlag = True
-            for molecule in database.partialUserLabelDictionary[
-                partialUserEntry
-            ].molecules:
-                for molecule2 in species.molecules:
-                    if molecule.name == molecule2.name:
-                        for component in molecule.components:
-                            for bond in component.bonds:
-                                if molecule2.name not in [
-                                    x.name for x in partialBonds[bond]
-                                ]:
-                                    partialBonds[bond].append(molecule2)
+
+            user_mols_by_name = defaultdict(list)
+            for m in database.partialUserLabelDictionary[partialUserEntry].molecules:
+                user_mols_by_name[m.name].append(m)
+
+            species_mols_by_name = defaultdict(list)
+            for m in species.molecules:
+                species_mols_by_name[m.name].append(m)
+
+            for name in user_mols_by_name:
+                for molecule, molecule2 in zip(user_mols_by_name[name], species_mols_by_name[name]):
+                    for component in molecule.components:
+                        for bond in component.bonds:
+                            if molecule2 not in partialBonds[bond]:
+                                partialBonds[bond].append(molecule2)
 
     bondSeeding = [partialBonds[x] for x in partialBonds if x > 0]
     bondExclusion = [partialBonds[x] for x in partialBonds if x < 0]
