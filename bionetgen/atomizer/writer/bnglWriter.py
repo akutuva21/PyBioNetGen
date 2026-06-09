@@ -315,12 +315,14 @@ def bnglFunction(
                         idx += 1
                         continue
                     parsedParams = []
+                    tmp_parts = []
                     for x in argList[idx + 1][0:upperLimit]:
                         if x == ",":
-                            tmp += ", "
+                            tmp_parts.append(", ")
                         else:
-                            tmp += "param_" + x
+                            tmp_parts.append("param_" + x)
                             parsedParams.append(x)
+                    tmp += "".join(tmp_parts)
 
                     # tmp = ''.join([x for x in constructFromList(argList[idx+1][0:upperLimit])])
                     tmp2 = ") = " + constructFromList(
