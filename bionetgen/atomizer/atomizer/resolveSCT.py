@@ -938,6 +938,677 @@ class SCTSolver:
         """
         return intersectionMatches, partialMatches
 
+    def _selectBestCandidate(
+        self,
+        reactant,
+        candidates,
+        dependencyGraph,
+        sbmlAnalyzer,
+        loginformation,
+        equivalenceTranslator,
+        equivalenceDictionary,
+    ):
+        tmpCandidates = []
+        modifiedElementsPerCandidate = []
+        unevenElements = []
+        candidateDict = {}
+        for individualAnswer in candidates:
+            try:
+                tmpAnswer = []
+                flag = True
+                if len(individualAnswer) == 1 and individualAnswer[0] == reactant:
+                    continue
+                modifiedElements = []
+                for chemical in individualAnswer:
+                    # we cannot handle tuple naming conventions for now
+                    if type(chemical) == tuple:
+                        flag = False
+                        continue
+                    # associate elements in the candidate description with their
+                    # modified version
+                    rootChemical = self.resolveDependencyGraph(
+                        dependencyGraph, chemical
+                    )
+                    mod = self.resolveDependencyGraph(dependencyGraph, chemical, True)
+                    if mod != []:
+                        modifiedElements.extend(mod)
+                    for element in rootChemical:
+                        if len(element) == 1 and type(element[0]) == tuple:
+                            continue
+                        if element == chemical:
+                            tmpAnswer.append(chemical)
+                        elif type(element) == tuple:
+                            tmpAnswer.append(element)
+                        else:
+                            tmpAnswer.append(element[0])
+                modifiedElementsPerCandidate.append(modifiedElements)
+                if flag:
+                    tmpAnswer = sorted(tmpAnswer)
+                    tmpCandidates.append(tmpAnswer)
+            except atoAux.CycleError:
+                if loginformation:
+                    logMess(
+                        "ERROR:SCT221",
+                        "{0}:{1}:Dependency cycle found when mapping molecule to candidate".format(
+                            reactant, individualAnswer[0]
+                        ),
+                    )
+                continue
+        # we cannot handle tuple naming conventions for now
+        if len(tmpCandidates) == 0:
+            # logMess('CRITICAL:Atomization', 'I dont know how to process these candidates and I have no \
+            # way to make an educated guess. Politely refusing to translate
+            # {0}={1}.'.format(reactant, candidates))
+            return None, None, None
+        originalTmpCandidates = deepcopy(tmpCandidates)
+        # if we have more than one modified element for a single reactant
+        # we can try to  choose the one that is most similar to the original
+        # reactant
+        # FIXME:Fails if there is a double modification
+        newModifiedElements = [defaultdict(list) for x in range(len(candidates))]
+        # modifiedElementsCounter = Counter()
+        modifiedElementsCounters = [Counter() for x in range(len(candidates))]
+        # keep track of how many times we need to modify elements in the candidate description
+        # FIXME: This only keeps track of the stuff in the fist candidates list
+        for idx, modifiedElementsInCandidate in enumerate(modifiedElementsPerCandidate):
+            for element in modifiedElementsInCandidate:
+                if element[1] == reactant:
+                    newModifiedElements[idx][element[0]].insert(0, element[1])
+                else:
+                    newModifiedElements[idx][element[0]].append(element[1])
+                modifiedElementsCounters[idx][element[0]] += 1
+
+        # actually modify elements and store final version in tmpCandidates
+        # if tmpCandidates[1:] == tmpCandidates[:-1] or len(tmpCandidates) ==
+        # 1:
+
+        for cidx, (tmpCandidate, modifiedElementsCounter) in enumerate(
+            zip(tmpCandidates, modifiedElementsCounters)
+        ):
+            flag = True
+            while flag:
+                flag = False
+                for idx, chemical in enumerate(tmpCandidate):
+                    if modifiedElementsCounter[chemical] > 0:
+                        modifiedElementsCounter[chemical] -= 1
+                        mod = (
+                            newModifiedElements[cidx][chemical].pop(0)
+                            if newModifiedElements[cidx][chemical]
+                            else chemical
+                        )
+                        tmpCandidate[idx] = mod
+                        flag = True
+                        break
+        candidateDict = {tuple(x): y for x, y in zip(tmpCandidates, candidates)}
+        bcan = []
+        btmp = []
+        borig = []
+        # filter out those dependencies to the 0 element
+
+        # if this is related to the zero element
+        if len(tmpCandidates) == 1 and tmpCandidates[0] == ["0"]:
+            return ["0"], None, None
+
+        for candidate, tmpcandidate, originaltmpcandidate in zip(
+            candidates, tmpCandidates, originalTmpCandidates
+        ):
+            if originaltmpcandidate != ["0"]:
+                bcan.append(candidate)
+                btmp.append(tmpcandidate)
+                borig.append(originaltmpcandidate)
+        candidates = bcan
+        tmpCandidates = btmp
+        originalTmpCandidates = borig
+
+        if len(tmpCandidates) == 0:
+            return None, None, None
+
+        # FIXME: I have no idea wtf this is doing so im commenting it out. i
+        # think it's old code that is no longer ncessary
+        """
+        # update candidate chemical references to their modified version if required
+        if len(tmpCandidates) > 1:
+            # temporal solution for defaulting to the first alternative
+            totalElements = [y for x in tmpCandidates for y in x]
+            elementDict = {}
+            for word in totalElements:
+                if word not in elementDict:
+                    elementDict[word] = 0
+                elementDict[word] += 1
+            newTmpCandidates = [[]]
+            for element in elementDict:
+                if elementDict[element] % len(tmpCandidates) == 0:
+                    newTmpCandidates[0].append(element)
+                #elif elementDict[element] % len(tmpCandidates) != 0 and re.search('(_|^){0}(_|$)'.format(element),reactant):
+                #    newTmpCandidates[0].append(element)
+                #    unevenElements.append([element])
+                else:
+                    logMess('WARNING:Atomization', 'Are these actually the same? {0}={1}.'.format(reactant,candidates))
+                    unevenElements.append(element)
+            flag = True
+            # FIXME:this should be done on newtmpCandidates instead of tmpcandidates
+            while flag:
+                flag = False
+                for idx, chemical in enumerate(tmpCandidates[0]):
+                    if chemical in newModifiedElements: #and newModifiedElements[chemical] in reactant:
+                        tmpCandidates[0][idx] = newModifiedElements[chemical]
+                        flag = True
+                        break
+        """
+        # if all the candidates are about modification changes to a complex
+        # then try to do it through lexical analysis
+        if (
+            all([len(candidate) == 1 for candidate in candidates])
+            and candidates[0][0] != reactant
+            and len(tmpCandidates[0]) > 1
+        ):
+            if reactant is not None:
+                pass
+
+            # analyze based on standard modifications
+            # lexCandidate, translationKeys, tmpequivalenceTranslator = sbmlAnalyzer.analyzeSpeciesModification(candidates[0][0], reactant, originalTmpCandidates[0])
+            # print '++++'
+            (
+                lexCandidate,
+                translationKeys,
+                tmpequivalenceTranslator,
+            ) = sbmlAnalyzer.analyzeSpeciesModification2(
+                candidates[0][0], reactant, originalTmpCandidates[0]
+            )
+            # lexCandidate, translationKeys, tmpequivalenceTranslator = sbmlAnalyzer.analyzeSpeciesModification(candidates[0][0], reactant, tmpCandidates[0])            # FIXME: this is iffy. is it always an append modification? could be prepend
+            # lexCandidate = None
+            if lexCandidate is not None:
+                lexCandidate = tmpCandidates[0][
+                    originalTmpCandidates[0].index(lexCandidate)
+                ]
+                if translationKeys[0] + lexCandidate in dependencyGraph:
+                    lexCandidateModification = translationKeys[0] + lexCandidate
+                else:
+                    lexCandidateModification = lexCandidate + translationKeys[0]
+
+                for element in tmpequivalenceTranslator:
+                    if element not in equivalenceTranslator:
+                        equivalenceTranslator[element] = []
+                    equivalenceTranslator[element].append(
+                        (lexCandidate, lexCandidateModification)
+                    )
+                while lexCandidate in tmpCandidates[0]:
+                    tmpCandidates[0].remove(lexCandidate)
+                    tmpCandidates[0].append(lexCandidateModification)
+                    break
+                if lexCandidateModification not in dependencyGraph:
+                    logMess(
+                        "WARNING:SCT711",
+                        "While analyzing {0}={1} we discovered equivalence {2}={3}, please verify \
+this the correct behavior or provide an alternative for {0}".format(
+                            reactant,
+                            tmpCandidates[0],
+                            lexCandidateModification,
+                            lexCandidate,
+                        ),
+                    )
+                dependencyGraph[lexCandidateModification] = [[lexCandidate]]
+
+                return [tmpCandidates[0]], unevenElements, candidates
+
+            else:
+                fuzzyCandidateMatch = None
+                """
+                if nothing else works and we know the result is a bimolecular
+                complex and we know which are the basic reactants then try to
+                do fuzzy string matching between the two.
+                TODO: extend this to more than 2 molecule complexes.
+                """
+                if len(tmpCandidates[0]) == 2:
+                    tmpmolecules = []
+                    tmpmolecules.extend(originalTmpCandidates[0])
+                    tmpmolecules.extend(tmpCandidates[0])
+                    # FIXME: Fuzzy artificial reaction is using old methods. Try to fix this
+                    # or maybe not, no one was using it and when it was used it was wrong
+                    # fuzzyCandidateMatch = sbmlAnalyzer.fuzzyArtificialReaction(originalTmpCandidates[0],[reactant],tmpmolecules)
+                    fuzzyCandidateMatch = None
+                if fuzzyCandidateMatch is not None:
+                    # logMess('INFO:Atomization', 'Used fuzzy string matching from {0} to {1}'.format(reactant, fuzzyCandidateMatch))
+                    return [fuzzyCandidateMatch], unevenElements, candidates
+                else:
+                    # map based on greedy matching
+                    greedyMatch = sbmlAnalyzer.greedyModificationMatching(
+                        reactant, dependencyGraph.keys()
+                    )
+                    if greedyMatch not in [-1, -2]:
+                        return (
+                            self._selectBestCandidate(
+                                reactant,
+                                [greedyMatch],
+                                dependencyGraph,
+                                sbmlAnalyzer,
+                                loginformation,
+                                equivalenceTranslator,
+                                equivalenceDictionary,
+                            )[0],
+                            unevenElements,
+                            candidates,
+                        )
+
+                    # last ditch attempt using straighforward lexical analysis
+                    (
+                        tmpDependency,
+                        tmpEquivalence,
+                    ) = sbmlAnalyzer.findClosestModification(
+                        [reactant],
+                        dependencyGraph.keys(),
+                        self.database.annotationDict,
+                        self.database.dependencyGraph,
+                    )
+                    if (
+                        reactant in tmpDependency
+                        and tmpDependency[reactant] in tmpCandidates[0]
+                    ):
+                        for element in tmpDependency:
+                            if element not in dependencyGraph:
+                                dependencyGraph[element] = tmpDependency[element]
+                        for element in tmpEquivalence:
+                            if element not in equivalenceDictionary:
+                                equivalenceDictionary[element] = []
+                            for equivalence in tmpEquivalence[element]:
+                                if equivalence[0] not in equivalenceDictionary[element]:
+                                    equivalenceDictionary[element].append(
+                                        equivalence[0]
+                                    )
+                        if len(tmpDependency.keys()) > 0:
+                            return (
+                                tmpDependency[reactant],
+                                unevenElements,
+                                candidates,
+                            )
+                    # XXX: be careful of this change. This basically forces changes to happen
+                    # the ive no idea whats going on branch
+                    # modificationCandidates = {}
+                    # if modificationCandidates == {}:
+
+                    activeCandidates = []
+                    active_site_memo = {}
+                    for individualCandidate in tmpCandidates:
+                        for tmpCandidate in individualCandidate:
+                            activeQuery = None
+                            uniprotkey = atoAux.getURIFromSBML(
+                                tmpCandidate, self.database.parser, ["uniprot"]
+                            )
+                            if len(uniprotkey) > 0:
+                                uniprotkey = uniprotkey[0].split("/")[-1]
+                                if uniprotkey not in active_site_memo:
+                                    active_site_memo[uniprotkey] = pwcm.queryActiveSite(
+                                        uniprotkey, None
+                                    )
+                                activeQuery = active_site_memo[uniprotkey]
+                            if activeQuery and len(activeQuery) > 0:
+                                activeCandidates.append(tmpCandidate)
+                                # enter modification information to self.database
+                                # logMess('INFO:SCT051', '{0}:Determined that {0} has an active site for modication'.format(reactant, tmpCandidate))
+                                # return [individualCandidate], unevenElements, candidates
+                            # we want relevant biological names, its useless if they are too short
+                            elif len(tmpCandidate) >= 3:
+                                # else:
+                                individualMajorCandidates = [
+                                    y for x in candidates for y in x
+                                ]
+                                if tmpCandidate not in active_site_memo:
+                                    active_site_memo[tmpCandidate] = (
+                                        pwcm.queryActiveSite(tmpCandidate, None)
+                                    )
+                                activeQuery = active_site_memo[tmpCandidate]
+                                if activeQuery and len(activeQuery) > 0:
+                                    otherMatches = [
+                                        x for x in tmpCandidates[0] if x in activeQuery
+                                    ]
+                                    if any(
+                                        [
+                                            x
+                                            for x in otherMatches
+                                            if len(x) > len(tmpCandidate)
+                                        ]
+                                    ):
+                                        continue
+                                    activeCandidates.append(tmpCandidate)
+                                # enter modification information to self.database
+                                # logMess('INFO:SCT051', '{0}:Determined that {1} has an active site for modication'.format(reactant, tmpCandidate))
+                                # return [individualCandidate], unevenElements, candidates
+                    if len(activeCandidates) > 0:
+                        if len(activeCandidates) == 1:
+                            logMess(
+                                "INFO:SCT051",
+                                "{0}:Determined through uniprot active site query that {1} has an active site for modication".format(
+                                    reactant, activeCandidates[0]
+                                ),
+                            )
+                        if len(activeCandidates) > 1:
+                            logMess(
+                                "WARNING:SCT151",
+                                "{0}:Determined through uniprot active site query that {1} have active site for modication. Defaulting to {2}".format(
+                                    reactant, activeCandidates, activeCandidates[0]
+                                ),
+                            )
+
+                        for tmpCandidate, candidate in zip(tmpCandidates, candidates):
+                            fuzzyList = sbmlAnalyzer.processAdHocNamingConventions(
+                                reactant,
+                                candidate[0],
+                                {},
+                                False,
+                                dependencyGraph.keys(),
+                            )
+                            if len(fuzzyList) > 0 and fuzzyList[0][1]:
+                                if sbmlAnalyzer.testAgainstExistingConventions(
+                                    fuzzyList[0][1],
+                                    sbmlAnalyzer.namingConventions["modificationList"],
+                                ):
+                                    self.database.eequivalenceTranslator2[
+                                        fuzzyList[0][1]
+                                    ].append(
+                                        (
+                                            activeCandidates[0],
+                                            "{0}{1}".format(
+                                                activeCandidates, fuzzyList[0][1]
+                                            ),
+                                        )
+                                    )
+                                else:
+                                    self.database.eequivalenceTranslator2[
+                                        fuzzyList[0][1]
+                                    ] = [
+                                        (
+                                            activeCandidates[0],
+                                            "{0}{1}".format(
+                                                activeCandidates[0], fuzzyList[0][1]
+                                            ),
+                                        )
+                                    ]
+
+                                if (
+                                    "{0}{1}".format(
+                                        activeCandidates[0], fuzzyList[0][1]
+                                    )
+                                    not in dependencyGraph
+                                ):
+                                    dependencyGraph[
+                                        "{0}{1}".format(
+                                            activeCandidates[0], fuzzyList[0][1]
+                                        )
+                                    ] = [[activeCandidates[0]]]
+
+                                for idx, element in enumerate(tmpCandidate):
+                                    if element == activeCandidates[0]:
+                                        tmpCandidates[0][idx] = "{0}{1}".format(
+                                            activeCandidates[0], fuzzyList[0][1]
+                                        )
+                                        break
+                                return (
+                                    [tmpCandidates[0]],
+                                    unevenElements,
+                                    candidates,
+                                )
+
+                    if len(tmpCandidates) != 1:
+                        if not self.database.softConstraints:
+                            if loginformation:
+                                logMess(
+                                    "ERROR:SCT213",
+                                    "{0}:Atomizer needs user information to determine which element is being modified among components {1}={2}.".format(
+                                        reactant, candidates, tmpCandidates
+                                    ),
+                                )
+                            # print self.database.userLabelDictionary
+                            return None, None, None
+                    else:
+                        if not self.database.softConstraints:
+                            if loginformation:
+                                modification = sbmlAnalyzer.findMatchingModification(
+                                    reactant, candidates[0][0]
+                                )
+                                modification = (
+                                    modification[0] if modification else "mod"
+                                )
+                                logMess(
+                                    "ERROR:SCT212",
+                                    "{1}:{0}:Atomizer needs user information to determine which element is being modified among component species:{2}:{3}".format(
+                                        reactant,
+                                        candidates[0],
+                                        tmpCandidates[0],
+                                        modification,
+                                    ),
+                                )
+
+                            return None, None, None
+
+                    # return [tmpCandidates[0]], unevenElements
+
+        elif len(tmpCandidates) > 1:
+            # all candidates are equal/consistent
+            if all(sorted(x) == sorted(tmpCandidates[0]) for x in tmpCandidates):
+                tmpCandidates = [tmpCandidates[0]]
+            elif (
+                reactant in self.database.alternativeDependencyGraph and loginformation
+            ):
+                # candidates contradict each other but we have naming convention information in alternativeDependencyGraph
+                if not all(
+                    sorted(x) == sorted(originalTmpCandidates[0])
+                    for x in originalTmpCandidates
+                ):
+                    if loginformation:
+                        logMess(
+                            "INFO:SCT001",
+                            "{0}:Using lexical analysis since stoichiometry gives non-consistent information naming({1})!=stoichiometry({2})".format(
+                                reactant,
+                                self.database.alternativeDependencyGraph[reactant][0],
+                                tmpCandidates,
+                            ),
+                        )
+
+                # else:
+                #    print self.database.alternativeDependencyGraph[reactant],tmpCandidates,reactant
+                #    logMess('INFO:Atomization', 'Using lexical analysis for species {0} =  {1} since stoichiometry gave conflicting information {2}'.format(reactant,
+                # self.database.alternativeDependencyGraph[reactant][0],
+                # tmpCandidates))
+
+                # fallback to naming conventions
+                candidate = self.database.alternativeDependencyGraph[reactant]
+                # resolve naming convention candidate to its basic components
+                # (molecule types)
+                namingTmpCandidates = self._selectBestCandidate(
+                    reactant,
+                    [candidate[0]],
+                    dependencyGraph,
+                    sbmlAnalyzer,
+                    loginformation,
+                    equivalenceTranslator,
+                    equivalenceDictionary,
+                )[0]
+                if not namingTmpCandidates:
+                    logMess(
+                        "ERROR:SCT211",
+                        "{0}:{1}:{2}:Cannot converge to solution, conflicting definitions".format(
+                            reactant, tmpCandidates, originalTmpCandidates
+                        ),
+                    )
+                    return None, None, None
+                if not any(
+                    [
+                        sorted(subcandidate) == sorted(namingTmpCandidates[0])
+                        for subcandidate in tmpCandidates
+                    ]
+                ):
+                    if loginformation:
+                        logMess(
+                            "WARNING:SCT112",
+                            "{0}:Stoichiometry analysis:{1}:results in non self-consistent definitions and conflicts with lexical analysis:{2}:Selecting lexical analysis".format(
+                                reactant, tmpCandidates, namingTmpCandidates
+                            ),
+                        )
+                    atoAux.addAssumptions(
+                        "lexicalVsstoch",
+                        (
+                            reactant,
+                            ("lexical", json.dumps(namingTmpCandidates)),
+                            ("stoch", json.dumps(tmpCandidates)),
+                            ("original", json.dumps(originalTmpCandidates)),
+                        ),
+                        self.database.assumptions,
+                    )
+
+                tmpCandidates = namingTmpCandidates
+                if loginformation:
+                    self.database.alternativeDependencyGraph[reactant] = tmpCandidates
+            elif all(
+                sorted(x) == sorted(originalTmpCandidates[0])
+                for x in originalTmpCandidates
+            ):
+                # the basic elements are the same but we are having trouble matching modifciations together
+                sortedCandidates = sorted(
+                    [
+                        ([y for y in x if y in reactant], i)
+                        for i, x in enumerate(tmpCandidates)
+                    ],
+                    key=lambda z: [len(z[0]), sum([len(w) for w in z[0]])],
+                    reverse=True,
+                )
+                if loginformation:
+                    logMess(
+                        "WARNING:SCT113",
+                        "{0}:candidates:{1}:agree on the basic components but naming conventions cannot determine  specific modifications. Selecting:{2}:based on longest partial match".format(
+                            reactant,
+                            tmpCandidates,
+                            tmpCandidates[sortedCandidates[0][1]],
+                        ),
+                    )
+                replacementCandidate = [tmpCandidates[sortedCandidates[0][1]]]
+                atoAux.addAssumptions(
+                    "lexicalVsstoch",
+                    (
+                        reactant,
+                        ("current", json.dumps(replacementCandidate)),
+                        (
+                            "alternatives",
+                            json.dumps(
+                                [
+                                    x
+                                    for x in tmpCandidates
+                                    if x != replacementCandidate[0]
+                                ]
+                            ),
+                        ),
+                        ("original", json.dumps(originalTmpCandidates)),
+                    ),
+                    self.database.assumptions,
+                )
+                tmpCandidates = replacementCandidate
+            else:
+                tmpCandidates2 = [
+                    x
+                    for x in tmpCandidates
+                    if all(y not in x for y in self.database.constructedSpecies)
+                ]
+                # if we had constructed species disregard those since they are introducing noise
+                if len(tmpCandidates2) > 0 and len(tmpCandidates) != len(
+                    tmpCandidates2
+                ):
+                    return self._selectBestCandidate(
+                        reactant,
+                        tmpCandidates2,
+                        dependencyGraph,
+                        sbmlAnalyzer,
+                        loginformation,
+                        equivalenceTranslator,
+                        equivalenceDictionary,
+                    )
+                elif len(tmpCandidates2) == 0:
+                    # the differences is between species that we created so its the LAE fault. Just choose one.
+                    tmpCandidates.sort(key=len)
+                    tmpCandidates = [tmpCandidates[0]]
+                else:
+                    if loginformation:
+                        logMess(
+                            "ERROR:SCT211",
+                            "{0}:{1}:{2}:Cannot converge to solution, conflicting definitions".format(
+                                reactant, tmpCandidates, originalTmpCandidates
+                            ),
+                        )
+                    return None, None, None
+        elif reactant in self.database.alternativeDependencyGraph and loginformation:
+            # there is one stoichionetry candidate but the naming convention
+            # and the stoichionetry dotn agree
+            if (
+                tmpCandidates[0]
+                != self.database.alternativeDependencyGraph[reactant][0]
+            ):
+                # make sure the naming convention is resolved to basic
+                # omponents
+                candidate = self.database.alternativeDependencyGraph[reactant]
+                # this is to avoid recursion
+                if loginformation:
+                    del self.database.alternativeDependencyGraph[reactant]
+                namingtmpCandidates = self._selectBestCandidate(
+                    reactant,
+                    [candidate[0]],
+                    dependencyGraph,
+                    sbmlAnalyzer,
+                    loginformation,
+                    equivalenceTranslator,
+                    equivalenceDictionary,
+                )[0]
+
+                # if they still disagree print error and use stoichiometry
+                if namingtmpCandidates and tmpCandidates[0] != namingtmpCandidates[0]:
+                    if loginformation:
+                        if (
+                            namingtmpCandidates[0][0]
+                            in self.database.constructedSpecies
+                        ):
+                            namingTmpCandidates = tmpCandidates
+
+                        else:
+                            self.database.alternativeDependencyGraph[reactant] = (
+                                namingtmpCandidates
+                            )
+                            logMess(
+                                "WARNING:SCT111",
+                                "{0}:stoichiometry analysis:{1}:conflicts with and naming conventions:{2}:Selecting lexical analysis".format(
+                                    reactant,
+                                    tmpCandidates,
+                                    self.database.alternativeDependencyGraph[reactant],
+                                ),
+                            )
+                    tmpCandidates = namingtmpCandidates
+                    atoAux.addAssumptions(
+                        "lexicalVsstoch",
+                        (
+                            reactant,
+                            ("stoch", json.dumps(tmpCandidates)),
+                            ("lexical", json.dumps(namingtmpCandidates)),
+                            ("original", json.dumps(originalTmpCandidates)),
+                        ),
+                        self.database.assumptions,
+                    )
+                    for element in tmpCandidates[0]:
+                        if element not in dependencyGraph:
+                            # elemental species that were not used anywhere
+                            # else but for those entries discovered through
+                            # naming conventions
+                            dependencyGraph[element] = []
+                elif not namingtmpCandidates:
+                    if loginformation:
+                        logMess(
+                            "WARNING:SCT121",
+                            "{0}:could not resolve naming({1}) into a viable compositional candidate. choosing stoichiometry({2})".format(
+                                reactant, candidate, tmpCandidates[0]
+                            ),
+                        )
+        originalCandidateName = (
+            candidateDict[tuple(tmpCandidates[0])]
+            if tuple(tmpCandidates[0]) in candidateDict
+            else None
+        )
+        return [tmpCandidates[0]], unevenElements, originalCandidateName
+
     def consolidateDependencyGraph(
         self,
         dependencyGraph,
@@ -952,681 +1623,6 @@ class SCTSolver:
         """
 
         equivalenceTranslator = {}
-
-        def selectBestCandidate(
-            reactant,
-            candidates,
-            dependencyGraph,
-            sbmlAnalyzer,
-            equivalenceTranslator=equivalenceTranslator,
-            equivalenceDictionary=equivalenceDictionary,
-        ):
-            tmpCandidates = []
-            modifiedElementsPerCandidate = []
-            unevenElements = []
-            candidateDict = {}
-            for individualAnswer in candidates:
-                try:
-                    tmpAnswer = []
-                    flag = True
-                    if len(individualAnswer) == 1 and individualAnswer[0] == reactant:
-                        continue
-                    modifiedElements = []
-                    for chemical in individualAnswer:
-                        # we cannot handle tuple naming conventions for now
-                        if type(chemical) == tuple:
-                            flag = False
-                            continue
-                        # associate elements in the candidate description with their
-                        # modified version
-                        rootChemical = self.resolveDependencyGraph(
-                            dependencyGraph, chemical
-                        )
-                        mod = self.resolveDependencyGraph(
-                            dependencyGraph, chemical, True
-                        )
-                        if mod != []:
-                            modifiedElements.extend(mod)
-                        for element in rootChemical:
-                            if len(element) == 1 and type(element[0]) == tuple:
-                                continue
-                            if element == chemical:
-                                tmpAnswer.append(chemical)
-                            elif type(element) == tuple:
-                                tmpAnswer.append(element)
-                            else:
-                                tmpAnswer.append(element[0])
-                    modifiedElementsPerCandidate.append(modifiedElements)
-                    if flag:
-                        tmpAnswer = sorted(tmpAnswer)
-                        tmpCandidates.append(tmpAnswer)
-                except atoAux.CycleError:
-                    if loginformation:
-                        logMess(
-                            "ERROR:SCT221",
-                            "{0}:{1}:Dependency cycle found when mapping molecule to candidate".format(
-                                reactant, individualAnswer[0]
-                            ),
-                        )
-                    continue
-            # we cannot handle tuple naming conventions for now
-            if len(tmpCandidates) == 0:
-                # logMess('CRITICAL:Atomization', 'I dont know how to process these candidates and I have no \
-                # way to make an educated guess. Politely refusing to translate
-                # {0}={1}.'.format(reactant, candidates))
-                return None, None, None
-            originalTmpCandidates = deepcopy(tmpCandidates)
-            # if we have more than one modified element for a single reactant
-            # we can try to  choose the one that is most similar to the original
-            # reactant
-            # FIXME:Fails if there is a double modification
-            newModifiedElements = [defaultdict(list) for x in range(len(candidates))]
-            # modifiedElementsCounter = Counter()
-            modifiedElementsCounters = [Counter() for x in range(len(candidates))]
-            # keep track of how many times we need to modify elements in the candidate description
-            # FIXME: This only keeps track of the stuff in the fist candidates list
-            for idx, modifiedElementsInCandidate in enumerate(
-                modifiedElementsPerCandidate
-            ):
-                for element in modifiedElementsInCandidate:
-                    if element[1] == reactant:
-                        newModifiedElements[idx][element[0]].insert(0, element[1])
-                    else:
-                        newModifiedElements[idx][element[0]].append(element[1])
-                    modifiedElementsCounters[idx][element[0]] += 1
-
-            # actually modify elements and store final version in tmpCandidates
-            # if tmpCandidates[1:] == tmpCandidates[:-1] or len(tmpCandidates) ==
-            # 1:
-
-            for cidx, (tmpCandidate, modifiedElementsCounter) in enumerate(
-                zip(tmpCandidates, modifiedElementsCounters)
-            ):
-                flag = True
-                while flag:
-                    flag = False
-                    for idx, chemical in enumerate(tmpCandidate):
-                        if modifiedElementsCounter[chemical] > 0:
-                            modifiedElementsCounter[chemical] -= 1
-                            mod = (
-                                newModifiedElements[cidx][chemical].pop(0)
-                                if newModifiedElements[cidx][chemical]
-                                else chemical
-                            )
-                            tmpCandidate[idx] = mod
-                            flag = True
-                            break
-            candidateDict = {tuple(x): y for x, y in zip(tmpCandidates, candidates)}
-            bcan = []
-            btmp = []
-            borig = []
-            # filter out those dependencies to the 0 element
-
-            # if this is related to the zero element
-            if len(tmpCandidates) == 1 and tmpCandidates[0] == ["0"]:
-                return ["0"], None, None
-
-            for candidate, tmpcandidate, originaltmpcandidate in zip(
-                candidates, tmpCandidates, originalTmpCandidates
-            ):
-                if originaltmpcandidate != ["0"]:
-                    bcan.append(candidate)
-                    btmp.append(tmpcandidate)
-                    borig.append(originaltmpcandidate)
-            candidates = bcan
-            tmpCandidates = btmp
-            originalTmpCandidates = borig
-
-            if len(tmpCandidates) == 0:
-                return None, None, None
-
-            # FIXME: I have no idea wtf this is doing so im commenting it out. i
-            # think it's old code that is no longer ncessary
-            """
-            # update candidate chemical references to their modified version if required
-            if len(tmpCandidates) > 1:
-                # temporal solution for defaulting to the first alternative
-                totalElements = [y for x in tmpCandidates for y in x]
-                elementDict = {}
-                for word in totalElements:
-                    if word not in elementDict:
-                        elementDict[word] = 0
-                    elementDict[word] += 1
-                newTmpCandidates = [[]]
-                for element in elementDict:
-                    if elementDict[element] % len(tmpCandidates) == 0:
-                        newTmpCandidates[0].append(element)
-                    #elif elementDict[element] % len(tmpCandidates) != 0 and re.search('(_|^){0}(_|$)'.format(element),reactant):
-                    #    newTmpCandidates[0].append(element)
-                    #    unevenElements.append([element])
-                    else:
-                        logMess('WARNING:Atomization', 'Are these actually the same? {0}={1}.'.format(reactant,candidates))
-                        unevenElements.append(element)
-                flag = True
-                # FIXME:this should be done on newtmpCandidates instead of tmpcandidates
-                while flag:
-                    flag = False
-                    for idx, chemical in enumerate(tmpCandidates[0]):
-                        if chemical in newModifiedElements: #and newModifiedElements[chemical] in reactant:
-                            tmpCandidates[0][idx] = newModifiedElements[chemical]
-                            flag = True
-                            break
-            """
-            # if all the candidates are about modification changes to a complex
-            # then try to do it through lexical analysis
-            if (
-                all([len(candidate) == 1 for candidate in candidates])
-                and candidates[0][0] != reactant
-                and len(tmpCandidates[0]) > 1
-            ):
-                if reactant is not None:
-                    pass
-
-                # analyze based on standard modifications
-                # lexCandidate, translationKeys, tmpequivalenceTranslator = sbmlAnalyzer.analyzeSpeciesModification(candidates[0][0], reactant, originalTmpCandidates[0])
-                # print '++++'
-                (
-                    lexCandidate,
-                    translationKeys,
-                    tmpequivalenceTranslator,
-                ) = sbmlAnalyzer.analyzeSpeciesModification2(
-                    candidates[0][0], reactant, originalTmpCandidates[0]
-                )
-                # lexCandidate, translationKeys, tmpequivalenceTranslator = sbmlAnalyzer.analyzeSpeciesModification(candidates[0][0], reactant, tmpCandidates[0])            # FIXME: this is iffy. is it always an append modification? could be prepend
-                # lexCandidate = None
-                if lexCandidate is not None:
-                    lexCandidate = tmpCandidates[0][
-                        originalTmpCandidates[0].index(lexCandidate)
-                    ]
-                    if translationKeys[0] + lexCandidate in dependencyGraph:
-                        lexCandidateModification = translationKeys[0] + lexCandidate
-                    else:
-                        lexCandidateModification = lexCandidate + translationKeys[0]
-
-                    for element in tmpequivalenceTranslator:
-                        if element not in equivalenceTranslator:
-                            equivalenceTranslator[element] = []
-                        equivalenceTranslator[element].append(
-                            (lexCandidate, lexCandidateModification)
-                        )
-                    while lexCandidate in tmpCandidates[0]:
-                        tmpCandidates[0].remove(lexCandidate)
-                        tmpCandidates[0].append(lexCandidateModification)
-                        break
-                    if lexCandidateModification not in dependencyGraph:
-                        logMess(
-                            "WARNING:SCT711",
-                            "While analyzing {0}={1} we discovered equivalence {2}={3}, please verify \
-    this the correct behavior or provide an alternative for {0}".format(
-                                reactant,
-                                tmpCandidates[0],
-                                lexCandidateModification,
-                                lexCandidate,
-                            ),
-                        )
-                    dependencyGraph[lexCandidateModification] = [[lexCandidate]]
-
-                    return [tmpCandidates[0]], unevenElements, candidates
-
-                else:
-                    fuzzyCandidateMatch = None
-                    """
-                    if nothing else works and we know the result is a bimolecular
-                    complex and we know which are the basic reactants then try to
-                    do fuzzy string matching between the two.
-                    TODO: extend this to more than 2 molecule complexes.
-                    """
-                    if len(tmpCandidates[0]) == 2:
-                        tmpmolecules = []
-                        tmpmolecules.extend(originalTmpCandidates[0])
-                        tmpmolecules.extend(tmpCandidates[0])
-                        # FIXME: Fuzzy artificial reaction is using old methods. Try to fix this
-                        # or maybe not, no one was using it and when it was used it was wrong
-                        # fuzzyCandidateMatch = sbmlAnalyzer.fuzzyArtificialReaction(originalTmpCandidates[0],[reactant],tmpmolecules)
-                        fuzzyCandidateMatch = None
-                    if fuzzyCandidateMatch is not None:
-                        # logMess('INFO:Atomization', 'Used fuzzy string matching from {0} to {1}'.format(reactant, fuzzyCandidateMatch))
-                        return [fuzzyCandidateMatch], unevenElements, candidates
-                    else:
-                        # map based on greedy matching
-                        greedyMatch = sbmlAnalyzer.greedyModificationMatching(
-                            reactant, dependencyGraph.keys()
-                        )
-                        if greedyMatch not in [-1, -2]:
-                            return (
-                                selectBestCandidate(
-                                    reactant,
-                                    [greedyMatch],
-                                    dependencyGraph,
-                                    sbmlAnalyzer,
-                                )[0],
-                                unevenElements,
-                                candidates,
-                            )
-
-                        # last ditch attempt using straighforward lexical analysis
-                        (
-                            tmpDependency,
-                            tmpEquivalence,
-                        ) = sbmlAnalyzer.findClosestModification(
-                            [reactant],
-                            dependencyGraph.keys(),
-                            self.database.annotationDict,
-                            self.database.dependencyGraph,
-                        )
-                        if (
-                            reactant in tmpDependency
-                            and tmpDependency[reactant] in tmpCandidates[0]
-                        ):
-                            for element in tmpDependency:
-                                if element not in dependencyGraph:
-                                    dependencyGraph[element] = tmpDependency[element]
-                            for element in tmpEquivalence:
-                                if element not in equivalenceDictionary:
-                                    equivalenceDictionary[element] = []
-                                for equivalence in tmpEquivalence[element]:
-                                    if (
-                                        equivalence[0]
-                                        not in equivalenceDictionary[element]
-                                    ):
-                                        equivalenceDictionary[element].append(
-                                            equivalence[0]
-                                        )
-                            if len(tmpDependency.keys()) > 0:
-                                return (
-                                    tmpDependency[reactant],
-                                    unevenElements,
-                                    candidates,
-                                )
-                        # XXX: be careful of this change. This basically forces changes to happen
-                        # the ive no idea whats going on branch
-                        # modificationCandidates = {}
-                        # if modificationCandidates == {}:
-
-                        activeCandidates = []
-                        active_site_memo = {}
-                        for individualCandidate in tmpCandidates:
-                            for tmpCandidate in individualCandidate:
-                                activeQuery = None
-                                uniprotkey = atoAux.getURIFromSBML(
-                                    tmpCandidate, self.database.parser, ["uniprot"]
-                                )
-                                if len(uniprotkey) > 0:
-                                    uniprotkey = uniprotkey[0].split("/")[-1]
-                                    if uniprotkey not in active_site_memo:
-                                        active_site_memo[uniprotkey] = (
-                                            pwcm.queryActiveSite(uniprotkey, None)
-                                        )
-                                    activeQuery = active_site_memo[uniprotkey]
-                                if activeQuery and len(activeQuery) > 0:
-                                    activeCandidates.append(tmpCandidate)
-                                    # enter modification information to self.database
-                                    # logMess('INFO:SCT051', '{0}:Determined that {0} has an active site for modication'.format(reactant, tmpCandidate))
-                                    # return [individualCandidate], unevenElements, candidates
-                                # we want relevant biological names, its useless if they are too short
-                                elif len(tmpCandidate) >= 3:
-                                    # else:
-                                    individualMajorCandidates = [
-                                        y for x in candidates for y in x
-                                    ]
-                                    if tmpCandidate not in active_site_memo:
-                                        active_site_memo[tmpCandidate] = (
-                                            pwcm.queryActiveSite(tmpCandidate, None)
-                                        )
-                                    activeQuery = active_site_memo[tmpCandidate]
-                                    if activeQuery and len(activeQuery) > 0:
-                                        otherMatches = [
-                                            x
-                                            for x in tmpCandidates[0]
-                                            if x in activeQuery
-                                        ]
-                                        if any(
-                                            [
-                                                x
-                                                for x in otherMatches
-                                                if len(x) > len(tmpCandidate)
-                                            ]
-                                        ):
-                                            continue
-                                        activeCandidates.append(tmpCandidate)
-                                    # enter modification information to self.database
-                                    # logMess('INFO:SCT051', '{0}:Determined that {1} has an active site for modication'.format(reactant, tmpCandidate))
-                                    # return [individualCandidate], unevenElements, candidates
-                        if len(activeCandidates) > 0:
-                            if len(activeCandidates) == 1:
-                                logMess(
-                                    "INFO:SCT051",
-                                    "{0}:Determined through uniprot active site query that {1} has an active site for modication".format(
-                                        reactant, activeCandidates[0]
-                                    ),
-                                )
-                            if len(activeCandidates) > 1:
-                                logMess(
-                                    "WARNING:SCT151",
-                                    "{0}:Determined through uniprot active site query that {1} have active site for modication. Defaulting to {2}".format(
-                                        reactant, activeCandidates, activeCandidates[0]
-                                    ),
-                                )
-
-                            for tmpCandidate, candidate in zip(
-                                tmpCandidates, candidates
-                            ):
-                                fuzzyList = sbmlAnalyzer.processAdHocNamingConventions(
-                                    reactant,
-                                    candidate[0],
-                                    {},
-                                    False,
-                                    dependencyGraph.keys(),
-                                )
-                                if len(fuzzyList) > 0 and fuzzyList[0][1]:
-                                    if sbmlAnalyzer.testAgainstExistingConventions(
-                                        fuzzyList[0][1],
-                                        sbmlAnalyzer.namingConventions[
-                                            "modificationList"
-                                        ],
-                                    ):
-                                        self.database.eequivalenceTranslator2[
-                                            fuzzyList[0][1]
-                                        ].append(
-                                            (
-                                                activeCandidates[0],
-                                                "{0}{1}".format(
-                                                    activeCandidates, fuzzyList[0][1]
-                                                ),
-                                            )
-                                        )
-                                    else:
-                                        self.database.eequivalenceTranslator2[
-                                            fuzzyList[0][1]
-                                        ] = [
-                                            (
-                                                activeCandidates[0],
-                                                "{0}{1}".format(
-                                                    activeCandidates[0], fuzzyList[0][1]
-                                                ),
-                                            )
-                                        ]
-
-                                    if (
-                                        "{0}{1}".format(
-                                            activeCandidates[0], fuzzyList[0][1]
-                                        )
-                                        not in dependencyGraph
-                                    ):
-                                        dependencyGraph[
-                                            "{0}{1}".format(
-                                                activeCandidates[0], fuzzyList[0][1]
-                                            )
-                                        ] = [[activeCandidates[0]]]
-
-                                    for idx, element in enumerate(tmpCandidate):
-                                        if element == activeCandidates[0]:
-                                            tmpCandidates[0][idx] = "{0}{1}".format(
-                                                activeCandidates[0], fuzzyList[0][1]
-                                            )
-                                            break
-                                    return (
-                                        [tmpCandidates[0]],
-                                        unevenElements,
-                                        candidates,
-                                    )
-
-                        if len(tmpCandidates) != 1:
-                            if not self.database.softConstraints:
-                                if loginformation:
-                                    logMess(
-                                        "ERROR:SCT213",
-                                        "{0}:Atomizer needs user information to determine which element is being modified among components {1}={2}.".format(
-                                            reactant, candidates, tmpCandidates
-                                        ),
-                                    )
-                                # print self.database.userLabelDictionary
-                                return None, None, None
-                        else:
-                            if not self.database.softConstraints:
-                                if loginformation:
-                                    modification = (
-                                        sbmlAnalyzer.findMatchingModification(
-                                            reactant, candidates[0][0]
-                                        )
-                                    )
-                                    modification = (
-                                        modification[0] if modification else "mod"
-                                    )
-                                    logMess(
-                                        "ERROR:SCT212",
-                                        "{1}:{0}:Atomizer needs user information to determine which element is being modified among component species:{2}:{3}".format(
-                                            reactant,
-                                            candidates[0],
-                                            tmpCandidates[0],
-                                            modification,
-                                        ),
-                                    )
-
-                                return None, None, None
-
-                        # return [tmpCandidates[0]], unevenElements
-
-            elif len(tmpCandidates) > 1:
-                # all candidates are equal/consistent
-                if all(sorted(x) == sorted(tmpCandidates[0]) for x in tmpCandidates):
-                    tmpCandidates = [tmpCandidates[0]]
-                elif (
-                    reactant in self.database.alternativeDependencyGraph
-                    and loginformation
-                ):
-                    # candidates contradict each other but we have naming convention information in alternativeDependencyGraph
-                    if not all(
-                        sorted(x) == sorted(originalTmpCandidates[0])
-                        for x in originalTmpCandidates
-                    ):
-                        if loginformation:
-                            logMess(
-                                "INFO:SCT001",
-                                "{0}:Using lexical analysis since stoichiometry gives non-consistent information naming({1})!=stoichiometry({2})".format(
-                                    reactant,
-                                    self.database.alternativeDependencyGraph[reactant][
-                                        0
-                                    ],
-                                    tmpCandidates,
-                                ),
-                            )
-
-                    # else:
-                    #    print self.database.alternativeDependencyGraph[reactant],tmpCandidates,reactant
-                    #    logMess('INFO:Atomization', 'Using lexical analysis for species {0} =  {1} since stoichiometry gave conflicting information {2}'.format(reactant,
-                    # self.database.alternativeDependencyGraph[reactant][0],
-                    # tmpCandidates))
-
-                    # fallback to naming conventions
-                    candidate = self.database.alternativeDependencyGraph[reactant]
-                    # resolve naming convention candidate to its basic components
-                    # (molecule types)
-                    namingTmpCandidates = selectBestCandidate(
-                        reactant, [candidate[0]], dependencyGraph, sbmlAnalyzer
-                    )[0]
-                    if not namingTmpCandidates:
-                        logMess(
-                            "ERROR:SCT211",
-                            "{0}:{1}:{2}:Cannot converge to solution, conflicting definitions".format(
-                                reactant, tmpCandidates, originalTmpCandidates
-                            ),
-                        )
-                        return None, None, None
-                    if not any(
-                        [
-                            sorted(subcandidate) == sorted(namingTmpCandidates[0])
-                            for subcandidate in tmpCandidates
-                        ]
-                    ):
-                        if loginformation:
-                            logMess(
-                                "WARNING:SCT112",
-                                "{0}:Stoichiometry analysis:{1}:results in non self-consistent definitions and conflicts with lexical analysis:{2}:Selecting lexical analysis".format(
-                                    reactant, tmpCandidates, namingTmpCandidates
-                                ),
-                            )
-                        atoAux.addAssumptions(
-                            "lexicalVsstoch",
-                            (
-                                reactant,
-                                ("lexical", json.dumps(namingTmpCandidates)),
-                                ("stoch", json.dumps(tmpCandidates)),
-                                ("original", json.dumps(originalTmpCandidates)),
-                            ),
-                            self.database.assumptions,
-                        )
-
-                    tmpCandidates = namingTmpCandidates
-                    if loginformation:
-                        self.database.alternativeDependencyGraph[reactant] = (
-                            tmpCandidates
-                        )
-                elif all(
-                    sorted(x) == sorted(originalTmpCandidates[0])
-                    for x in originalTmpCandidates
-                ):
-                    # the basic elements are the same but we are having trouble matching modifciations together
-                    sortedCandidates = sorted(
-                        [
-                            ([y for y in x if y in reactant], i)
-                            for i, x in enumerate(tmpCandidates)
-                        ],
-                        key=lambda z: [len(z[0]), sum([len(w) for w in z[0]])],
-                        reverse=True,
-                    )
-                    if loginformation:
-                        logMess(
-                            "WARNING:SCT113",
-                            "{0}:candidates:{1}:agree on the basic components but naming conventions cannot determine  specific modifications. Selecting:{2}:based on longest partial match".format(
-                                reactant,
-                                tmpCandidates,
-                                tmpCandidates[sortedCandidates[0][1]],
-                            ),
-                        )
-                    replacementCandidate = [tmpCandidates[sortedCandidates[0][1]]]
-                    atoAux.addAssumptions(
-                        "lexicalVsstoch",
-                        (
-                            reactant,
-                            ("current", json.dumps(replacementCandidate)),
-                            (
-                                "alternatives",
-                                json.dumps(
-                                    [
-                                        x
-                                        for x in tmpCandidates
-                                        if x != replacementCandidate[0]
-                                    ]
-                                ),
-                            ),
-                            ("original", json.dumps(originalTmpCandidates)),
-                        ),
-                        self.database.assumptions,
-                    )
-                    tmpCandidates = replacementCandidate
-                else:
-                    tmpCandidates2 = [
-                        x
-                        for x in tmpCandidates
-                        if all(y not in x for y in self.database.constructedSpecies)
-                    ]
-                    # if we had constructed species disregard those since they are introducing noise
-                    if len(tmpCandidates2) > 0 and len(tmpCandidates) != len(
-                        tmpCandidates2
-                    ):
-                        return selectBestCandidate(
-                            reactant, tmpCandidates2, dependencyGraph, sbmlAnalyzer
-                        )
-                    elif len(tmpCandidates2) == 0:
-                        # the differences is between species that we created so its the LAE fault. Just choose one.
-                        tmpCandidates.sort(key=len)
-                        tmpCandidates = [tmpCandidates[0]]
-                    else:
-                        if loginformation:
-                            logMess(
-                                "ERROR:SCT211",
-                                "{0}:{1}:{2}:Cannot converge to solution, conflicting definitions".format(
-                                    reactant, tmpCandidates, originalTmpCandidates
-                                ),
-                            )
-                        return None, None, None
-            elif (
-                reactant in self.database.alternativeDependencyGraph and loginformation
-            ):
-                # there is one stoichionetry candidate but the naming convention
-                # and the stoichionetry dotn agree
-                if (
-                    tmpCandidates[0]
-                    != self.database.alternativeDependencyGraph[reactant][0]
-                ):
-                    # make sure the naming convention is resolved to basic
-                    # omponents
-                    candidate = self.database.alternativeDependencyGraph[reactant]
-                    # this is to avoid recursion
-                    if loginformation:
-                        del self.database.alternativeDependencyGraph[reactant]
-                    namingtmpCandidates = selectBestCandidate(
-                        reactant, [candidate[0]], dependencyGraph, sbmlAnalyzer
-                    )[0]
-
-                    # if they still disagree print error and use stoichiometry
-                    if (
-                        namingtmpCandidates
-                        and tmpCandidates[0] != namingtmpCandidates[0]
-                    ):
-                        if loginformation:
-                            if (
-                                namingtmpCandidates[0][0]
-                                in self.database.constructedSpecies
-                            ):
-                                namingTmpCandidates = tmpCandidates
-
-                            else:
-                                self.database.alternativeDependencyGraph[reactant] = (
-                                    namingtmpCandidates
-                                )
-                                logMess(
-                                    "WARNING:SCT111",
-                                    "{0}:stoichiometry analysis:{1}:conflicts with and naming conventions:{2}:Selecting lexical analysis".format(
-                                        reactant,
-                                        tmpCandidates,
-                                        self.database.alternativeDependencyGraph[
-                                            reactant
-                                        ],
-                                    ),
-                                )
-                        tmpCandidates = namingtmpCandidates
-                        atoAux.addAssumptions(
-                            "lexicalVsstoch",
-                            (
-                                reactant,
-                                ("stoch", json.dumps(tmpCandidates)),
-                                ("lexical", json.dumps(namingtmpCandidates)),
-                                ("original", json.dumps(originalTmpCandidates)),
-                            ),
-                            self.database.assumptions,
-                        )
-                        for element in tmpCandidates[0]:
-                            if element not in prunnedDependencyGraph:
-                                # elemental species that were not used anywhere
-                                # else but for those entries discovered through
-                                # naming conventions
-                                prunnedDependencyGraph[element] = []
-                    elif not namingtmpCandidates:
-                        if loginformation:
-                            logMess(
-                                "WARNING:SCT121",
-                                "{0}:could not resolve naming({1}) into a viable compositional candidate. choosing stoichiometry({2})".format(
-                                    reactant, candidate, tmpCandidates[0]
-                                ),
-                            )
-            originalCandidateName = (
-                candidateDict[tuple(tmpCandidates[0])]
-                if tuple(tmpCandidates[0]) in candidateDict
-                else None
-            )
-            return [tmpCandidates[0]], unevenElements, originalCandidateName
 
         prunnedDependencyGraph = deepcopy(dependencyGraph)
 
@@ -1646,8 +1642,14 @@ class SCTSolver:
             if len(candidates) == 1 and type(candidates[0][0]) == tuple:
                 prunnedDependencyGraph[element[0]] = []
             if len(candidates) >= 1:
-                candidates, uneven, originalCandidate = selectBestCandidate(
-                    element[0], candidates, prunnedDependencyGraph, sbmlAnalyzer
+                candidates, uneven, originalCandidate = self._selectBestCandidate(
+                    element[0],
+                    candidates,
+                    prunnedDependencyGraph,
+                    sbmlAnalyzer,
+                    loginformation,
+                    equivalenceTranslator,
+                    equivalenceDictionary,
                 )
                 # except CycleError:
                 #    candidates = None
