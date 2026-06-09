@@ -740,7 +740,9 @@ def createBindingRBM(
                 species_mols_by_name[m.name].append(m)
 
             for name in user_mols_by_name:
-                for molecule, molecule2 in zip(user_mols_by_name[name], species_mols_by_name[name]):
+                for molecule, molecule2 in zip(
+                    user_mols_by_name[name], species_mols_by_name[name]
+                ):
                     for component in molecule.components:
                         for bond in component.bonds:
                             if molecule2 not in partialBonds[bond]:
