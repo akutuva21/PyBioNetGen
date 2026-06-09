@@ -76,7 +76,7 @@ def _write_graphml(path, graph):
 
 def _read_graphml(path):
     with open(path, "r") as handle:
-        return xmltodict.parse(handle.read(), force_list=("node", "edge"))
+        return xmltodict.parse(handle.read(), force_list=("node", "edge"), disable_entities=True)
 
 
 GRAPH1 = _make_graphml(
