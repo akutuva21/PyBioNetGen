@@ -33,8 +33,9 @@ def test_main_assertion_error():
 
 
 def test_main_assertion_error_debug():
-    with patch("bionetgen.main.BioNetGen") as mock_app_class, \
-         patch("traceback.print_exc") as mock_traceback:
+    with patch("bionetgen.main.BioNetGen") as mock_app_class, patch(
+        "traceback.print_exc"
+    ) as mock_traceback:
         mock_app = MagicMock()
         mock_app.run.side_effect = AssertionError("Test Assertion")
         mock_app.debug = True
@@ -60,22 +61,6 @@ def test_main_bng_error():
         mock_app.run.assert_called_once()
         mock_app.log.error.assert_called_with("BNGError > Test BNG Error")
         assert mock_app.exit_code == 1
-
-
-def test_main_bng_error_debug():
-    with patch("bionetgen.main.BioNetGen") as mock_app_class, \
-         patch("traceback.print_exc") as mock_traceback:
-        mock_app = MagicMock()
-        mock_app.run.side_effect = BNGError("Test BNG Error")
-        mock_app.debug = True
-        mock_app_class.return_value.__enter__.return_value = mock_app
-
-        main()
-
-        mock_app.run.assert_called_once()
-        mock_app.log.error.assert_called_with("BNGError > Test BNG Error")
-        assert mock_app.exit_code == 1
-        mock_traceback.assert_called_once()
 
 
 def test_main_caught_signal_error(capsys):
