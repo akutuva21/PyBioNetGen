@@ -1113,9 +1113,7 @@ class bngModel:
                         else:
                             r = rule.reactants.pop(ir)
                             fw = rule.rate_cts[0]
-                            rule.rate_cts = (
-                                "{0}*".format(mkey) + fw,
-                            )
+                            rule.rate_cts = ("{0}*".format(mkey) + fw,)
                 for ip, prod in enumerate(rule.products):
                     if prod[0] == mkey:
                         # molecule in products
