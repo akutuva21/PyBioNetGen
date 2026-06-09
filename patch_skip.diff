@@ -1,0 +1,16 @@
+<<<<<<< SEARCH
+    no_action_model = os.path.join(*[tfold, "models", "actions", "no_actions.bngl"])
+    try:
+        m2 = bng.bngmodel(no_action_model)
+        assert len(m2.actions) == 0
+    except BNGModelError:
+        # BNG2.pl is missing in this test environment, so active_blocks is empty
+        pass
+=======
+    no_action_model = os.path.join(*[tfold, "models", "actions", "no_actions.bngl"])
+    try:
+        m2 = bng.bngmodel(no_action_model)
+        assert len(m2.actions) == 0
+    except BNGModelError:
+        pytest.skip("BNG2.pl is missing, active_blocks is empty, skipping action loading test")
+>>>>>>> REPLACE

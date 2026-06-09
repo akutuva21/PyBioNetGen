@@ -114,14 +114,9 @@ class bngmodel:
         # Check to see if there are no active blocks
         # If not, model is most likely not in BNGL format
         if not self.active_blocks:
-            # TODO: consider raising a BNGModelError() here
-            # raise BNGModelError(
-            #                 self.model_path,
-            #                 message="WARNING: No active blocks. Please ensure model is in proper BNGL or BNG-XML format",
-            #             )
-            self.logger.warning(
-                "No active blocks. Please ensure model is in proper BNGL or BNG-XML format",
-                loc=f"{__file__} : bngmodel.__init__()",
+            raise BNGModelError(
+                self,
+                message="No active blocks. Please ensure model is in proper BNGL or BNG-XML format",
             )
 
     @property
