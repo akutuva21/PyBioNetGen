@@ -105,7 +105,9 @@ def test_csimulator_init_invalid_model_type_raises_bng_format_error():
     ]
 
 
-@pytest.mark.parametrize("exc_type", [AttributeError, KeyError, OSError, TypeError, ValueError])
+@pytest.mark.parametrize(
+    "exc_type", [AttributeError, KeyError, OSError, TypeError, ValueError]
+)
 def test_csimulator_simulator_setter_raises_bng_compile_error(exc_type):
     from bionetgen.core.exc import BNGCompileError
     from bionetgen.simulator import csimulator as csim_module
