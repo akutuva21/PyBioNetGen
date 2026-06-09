@@ -2931,8 +2931,7 @@ class SBML2BNGL:
                 rawSpeciesName.remove(rawSpecies["returnID"])
             if (
                 get_size(translator[rawSpecies["returnID"]]) == 1
-                and translator[rawSpecies["returnID"]].molecules[0].name
-                not in names
+                and translator[rawSpecies["returnID"]].molecules[0].name not in names
                 and translator[rawSpecies["returnID"]].molecules[0].name
                 not in rawSpeciesName
             ):
@@ -2948,9 +2947,9 @@ class SBML2BNGL:
                         entry = ", ".join(
                             [
                                 ":".join(x.split("/")[-2:])
-                                for x in speciesAnnotationInfo[
-                                    rawSpecies["returnID"]
-                                ][annotation]
+                                for x in speciesAnnotationInfo[rawSpecies["returnID"]][
+                                    annotation
+                                ]
                             ]
                         )
                         annotationTemp.append(
@@ -2992,10 +2991,7 @@ class SBML2BNGL:
             else rawSpecies["returnID"] + "()"
         )
         # this determines the name to be written
-        if (
-            rawSpecies["initialConcentration"] > 0
-            or rawSpecies["initialAmount"] > 0
-        ):
+        if rawSpecies["initialConcentration"] > 0 or rawSpecies["initialAmount"] > 0:
             tmp2 = temp
             if rawSpecies["identifier"] in self.tags:
                 tmp2 = self.tags[rawSpecies["identifier"]]
@@ -3204,9 +3200,7 @@ class SBML2BNGL:
                 self.obs_names.append(modifiedName)
                 self.obs_map[rawSpecies["identifier"]] = modifiedName
                 observablesText.append(
-                    "Species {0} {1} #{2}".format(
-                        modifiedName, tmp, rawSpecies["name"]
-                    )
+                    "Species {0} {1} #{2}".format(modifiedName, tmp, rawSpecies["name"])
                 )
                 observablesDict[modifiedName] = "{0}".format(modifiedName)
             speciesTranslationDict[rawSpecies["identifier"]] = tmp
