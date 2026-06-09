@@ -33,11 +33,13 @@ def componentAnalysis(directory):
         modelComponentCount = [len(x.get("components", [])) for x in model[0]]
 
         bindingComponentCount = [
-            len([y for y in x.get("components", []) if len(y.get("states", [])) == 0]) for x in model[0]
+            len([y for y in x.get("components", []) if len(y.get("states", [])) == 0])
+            for x in model[0]
         ]
 
         modificationComponentCount = [
-            sum([max(1, len(y.get("states", []))) for y in x.get("components", [])]) for x in model[0]
+            sum([max(1, len(y.get("states", []))) for y in x.get("components", [])])
+            for x in model[0]
         ]
 
         modelComponentDict[model[-2]] = {
