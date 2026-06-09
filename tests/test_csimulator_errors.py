@@ -105,7 +105,8 @@ def test_csimulator_init_invalid_model_type_raises_bng_format_error():
     ]
 
 
-def test_csimulator_simulator_setter_raises_bng_compile_error():
+@pytest.mark.parametrize("exc_type", [AttributeError, KeyError, OSError, TypeError, ValueError])
+def test_csimulator_simulator_setter_raises_bng_compile_error(exc_type):
     from bionetgen.core.exc import BNGCompileError
     from bionetgen.simulator import csimulator as csim_module
 
@@ -115,14 +116,17 @@ def test_csimulator_simulator_setter_raises_bng_compile_error():
     sim.model.species = {"A": mock.MagicMock(count="1")}
 
     with mock.patch.object(
-        csim_module, "CSimWrapper", side_effect=OSError("boom")
+        csim_module, "CSimWrapper", side_effect=exc_type("boom")
     ), mock.patch.object(csim_module, "logger") as mock_logger:
-        with pytest.raises(BNGCompileError):
+        with pytest.raises(BNGCompileError) as exc_info:
             sim.simulator = "/fake/lib.so"
+
+        assert isinstance(exc_info.value.__cause__, exc_type)
 
     mock_logger.error.assert_called_once()
     error_args, error_kwargs = mock_logger.error.call_args
-    assert "Failed to initialize C simulator wrapper: boom" in error_args[0]
+    assert "Failed to initialize C simulator wrapper:" in error_args[0]
+    assert "boom" in error_args[0]
     assert "CSimulator.simulator.setter()" in error_kwargs["loc"]
 
 
