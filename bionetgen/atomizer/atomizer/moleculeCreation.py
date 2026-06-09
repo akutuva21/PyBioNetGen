@@ -1278,7 +1278,13 @@ def transformMolecules(
         parser,
     )
     onlySynDec = (
-        len([x for x in database.classifications if not all(c in ["Generation", "Decay"] for c in x)])
+        len(
+            [
+                x
+                for x in database.classifications
+                if not all(c in ["Generation", "Decay"] for c in x)
+            ]
+        )
         == 0
     )
     propagateChanges(database.translator, database.prunnedDependencyGraph)
