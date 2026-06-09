@@ -89,6 +89,7 @@ def test_bngcli_run_fallback(mock_bngresult, mock_find_bng_path):
     assert cli.result.process_return == 0
     assert cli.result.output == []
 
+
 @patch("bionetgen.core.utils.utils.find_BNG_path")
 @patch("bionetgen.core.utils.utils.run_command")
 def test_bngcli_run_invalid_stdout_stderr(mock_run_command, mock_find_bng_path):
