@@ -34,8 +34,10 @@ def test_bngcli_init_bngmodel(mock_find_bng_path):
 @patch("bionetgen.core.utils.utils.find_BNG_path")
 def test_bngcli_init_invalid_bngpath(mock_find_bng_path):
     mock_find_bng_path.side_effect = Exception("Not found")
-    with pytest.raises(AssertionError):
+    with pytest.raises(AssertionError) as exc_info:
         BNGCLI("test.bngl", "output_dir", "/invalid/bng/path")
+    assert "BNG2.pl is not found!" in str(exc_info.value)
+    assert "Details: Not found" in str(exc_info.value)
 
 
 @patch("bionetgen.core.utils.utils.find_BNG_path")
