@@ -1445,7 +1445,7 @@ class SBML2BNGL:
         # volume messes up the reactions
         # size = 1.0
         dimensions = compartment.getSpatialDimensions()
-        if dimensions in [0, 1]:
+        if dimensions in {0, 1}:
             logMess(
                 "WARNING:SIM103",
                 "{1}-D compartments are not supported. Changing for 2-D compartments for {0}. Please verify this does not affect simulation".format(
