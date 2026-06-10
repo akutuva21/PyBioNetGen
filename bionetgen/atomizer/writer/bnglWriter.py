@@ -155,7 +155,7 @@ def bnglFunction(
             exponent = "(1/%s)" % match.group(3)
         else:
             exponent = match.group(3)
-        if match.group(1) in ["root", "pow"]:
+        if match.group(1) in {"root", "pow"}:
             operator = "^"
         return "({0}){1}({2})".format(match.group(2), operator, exponent)
 
@@ -212,7 +212,7 @@ def bnglFunction(
                         constructFromList(argList[idx + 1], optionList)
                     )
                     idx += 1
-                elif argList[idx] in ["pow"]:
+                elif argList[idx] in {"pow"}:
                     index = rindex(argList[idx + 1], ",")
                     parsedString += (
                         "(("
@@ -226,7 +226,7 @@ def bnglFunction(
                         + "))"
                     )
                     idx += 1
-                elif argList[idx] in ["sqr", "sqrt"]:
+                elif argList[idx] in {"sqr", "sqrt"}:
                     tag = "1/" if argList[idx] == "sqrt" else ""
                     parsedString += (
                         "(("
@@ -283,7 +283,7 @@ def bnglFunction(
                             condition, result, result2
                         )
                     idx += 1
-                elif argList[idx] in ["and", "or"]:
+                elif argList[idx] in {"and", "or"}:
                     symbolDict = {"and": " && ", "or": " || "}
                     indexArray = [-1]
                     elementArray = []
@@ -315,20 +315,27 @@ def bnglFunction(
                         idx += 1
                         continue
                     parsedParams = []
+                    tmp_parts = []
                     for x in argList[idx + 1][0:upperLimit]:
                         if x == ",":
-                            tmp += ", "
+                            tmp_parts.append(", ")
                         else:
-                            tmp += "param_" + x
+                            tmp_parts.append("param_" + x)
                             parsedParams.append(x)
+                    tmp += "".join(tmp_parts)
 
                     # tmp = ''.join([x for x in constructFromList(argList[idx+1][0:upperLimit])])
                     tmp2 = ") = " + constructFromList(
                         argList[idx + 1][rindex(argList[idx + 1], ",") + 1 :],
                         optionList,
                     )
-                    for x in parsedParams:
-                        pattern = re.compile(rf"(?<!\w)({x})(?!\w)")
+                    if parsedParams:
+                        sorted_params = sorted(parsedParams, key=len, reverse=True)
+                        pattern = re.compile(
+                            r"(?<!\w)("
+                            + "|".join(re.escape(x) for x in sorted_params)
+                            + r")(?!\w)"
+                        )
                         tmp2 = pattern.sub(r"param_\1 ", tmp2)
                     idx += 1
                     parsedString += tmp + tmp2
@@ -380,7 +387,7 @@ def bnglFunction(
     if any(
         [
             re.search(r"(\W|^)({0})(\W|$)".format(x), rule) != None
-            for x in ["ceil", "floor", "pow", "sqrt", "sqr", "root", "and", "or"]
+            for x in {"ceil", "floor", "pow", "sqrt", "sqr", "root", "and", "or"}
         ]
     ):
         argList = parens.parseString("(" + rule + ")").asList()

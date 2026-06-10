@@ -81,9 +81,9 @@ class BNGGdiff:
         )
 
         with open(self.input, "r") as f:
-            self.gdict_1 = xmltodict.parse(f.read())
+            self.gdict_1 = xmltodict.parse(f.read(), disable_entities=True)
         with open(self.input2, "r") as f:
-            self.gdict_2 = xmltodict.parse(f.read())
+            self.gdict_2 = xmltodict.parse(f.read(), disable_entities=True)
 
     def _graphml_file_error(self, message) -> BNGFileError:
         return BNGFileError(getattr(self, "input", None), message=message)
