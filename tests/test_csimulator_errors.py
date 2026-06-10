@@ -161,21 +161,38 @@ def test_csimulator_simulate_resolves_species_parameter_counts():
     assert result == ("t", "obs", "spcs")
 
 
-def test_csimulator_simulate_invalid_species_reference_raises_bng_sim_error():
+@pytest.mark.parametrize(
+    "param_dict,expected_exception_cause",
+    [
+        # KeyError: count_value not in self.model.parameters
+        ({}, KeyError),
+        # AttributeError: count_value is in self.model.parameters but has no value
+        ({"missing_param": mock.MagicMock(spec=[])}, AttributeError),
+        # TypeError: count_value is in self.model.parameters but its value cannot be converted to float due to TypeError (e.g. None)
+        ({"missing_param": mock.MagicMock(value=None)}, TypeError),
+        # ValueError: count_value is in self.model.parameters but its value cannot be converted to float due to ValueError (e.g. string)
+        ({"missing_param": mock.MagicMock(value="not_a_float")}, ValueError),
+    ],
+)
+def test_csimulator_simulate_invalid_species_reference_raises_bng_sim_error(
+    param_dict, expected_exception_cause
+):
     from bionetgen.core.exc import BNGSimError
     from bionetgen.simulator import csimulator as csim_module
 
     sim = csim_module.CSimulator.__new__(csim_module.CSimulator)
     sim.model = mock.MagicMock()
     sim.model.species = {"A": mock.MagicMock(count="missing_param")}
-    sim.model.parameters = {}
+    sim.model.parameters = param_dict
     sim._simulator = mock.MagicMock()
 
     with mock.patch.object(csim_module, "logger") as mock_logger:
         with pytest.raises(
             BNGSimError, match="Could not resolve initial species value for 'A'"
-        ):
+        ) as exc_info:
             sim.simulate()
+
+        assert isinstance(exc_info.value.__cause__, expected_exception_cause)
 
     mock_logger.error.assert_called_once()
     error_args, error_kwargs = mock_logger.error.call_args
