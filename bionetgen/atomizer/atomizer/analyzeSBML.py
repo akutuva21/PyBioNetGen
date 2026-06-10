@@ -989,17 +989,6 @@ class SBMLAnalyzer:
         translationKeys = []
         conventionDict = {}
 
-        # FIXME: This line contains the single biggest execution bottleneck in the code
-        # we should be able to delete it
-        # user defined equivalence
-        if not onlyUser:
-            (
-                tmpTranslator,
-                translationKeys,
-                conventionDict,
-            ) = detectOntology.analyzeNamingConventions(
-                strippedMolecules, self.namingConventions, similarityThreshold=threshold
-            )
         # user defined naming convention
         if self.userEquivalencesDict is None and hasattr(self, "userEquivalences"):
             (
