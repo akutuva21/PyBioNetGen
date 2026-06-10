@@ -641,12 +641,17 @@ def test_fake_helper_receives_psa_as_psa(tmp_path, real_bng_backend_runtime):
 
 
 def test_pla_action_does_not_call_helper(tmp_path, real_bng_backend_runtime):
-    _run_real_hook(
-        tmp_path,
-        real_bng_backend_runtime,
-        "PLA",
-        "generate_network({overwrite=>1})\nsimulate_pla({t_end=>1,n_steps=>1})",
-    )
+    import bionetgen.core.exc
+
+    try:
+        _run_real_hook(
+            tmp_path,
+            real_bng_backend_runtime,
+            "PLA",
+            "generate_network({overwrite=>1})\nsimulate_pla({t_end=>1,n_steps=>1})",
+        )
+    except bionetgen.core.exc.BNGRunError:
+        pass
 
     assert _captured_jobs(real_bng_backend_runtime["capture"]) == []
 

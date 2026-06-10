@@ -42,6 +42,12 @@ class ActionList:
     """
 
     def __init__(self):
+        self._init_action_types()
+        self._init_arg_dict()
+        self._init_irregular_args()
+        self._init_positional_arity()
+
+    def _init_action_types(self):
         # these are all the action types, categorized
         # by their argument syntax
         self.normal_types = [
@@ -93,6 +99,8 @@ class ActionList:
         self.possible_types = (
             self.normal_types + self.no_setter_syntax + self.square_braces
         )
+
+    def _init_arg_dict(self):
         # Use dictionary to keep track of all possible args (and types?) for each action
         self.arg_dict = {}
         # arg_dict["action"] = ["arg1", "arg2", "etc."]
@@ -477,6 +485,7 @@ class ActionList:
         self.arg_dict["resetConcentrations"] = []
         self.arg_dict["resetParameters"] = []
 
+    def _init_irregular_args(self):
         # irregular arg types
         self.irregular_args = {}
         self.irregular_args["max_stoich"] = "dict"
@@ -486,6 +495,7 @@ class ActionList:
         self.irregular_args["blocks"] = "list"
         self.irregular_args["opts"] = "list"
 
+    def _init_positional_arity(self):
         # Expected positional arity (min, max) for actions whose arguments
         # are positional rather than `name=>value` keyword pairs. `max=None`
         # means unbounded. Actions absent from this table are treated as

@@ -11,7 +11,7 @@ def test_runAtomizeTool_basic():
     mock_app.pargs.write_scts = False
     mock_app.pargs.write_sct_graphs = False
 
-    with patch("bionetgen.atomizer.AtomizeTool") as mock_atomize_tool:
+    with patch("bionetgen.atomizer.atomizeTool.AtomizeTool") as mock_atomize_tool:
         mock_atomize_instance = mock_atomize_tool.return_value
 
         mock_res_arr = MagicMock()
@@ -31,7 +31,7 @@ def test_runAtomizeTool_write_scts(tmp_path):
     mock_app.pargs.write_scts = True
     mock_app.pargs.write_sct_graphs = False
 
-    with patch("bionetgen.atomizer.AtomizeTool") as mock_atomize_tool:
+    with patch("bionetgen.atomizer.atomizeTool.AtomizeTool") as mock_atomize_tool:
         mock_atomize_instance = mock_atomize_tool.return_value
 
         mock_res_arr = MagicMock()
@@ -63,7 +63,7 @@ def test_runAtomizeTool_write_scts_and_graphs(tmp_path):
     mock_app.pargs.write_scts = True
     mock_app.pargs.write_sct_graphs = True
 
-    with patch("bionetgen.atomizer.AtomizeTool") as mock_atomize_tool:
+    with patch("bionetgen.atomizer.atomizeTool.AtomizeTool") as mock_atomize_tool:
         mock_atomize_instance = mock_atomize_tool.return_value
 
         mock_res_arr = MagicMock()

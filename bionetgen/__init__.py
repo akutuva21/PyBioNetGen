@@ -31,7 +31,7 @@ def __getattr__(name):
             return get_version()
 
     if name in {"SympyOdes", "export_sympy_odes"}:
-        from .modelapi.sympy_odes import SympyOdes, export_sympy_odes
+        from .modelapi import sympy_odes
 
-        return locals()[name]
+        return getattr(sympy_odes, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

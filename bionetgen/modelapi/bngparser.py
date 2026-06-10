@@ -194,9 +194,14 @@ class BNGParser:
         suppress=True,
         verbose=False,
     ) -> None:
+        from bionetgen.core.utils.logging import BNGLogger
+
+        self.logger = BNGLogger()
         self.to_parse_actions = parse_actions
         self.verbose = verbose
-        self.bngfile = BNGFile(path, generate_network=generate_network, suppress=True)
+        self.bngfile = BNGFile(
+            path, generate_network=generate_network, suppress=suppress
+        )
         self.alist = ActionList()
         self.alist.define_parser()
 
@@ -221,7 +226,7 @@ class BNGParser:
         # the XML instead
         if model_file.endswith(".bngl"):
             if self.verbose:
-                print("Attempting to generate XML")
+                self.logger.debug("Attempting to generate XML")
             with TemporaryFile("w+") as xml_file:
                 try:
                     self.bngfile.generate_xml(xml_file)
@@ -231,7 +236,7 @@ class BNGParser:
                         message=f"XML file couldn't be generated: {exc.message}",
                     ) from exc
                 if self.verbose:
-                    print("Parsing XML")
+                    self.logger.debug("Parsing XML")
                 xmlstr = xml_file.read()
                 # < is not a valid XML character, we need to replace it
                 xmlstr = xmlstr.replace('relation="<', 'relation="&lt;')
@@ -392,7 +397,7 @@ class BNGParser:
         will use XML parser objects to generate each block to attach to the
         model object
         """
-        xml_dict = xmltodict.parse(xml_str)
+        xml_dict = xmltodict.parse(xml_str, disable_entities=True)
         # catch non-BNG XML files
         if "sbml" not in xml_dict:
             if "model" not in xml_dict["sbml"]:
@@ -463,4 +468,4 @@ class BNGParser:
                     model_obj.add_block(xml_parser.parsed_obj)
         # And that's the end of parsing
         if self.verbose:
-            print("Parsing complete")
+            self.logger.debug("Parsing complete")

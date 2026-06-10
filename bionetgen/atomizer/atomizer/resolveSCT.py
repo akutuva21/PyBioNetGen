@@ -56,7 +56,7 @@ class SCTSolver:
         )
 
         syndecs = [
-            1 if i == "Generation" or i == "Decay" else 0
+            1 if "Generation" in i or "Decay" in i else 0
             for i in self.database.classifications
         ]
         # user defined and lexical analysis naming conventions are stored here
@@ -737,7 +737,7 @@ class SCTSolver:
         totalElements = [item for sublist in reaction for item in sublist]
         for element in totalElements:
             atoAux.addToDependencyGraph(dependencyGraph, element, [])
-            if classification == "Binding":
+            if "Binding" in classification:
                 if len(reaction[1]) == 1 and element not in reaction[0]:
                     atoAux.addToDependencyGraph(dependencyGraph, element, reaction[0])
                 elif len(reaction[0]) == 1 and element not in reaction[1]:
@@ -944,9 +944,9 @@ class SCTSolver:
         candidates,
         dependencyGraph,
         sbmlAnalyzer,
+        loginformation,
         equivalenceTranslator,
         equivalenceDictionary,
-        loginformation=True,
     ):
         tmpCandidates = []
         modifiedElementsPerCandidate = []
@@ -1182,9 +1182,9 @@ this the correct behavior or provide an alternative for {0}".format(
                                 [greedyMatch],
                                 dependencyGraph,
                                 sbmlAnalyzer,
+                                loginformation,
                                 equivalenceTranslator,
                                 equivalenceDictionary,
-                                loginformation,
                             )[0],
                             unevenElements,
                             candidates,
@@ -1228,6 +1228,23 @@ this the correct behavior or provide an alternative for {0}".format(
 
                     activeCandidates = []
                     active_site_memo = {}
+                    uniprot_queries = set()
+                    tmp_queries = set()
+                    for individualCandidate in tmpCandidates:
+                        for tmpCandidate in individualCandidate:
+                            uniprotkey = atoAux.getURIFromSBML(
+                                tmpCandidate, self.database.parser, ["uniprot"]
+                            )
+                            if len(uniprotkey) > 0:
+                                uniprot_queries.add(uniprotkey[0].split("/")[-1])
+                            if len(tmpCandidate) >= 3:
+                                tmp_queries.add(tmpCandidate)
+                    active_site_memo.update(
+                        pwcm.queryActiveSites(list(uniprot_queries), None)
+                    )
+                    active_site_memo.update(
+                        pwcm.queryActiveSites(list(tmp_queries), None)
+                    )
                     for individualCandidate in tmpCandidates:
                         for tmpCandidate in individualCandidate:
                             activeQuery = None
@@ -1236,27 +1253,14 @@ this the correct behavior or provide an alternative for {0}".format(
                             )
                             if len(uniprotkey) > 0:
                                 uniprotkey = uniprotkey[0].split("/")[-1]
-                                if uniprotkey not in active_site_memo:
-                                    active_site_memo[uniprotkey] = pwcm.queryActiveSite(
-                                        uniprotkey, None
-                                    )
-                                activeQuery = active_site_memo[uniprotkey]
+                                activeQuery = active_site_memo.get(uniprotkey)
                             if activeQuery and len(activeQuery) > 0:
                                 activeCandidates.append(tmpCandidate)
-                                # enter modification information to self.database
-                                # logMess('INFO:SCT051', '{0}:Determined that {0} has an active site for modication'.format(reactant, tmpCandidate))
-                                # return [individualCandidate], unevenElements, candidates
-                            # we want relevant biological names, its useless if they are too short
                             elif len(tmpCandidate) >= 3:
-                                # else:
                                 individualMajorCandidates = [
                                     y for x in candidates for y in x
                                 ]
-                                if tmpCandidate not in active_site_memo:
-                                    active_site_memo[tmpCandidate] = (
-                                        pwcm.queryActiveSite(tmpCandidate, None)
-                                    )
-                                activeQuery = active_site_memo[tmpCandidate]
+                                activeQuery = active_site_memo.get(tmpCandidate)
                                 if activeQuery and len(activeQuery) > 0:
                                     otherMatches = [
                                         x for x in tmpCandidates[0] if x in activeQuery
@@ -1419,9 +1423,9 @@ this the correct behavior or provide an alternative for {0}".format(
                     [candidate[0]],
                     dependencyGraph,
                     sbmlAnalyzer,
+                    loginformation,
                     equivalenceTranslator,
                     equivalenceDictionary,
-                    loginformation,
                 )[0]
                 if not namingTmpCandidates:
                     logMess(
@@ -1516,9 +1520,9 @@ this the correct behavior or provide an alternative for {0}".format(
                         tmpCandidates2,
                         dependencyGraph,
                         sbmlAnalyzer,
+                        loginformation,
                         equivalenceTranslator,
                         equivalenceDictionary,
-                        loginformation,
                     )
                 elif len(tmpCandidates2) == 0:
                     # the differences is between species that we created so its the LAE fault. Just choose one.
@@ -1551,9 +1555,9 @@ this the correct behavior or provide an alternative for {0}".format(
                     [candidate[0]],
                     dependencyGraph,
                     sbmlAnalyzer,
+                    loginformation,
                     equivalenceTranslator,
                     equivalenceDictionary,
-                    loginformation,
                 )[0]
 
                 # if they still disagree print error and use stoichiometry
@@ -1647,9 +1651,9 @@ this the correct behavior or provide an alternative for {0}".format(
                     candidates,
                     prunnedDependencyGraph,
                     sbmlAnalyzer,
+                    loginformation,
                     equivalenceTranslator,
                     equivalenceDictionary,
-                    loginformation,
                 )
                 # except CycleError:
                 #    candidates = None

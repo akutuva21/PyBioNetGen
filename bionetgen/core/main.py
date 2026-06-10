@@ -101,7 +101,7 @@ def runAtomizeTool(app):
     args = app.pargs
     config = app.config
     # run AtomizeTool
-    from bionetgen.atomizer import AtomizeTool
+    from bionetgen.atomizer.atomizeTool import AtomizeTool
 
     app.log.debug("Instantiating AtomizeTool object", f"{__file__} : runAtomizeTool()")
     a = AtomizeTool(parser_namespace=args, app=app)

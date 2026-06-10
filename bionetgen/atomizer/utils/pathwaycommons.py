@@ -157,6 +157,23 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
     return False
 
 
+def queryActiveSites(nameStrs, organism):
+    import concurrent.futures
+
+    results = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_name = {
+            executor.submit(queryActiveSite, name, organism): name for name in nameStrs
+        }
+        for future in concurrent.futures.as_completed(future_to_name):
+            name = future_to_name[future]
+            try:
+                results[name] = future.result()
+            except Exception:
+                results[name] = None
+    return results
+
+
 @memoize
 def queryActiveSite(nameStr, organism):
     url = "http://www.uniprot.org/uniprot/?"
@@ -182,7 +199,6 @@ def queryActiveSite(nameStr, organism):
             }
             xparams = urllib.parse.urlencode(xparams).encode("utf-8")
             try:
-                xparams = urllib.parse.urlencode(xparams).encode("utf-8")
                 req = urllib.request.Request(url)
                 with urllib.request.urlopen(req, data=xparams) as f:
                     response = f.read().decode("utf-8")

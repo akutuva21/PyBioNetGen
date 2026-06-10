@@ -92,7 +92,7 @@ class BNGFile:
             app_suppress = False if app_stdout == "STDOUT" else self.suppress
             rc, _ = run_command(
                 ["perl", self.bngexec, "--xml", stripped_bngl],
-                suppress=self.suppress,
+                suppress=app_suppress,
                 cwd=temp_folder,
             )
             if rc != 0:

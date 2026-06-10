@@ -32,6 +32,22 @@ def test_main_assertion_error():
         assert mock_app.exit_code == 1
 
 
+@patch("traceback.print_exc")
+def test_main_assertion_error_debug(mock_print_exc):
+    with patch("bionetgen.main.BioNetGen") as mock_app_class:
+        mock_app = MagicMock()
+        mock_app.run.side_effect = AssertionError("Test Assertion")
+        mock_app.debug = True
+        mock_app_class.return_value.__enter__.return_value = mock_app
+
+        main()
+
+        mock_app.run.assert_called_once()
+        mock_app.log.error.assert_called_with("AssertionError > Test Assertion")
+        mock_print_exc.assert_called_once()
+        assert mock_app.exit_code == 1
+
+
 def test_main_bng_error():
     with patch("bionetgen.main.BioNetGen") as mock_app_class:
         mock_app = MagicMock()
@@ -46,12 +62,46 @@ def test_main_bng_error():
         assert mock_app.exit_code == 1
 
 
+@patch("traceback.print_exc")
+def test_main_bng_error_debug(mock_print_exc):
+    with patch("bionetgen.main.BioNetGen") as mock_app_class:
+        mock_app = MagicMock()
+        mock_app.run.side_effect = BNGError("Test BNG Error")
+        mock_app.debug = True
+        mock_app_class.return_value.__enter__.return_value = mock_app
+
+        main()
+
+        mock_app.run.assert_called_once()
+        mock_app.log.error.assert_called_with("BNGError > Test BNG Error")
+        mock_print_exc.assert_called_once()
+        assert mock_app.exit_code == 1
+
+
 def test_main_caught_signal_error(capsys):
     with patch("bionetgen.main.BioNetGen") as mock_app_class:
         mock_app = MagicMock()
         # Mocking the initialization of CaughtSignal with appropriate signal arguments
         mock_app.run.side_effect = CaughtSignal(
             signal.SIGINT, signal.getsignal(signal.SIGINT)
+        )
+        mock_app_class.return_value.__enter__.return_value = mock_app
+
+        main()
+
+        mock_app.run.assert_called_once()
+        captured = capsys.readouterr()
+        # Verify that the message was printed to stdout
+        assert "Caught signal" in captured.out
+        assert mock_app.exit_code == 0
+
+
+def test_main_caught_signal_error_sigterm(capsys):
+    with patch("bionetgen.main.BioNetGen") as mock_app_class:
+        mock_app = MagicMock()
+        # Mocking the initialization of CaughtSignal with appropriate signal arguments
+        mock_app.run.side_effect = CaughtSignal(
+            signal.SIGTERM, signal.getsignal(signal.SIGTERM)
         )
         mock_app_class.return_value.__enter__.return_value = mock_app
 

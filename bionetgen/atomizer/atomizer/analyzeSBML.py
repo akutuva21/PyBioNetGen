@@ -286,15 +286,33 @@ class SBMLAnalyzer:
                     particle, comparisonElement, translationKeys[0]
                 )
             else:
-                # FIXME: make sure we only do a search on those variables that are viable
-                # candidates. this is once again fuzzy string matchign. there should
-                # be a better way of doing this with difflib
                 permutations = {
                     "_".join(x)
                     for x in itertools.permutations(partialAnalysis, 2)
                     if x[0] == particle
                 }
-                if all(x not in modifiedElement for x in permutations):
+
+                viable = True
+                for perm in permutations:
+                    sequenceMatcher = difflib.SequenceMatcher(
+                        None, perm, modifiedElement
+                    )
+                    match = "".join(
+                        modifiedElement[j : j + n]
+                        for i, j, n in sequenceMatcher.get_matching_blocks()
+                        if n
+                    )
+                    if len(match) / float(len(perm)) >= 0.8:
+                        tmp = [
+                            i
+                            for i, y in enumerate(difflib.ndiff(perm, modifiedElement))
+                            if not y.startswith("+")
+                        ]
+                        if len(tmp) > 0 and tmp[-1] - tmp[0] <= len(perm) + 5:
+                            viable = False
+                            break
+
+                if viable:
                     distance = self.distanceToModification(
                         particle, comparisonElement, translationKeys[0]
                     )
@@ -1747,14 +1765,14 @@ class SBMLAnalyzer:
         for idx, element in enumerate(ruleDefinitionMatrix):
             nonZero = np.nonzero(element)[0]
             if len(nonZero) == 0:
-                results.append("None")
+                results.append(["None"])
             # todo: need to do something if it matches more than one reaction
             else:
                 classifications = [
                     reactionDefinition["reactionsNames"][x] for x in nonZero
                 ]
                 # FIXME: we should be able to support more than one transformation
-                results.append(classifications[0])
+                results.append(classifications)
         return results
 
     def setConfigurationFile(self, configurationFile):
@@ -1767,29 +1785,7 @@ class SBMLAnalyzer:
         reaction uses
         """
 
-        # TODO: once we transition completely to a naming convention delete
-        # this ----
         reactionTypeProperties = {}
-        reactionDefinition = self.loadConfigFiles(self.configurationFile)
-        if self.speciesEquivalences != None:
-            self.userEquivalences = self.loadConfigFiles(self.speciesEquivalences)[
-                "reactionDefinition"
-            ]
-        for reactionType, properties in zip(
-            reactionDefinition["reactionsNames"], reactionDefinition["definitions"]
-        ):
-            # if its a reaction defined by its naming convention
-            # xxxxxxxxxxxxxxxxxxx
-            for alternative in properties:
-                if "n" in list(alternative.keys()):
-                    try:
-                        site = reactionDefinition["reactionSite"][alternative["rsi"]]
-                        state = reactionDefinition["reactionState"][alternative["rst"]]
-                    except:
-                        site = reactionType
-                        state = reactionType[0]
-                    reactionTypeProperties[reactionType] = [site, state]
-        # TODO: end of delete
         reactionDefinition = self.namingConventions
         for idx, reactionType in enumerate(reactionDefinition["modificationList"]):
             site = reactionDefinition["reactionSite"][
@@ -2356,7 +2352,7 @@ class SBMLAnalyzer:
             translationKeys,
         )
         for element in trueBindingReactions:
-            reactionClassification[element] = "Binding"
+            reactionClassification[element] = ["Binding"]
         listOfEquivalences = []
         for element in equivalenceTranslator:
             listOfEquivalences.extend(equivalenceTranslator[element])
