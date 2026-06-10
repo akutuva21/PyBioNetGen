@@ -447,11 +447,20 @@ class bngmodel:
         executes when ``parameter_scan({method=>"protocol"})`` is invoked.
         """
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, ProtocolBlock)
+            if not isinstance(block, ProtocolBlock):
+                self.logger.error(
+                    "The block is not a ProtocolBlock.",
+                    loc=f"{__file__} : bngmodel.add_protocol_block()",
+                )
+                raise BNGModelError(self, message="The block is not a ProtocolBlock.")
             self.protocol = block
             if "protocol" not in self.active_blocks:
                 self.active_blocks.append("protocol")
+            else:
+                self.logger.warning(
+                    "Network already has protocol block, replacing the old one",
+                    loc=f"{__file__} : bngmodel.add_protocol_block()",
+                )
         else:
             self.protocol = ProtocolBlock()
 
