@@ -12,11 +12,15 @@ def test_csimulator_init_logs_missing_cvode_paths():
     fake_model.species = {}
     fake_compiler = mock.MagicMock()
     mock_conf_get = mock.MagicMock(side_effect=lambda key: None)
+    fake_conf = mock.MagicMock()
+    fake_conf.get = mock_conf_get
 
     def fake_compile(self):
         self.lib_file = "/tmp/fake/libcsim.so"
 
-    with mock.patch.object(csim_module.conf, "get", mock_conf_get), mock.patch.object(
+    with mock.patch.object(
+        csim_module, "get_conf", return_value=fake_conf
+    ) as mock_get_conf, mock.patch.object(
         csim_module, "logger"
     ) as mock_logger, mock.patch.object(
         csim_module.bionetgen, "bngmodel", return_value=fake_model
@@ -29,6 +33,7 @@ def test_csimulator_init_logs_missing_cvode_paths():
     ) as mock_wrapper:
         csim_module.CSimulator("/fake/model.bngl")
 
+    mock_get_conf.assert_called_once_with()
     mock_logger.warning.assert_called_once()
     warning_args, warning_kwargs = mock_logger.warning.call_args
     assert "CVODE include and library paths are not set" in warning_args[0]
@@ -55,16 +60,19 @@ def test_csimulator_init_invalid_model_type_raises_bng_format_error():
             "cvode_lib": "/tmp/lib",
         }[key]
     )
+    fake_conf = mock.MagicMock()
+    fake_conf.get = mock_conf_get
 
-    with mock.patch.object(csim_module.conf, "get", mock_conf_get), mock.patch.object(
-        csim_module, "logger"
-    ) as mock_logger:
+    with mock.patch.object(
+        csim_module, "get_conf", return_value=fake_conf
+    ) as mock_get_conf, mock.patch.object(csim_module, "logger") as mock_logger:
         with pytest.raises(
             BNGFormatError,
             match="CSimulator model input must be a BNGL path or bngmodel instance",
         ):
             csim_module.CSimulator(123)
 
+    mock_get_conf.assert_called_once_with()
     mock_logger.error.assert_called_once()
     error_args, error_kwargs = mock_logger.error.call_args
     assert "got int" in error_args[0]

@@ -1,6 +1,5 @@
 import xmltodict
 
-from bionetgen.main import BioNetGen
 from bionetgen.core.exc import BNGFileError, BNGParseError, BNGModelError
 from tempfile import TemporaryFile
 
@@ -10,12 +9,6 @@ from .xmlparsers import SpeciesBlockXML, MoleculeTypeBlockXML, FunctionBlockXML
 from .xmlparsers import RuleBlockXML, EnergyPatternBlockXML, PopulationMapBlockXML
 from .blocks import ActionBlock, ProtocolBlock
 from bionetgen.core.utils.utils import ActionList
-
-# This allows access to the CLIs config setup
-app = BioNetGen()
-app.setup()
-conf = app.config["bionetgen"]
-def_bng_path = conf["bngpath"]
 
 
 def _normalize_action_text(action: str) -> str:
@@ -188,13 +181,15 @@ class BNGParser:
     def __init__(
         self,
         path,
-        BNGPATH=def_bng_path,
+        BNGPATH=None,
         parse_actions=True,
         generate_network=False,
         suppress=True,
     ) -> None:
         self.to_parse_actions = parse_actions
-        self.bngfile = BNGFile(path, generate_network=generate_network, suppress=True)
+        self.bngfile = BNGFile(
+            path, BNGPATH=BNGPATH, generate_network=generate_network, suppress=suppress
+        )
         self.alist = ActionList()
         self.alist.define_parser()
 

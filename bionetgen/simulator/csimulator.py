@@ -2,7 +2,7 @@ import ctypes, os, tempfile, bionetgen
 import numpy as np
 
 from .bngsimulator import BNGSimulator
-from bionetgen.main import BioNetGen
+from bionetgen.main import get_conf
 from bionetgen.core.exc import BNGCompileError, BNGFormatError, BNGSimError
 from bionetgen.core.utils.logging import BNGLogger
 
@@ -27,11 +27,6 @@ def _new_ccompiler():
     return ccompiler.new_compiler()
 
 
-# This allows access to the CLIs config setup
-app = BioNetGen()
-app.setup()
-conf = app.config["bionetgen"]
-def_bng_path = conf["bngpath"]
 logger = BNGLogger()
 
 
@@ -161,6 +156,7 @@ class CSimulator(BNGSimulator):
     """
 
     def __init__(self, model_file, generate_network=False):
+        conf = get_conf()
         # check cvode library paths
         if (conf.get("cvode_include") is None) or (conf.get("cvode_lib") is None):
             logger.warning(

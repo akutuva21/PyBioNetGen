@@ -1,6 +1,5 @@
 import copy, tempfile, shutil
 
-from bionetgen.main import BioNetGen
 from bionetgen.core.exc import BNGFileError, BNGModelError
 
 from .bngparser import BNGParser
@@ -17,12 +16,6 @@ from .blocks import (
     EnergyPatternBlock,
     PopulationMapBlock,
 )
-
-# This allows access to the CLIs config setup
-app = BioNetGen()
-app.setup()
-conf = app.config["bionetgen"]
-def_bng_path = conf["bngpath"]
 
 
 ###### CORE OBJECT AND PARSING FRONT-END ######
@@ -73,9 +66,7 @@ class bngmodel:
         "population_maps", "rules", "reaction_rules", "actions".
     """
 
-    def __init__(
-        self, bngl_model, BNGPATH=def_bng_path, generate_network=False, suppress=True
-    ):
+    def __init__(self, bngl_model, BNGPATH=None, generate_network=False, suppress=True):
         self.active_blocks = []
         # We want blocks to be printed in the same order every time
         self._block_order = [
@@ -94,7 +85,10 @@ class bngmodel:
         self.model_name = ""
         self.model_path = bngl_model
         self.bngparser = BNGParser(
-            bngl_model, generate_network=generate_network, suppress=True
+            bngl_model,
+            BNGPATH=BNGPATH,
+            generate_network=generate_network,
+            suppress=suppress,
         )
         self.bngparser.parse_model(self)
         for block in self._block_order:
