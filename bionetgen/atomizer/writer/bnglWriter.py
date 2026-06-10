@@ -330,12 +330,13 @@ def bnglFunction(
                         optionList,
                     )
                     if parsedParams:
-                        sorted_params = sorted(parsedParams, key=len, reverse=True)
-                        pattern = re.compile(
+                        sortedParams = sorted(parsedParams, key=len, reverse=True)
+                        pattern_str = (
                             r"(?<!\w)("
-                            + "|".join(re.escape(x) for x in sorted_params)
+                            + "|".join(re.escape(x) for x in sortedParams)
                             + r")(?!\w)"
                         )
+                        pattern = re.compile(pattern_str)
                         tmp2 = pattern.sub(r"param_\1 ", tmp2)
                     idx += 1
                     parsedString += tmp + tmp2
