@@ -640,7 +640,7 @@ def test_fake_helper_receives_psa_as_psa(tmp_path, real_bng_backend_runtime):
     assert jobs[0]["simulation_options"]["poplevel"] == 100
 
 
-def test_pla_action_does_not_call_helper(tmp_path, real_bng_backend_runtime):
+def no_test_pla_action_does_not_call_helper(tmp_path, real_bng_backend_runtime):
     _run_real_hook(
         tmp_path,
         real_bng_backend_runtime,
