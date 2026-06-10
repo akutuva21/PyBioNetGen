@@ -286,15 +286,33 @@ class SBMLAnalyzer:
                     particle, comparisonElement, translationKeys[0]
                 )
             else:
-                # FIXME: make sure we only do a search on those variables that are viable
-                # candidates. this is once again fuzzy string matchign. there should
-                # be a better way of doing this with difflib
                 permutations = {
                     "_".join(x)
                     for x in itertools.permutations(partialAnalysis, 2)
                     if x[0] == particle
                 }
-                if all(x not in modifiedElement for x in permutations):
+
+                viable = True
+                for perm in permutations:
+                    sequenceMatcher = difflib.SequenceMatcher(
+                        None, perm, modifiedElement
+                    )
+                    match = "".join(
+                        modifiedElement[j : j + n]
+                        for i, j, n in sequenceMatcher.get_matching_blocks()
+                        if n
+                    )
+                    if len(match) / float(len(perm)) >= 0.8:
+                        tmp = [
+                            i
+                            for i, y in enumerate(difflib.ndiff(perm, modifiedElement))
+                            if not y.startswith("+")
+                        ]
+                        if len(tmp) > 0 and tmp[-1] - tmp[0] <= len(perm) + 5:
+                            viable = False
+                            break
+
+                if viable:
                     distance = self.distanceToModification(
                         particle, comparisonElement, translationKeys[0]
                     )
