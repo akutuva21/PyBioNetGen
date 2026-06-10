@@ -2416,60 +2416,31 @@ class SBML2BNGL:
                     if not self.noCompartment:
                         self.tags[rawArule[0]] = "@" + compartmentList[0][0]
                 # ASS - If self.useID is set, use the ID value, not the name
-                if self.useID:
-                    self.used_molecules.append(rawArule[0])
-                    if rateLaw2 == "0":
-                        rxn_str = writer.bnglReaction(
-                            [],
-                            [[rawArule[0], 1, rawArule[0]]],
-                            "{0}".format("arRate{0}".format(rawArule[0])),
-                            self.tags,
-                            translator,
-                            isCompartments=True,
-                            comment="#rateLaw",
-                            reversible=False,
-                        )
-                    else:
-                        rxn_str = writer.bnglReaction(
-                            [],
-                            [[rawArule[0], 1, rawArule[0]]],
-                            "{0},{1}".format(
-                                "arRate{0}".format(rawArule[0]),
-                                "armRate{0}".format(rawArule[0]),
-                            ),
-                            self.tags,
-                            translator,
-                            isCompartments=True,
-                            comment="#rateLaw",
-                        )
-                    artificialReactions.append(rxn_str)
+                molec_name = (
+                    rawArule[0]
+                    if self.useID
+                    else self.convertToName(rawArule[0]).strip()
+                )
+                self.used_molecules.append(molec_name)
+
+                if rateLaw2 == "0":
+                    rate_str = "arRate{0}".format(rawArule[0])
+                    reversible = False
                 else:
-                    self.used_molecules.append(self.convertToName(rawArule[0]).strip())
-                    if rateLaw2 == "0":
-                        rxn_str = writer.bnglReaction(
-                            [],
-                            [[self.convertToName(rawArule[0]).strip(), 1, rawArule[0]]],
-                            "{0}".format("arRate{0}".format(rawArule[0])),
-                            self.tags,
-                            translator,
-                            isCompartments=True,
-                            comment="#rateLaw",
-                            reversible=False,
-                        )
-                    else:
-                        rxn_str = writer.bnglReaction(
-                            [],
-                            [[self.convertToName(rawArule[0]).strip(), 1, rawArule[0]]],
-                            "{0},{1}".format(
-                                "arRate{0}".format(rawArule[0]),
-                                "armRate{0}".format(rawArule[0]),
-                            ),
-                            self.tags,
-                            translator,
-                            isCompartments=True,
-                            comment="#rateLaw",
-                        )
-                    artificialReactions.append(rxn_str)
+                    rate_str = "arRate{0},armRate{0}".format(rawArule[0], rawArule[0])
+                    reversible = True
+
+                rxn_str = writer.bnglReaction(
+                    [],
+                    [[molec_name, 1, rawArule[0]]],
+                    rate_str,
+                    self.tags,
+                    translator,
+                    isCompartments=True,
+                    comment="#rateLaw",
+                    reversible=reversible,
+                )
+                artificialReactions.append(rxn_str)
                 if rawArule[0] in zparams:
                     removeParameters.append("{0} 0".format(rawArule[0]))
                     zRules.remove(rawArule[0])
@@ -2494,6 +2465,27 @@ class SBML2BNGL:
                 and observables dict keeps track of that. however when a species is defined by an assignment function we wish to
                 keep track of reference <speciesName> that points to a standard BNGL function
                 """
+
+                def _track_assignment_rule(
+                    target_name, create_observable=True, fn_suffix="_ar()"
+                ):
+                    if create_observable:
+                        artificialObservables[target_name + "_ar"] = (
+                            writer.bnglFunction(
+                                rawArule[1][0],
+                                rawArule[0] + fn_suffix,
+                                [],
+                                compartments=compartmentList,
+                                reactionDict=self.reactionDictionary,
+                            )
+                        )
+                    self.arule_map[rawArule[0]] = target_name + "_ar"
+                    if target_name in observablesDict:
+                        observablesDict[target_name] = target_name + "_ar"
+                    for obs_k, obs_v in list(observablesDict.items()):
+                        if obs_v == target_name:
+                            observablesDict[obs_k] = target_name + "_ar"
+
                 # it was originially defined as a zero parameter, so delete it from the parameter list definition
                 if rawArule[0] in zRules:
                     # dont show assignment rules as parameters
@@ -2506,21 +2498,7 @@ class SBML2BNGL:
 
                     if matches:
                         if matches[0]["isBoundary"]:
-                            artificialObservables[rawArule[0] + "_ar"] = (
-                                writer.bnglFunction(
-                                    rawArule[1][0],
-                                    rawArule[0] + "_ar()",
-                                    [],
-                                    compartments=compartmentList,
-                                    reactionDict=self.reactionDictionary,
-                                )
-                            )
-                            self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
-                            if rawArule[0] in observablesDict:
-                                observablesDict[rawArule[0]] = rawArule[0] + "_ar"
-                            for obs_k, obs_v in list(observablesDict.items()):
-                                if obs_v == rawArule[0]:
-                                    observablesDict[obs_k] = rawArule[0] + "_ar"
+                            _track_assignment_rule(rawArule[0])
                             continue
                         else:
                             logMess(
@@ -2530,38 +2508,10 @@ class SBML2BNGL:
                                     rawArule[0]
                                 ),
                             )
-                            artificialObservables[rawArule[0] + "_ar"] = (
-                                writer.bnglFunction(
-                                    rawArule[1][0],
-                                    rawArule[0] + "_ar()",
-                                    [],
-                                    compartments=compartmentList,
-                                    reactionDict=self.reactionDictionary,
-                                )
-                            )
-                            self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
-                            if rawArule[0] in observablesDict:
-                                observablesDict[rawArule[0]] = rawArule[0] + "_ar"
-                            for obs_k, obs_v in list(observablesDict.items()):
-                                if obs_v == rawArule[0]:
-                                    observablesDict[obs_k] = rawArule[0] + "_ar"
+                            _track_assignment_rule(rawArule[0])
                             continue
                     elif rawArule[0] in [observablesDict[x] for x in observablesDict]:
-                        artificialObservables[rawArule[0] + "_ar"] = (
-                            writer.bnglFunction(
-                                rawArule[1][0],
-                                rawArule[0] + "_ar()",
-                                [],
-                                compartments=compartmentList,
-                                reactionDict=self.reactionDictionary,
-                            )
-                        )
-                        self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
-                        if rawArule[0] in observablesDict:
-                            observablesDict[rawArule[0]] = rawArule[0] + "_ar"
-                        for obs_k, obs_v in list(observablesDict.items()):
-                            if obs_v == rawArule[0]:
-                                observablesDict[obs_k] = rawArule[0] + "_ar"
+                        _track_assignment_rule(rawArule[0])
                         continue
 
                 elif rawArule[0] in molecules:
@@ -2579,19 +2529,7 @@ class SBML2BNGL:
                         continue
                     else:
                         name = molecules[rawArule[0]]["returnID"]
-                        if name in observablesDict:
-                            observablesDict[name] = name + "_ar"
-                        for obs_k, obs_v in list(observablesDict.items()):
-                            if obs_v == name:
-                                observablesDict[obs_k] = name + "_ar"
-                        artificialObservables[name + "_ar"] = writer.bnglFunction(
-                            rawArule[1][0],
-                            rawArule[0] + "_ar()",
-                            [],
-                            compartments=compartmentList,
-                            reactionDict=self.reactionDictionary,
-                        )
-                        self.arule_map[rawArule[0]] = name + "_ar"
+                        _track_assignment_rule(name)
                         logMess(
                             "WARNING:ARUL004",
                             "Assuming {} has an assignment rule and therefore cannot be in a reaction. If this is incorrect, the model cannot be correctly translated.".format(
@@ -2606,21 +2544,7 @@ class SBML2BNGL:
                         removeParameters.append(param_map[rawArule[0]])
                     # check if it is defined as an observable
                     if rawArule[0] in observablesDict:
-                        artificialObservables[rawArule[0] + "_ar"] = (
-                            writer.bnglFunction(
-                                rawArule[1][0],
-                                rawArule[0] + "_ar()",
-                                [],
-                                compartments=compartmentList,
-                                reactionDict=self.reactionDictionary,
-                            )
-                        )
-                        self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
-                        if rawArule[0] in observablesDict:
-                            observablesDict[rawArule[0]] = rawArule[0] + "_ar"
-                        for obs_k, obs_v in list(observablesDict.items()):
-                            if obs_v == rawArule[0]:
-                                observablesDict[obs_k] = rawArule[0] + "_ar"
+                        _track_assignment_rule(rawArule[0])
                         if rawArule[0] in param_map.keys():
                             removeParameters.append(param_map[rawArule[0]])
                         continue
@@ -2630,14 +2554,7 @@ class SBML2BNGL:
                 # name = molecules[rawArule[0]]['returnID']
                 # self.only_assignment_dict[name] = name+"_ar"
                 # artificialObservables[name+'_ar'] = writer.bnglFunction(rawArule[1][0],name+'()',[],compartments=compartmentList,reactionDict=self.reactionDictionary)
-                artificialObservables[rawArule[0] + "_ar"] = writer.bnglFunction(
-                    rawArule[1][0],
-                    rawArule[0] + "()",
-                    [],
-                    compartments=compartmentList,
-                    reactionDict=self.reactionDictionary,
-                )
-                self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
+                _track_assignment_rule(rawArule[0], fn_suffix="()")
             else:
                 """
                 if for whatever reason you have a rule that is not assigment
