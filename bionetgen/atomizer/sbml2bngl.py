@@ -2684,317 +2684,23 @@ class SBML2BNGL:
             compartmentDict[compartment.getId()] = get_size(compartment)
         unitFlag = True
         for species in self.model.getListOfSpecies():
-            # making molecule and seed species objs for
-            # the obj based model
-            molec_obj = self.bngModel.make_molecule()
-            spec_obj = self.bngModel.make_species()
-            #
-            rawSpecies = self.getRawSpecies(species, parameters)
-            # letting the objs parse the rawSpecies
-            molec_obj.parse_raw(rawSpecies)
-            spec_obj.parse_raw(rawSpecies)
-
-            if rawSpecies["compartment"] != "":
-                # ASS - First change for "noCompartments"
-                if self.noCompartment:
-                    rawSpecies["compartment"] = ""
-                    self.tags[rawSpecies["identifier"]] = ""
-                else:
-                    self.tags[rawSpecies["identifier"]] = "@%s" % (
-                        rawSpecies["compartment"]
-                    )
-            if rawSpecies["returnID"] in translator:
-                if rawSpecies["returnID"] in rawSpeciesName:
-                    rawSpeciesName.remove(rawSpecies["returnID"])
-                if (
-                    get_size(translator[rawSpecies["returnID"]]) == 1
-                    and translator[rawSpecies["returnID"]].molecules[0].name
-                    not in names
-                    and translator[rawSpecies["returnID"]].molecules[0].name
-                    not in rawSpeciesName
-                ):
-                    names.append(translator[rawSpecies["returnID"]].molecules[0].name)
-                    annotationTemp = []
-                    if rawSpecies["returnID"] in speciesAnnotationInfo:
-                        for annotation in speciesAnnotationInfo[rawSpecies["returnID"]]:
-                            parts = annotation.split("_")
-                            header = annotationHeader[parts[0]]
-                            qual = parts[1].lower() + "".join(
-                                [x.capitalize() for x in parts[2:]]
-                            )
-                            entry = ", ".join(
-                                [
-                                    ":".join(x.split("/")[-2:])
-                                    for x in speciesAnnotationInfo[
-                                        rawSpecies["returnID"]
-                                    ][annotation]
-                                ]
-                            )
-                            annotationTemp.append(
-                                "#^ {0}:{1} {2}".format(header, qual, entry)
-                            )
-
-                    # we'll add this to our model
-                    self.bngModel.add_molecule(molec_obj)
-                    mtext = translator[rawSpecies["returnID"]].str2()
-                    moleculesText.append(mtext)
-
-                    if rawSpecies["returnID"] in speciesAnnotationInfo:
-                        annotationInfo["moleculeTypes"][
-                            translator[rawSpecies["returnID"]].str2()
-                        ] = annotationTemp
-                        del speciesAnnotationInfo[rawSpecies["returnID"]]
-                # TODO: Not sure if there are more examples of this
-                # but glucose in 380 has both a normal species AND
-                # a boundary species separately
-                # elif rawSpecies['isBoundary']:
-                #     self.bngModel.add_molecule(molec_obj)
-            else:
-                # we'll add this to our model
-                self.bngModel.add_molecule(molec_obj)
-                mtext = rawSpecies["returnID"] + "()"
-                moleculesText.append(mtext)
-
-                if rawSpecies["returnID"] in speciesAnnotationInfo:
-                    annotationInfo["moleculeTypes"][rawSpecies["returnID"]] = (
-                        speciesAnnotationInfo[rawSpecies["returnID"]]
-                    )
-                    del speciesAnnotationInfo[rawSpecies["returnID"]]
-
-            # if rawSpecies['identifier'] == 'glx' and len(translator) > 0:
-            temp = "$" if rawSpecies["isConstant"] != 0 else ""
-            tmp = (
-                translator[str(rawSpecies["returnID"])]
-                if rawSpecies["returnID"] in translator
-                else rawSpecies["returnID"] + "()"
+            unitFlag = self._process_single_species(
+                species,
+                parameters,
+                translator,
+                rawSpeciesName,
+                names,
+                speciesAnnotationInfo,
+                moleculesText,
+                annotationInfo,
+                unitDefinitions,
+                unitFlag,
+                speciesText,
+                concentrationUnits,
+                observablesText,
+                observablesDict,
+                speciesTranslationDict,
             )
-            # this determines the name to be written
-            if (
-                rawSpecies["initialConcentration"] > 0
-                or rawSpecies["initialAmount"] > 0
-            ):
-                tmp2 = temp
-                if rawSpecies["identifier"] in self.tags:
-                    tmp2 = self.tags[rawSpecies["identifier"]]
-                if rawSpecies["initialAmount"] > 0.0:
-                    # Removing the compartment section if we are not using it
-                    if self.noCompartment:
-                        speciesText.append(
-                            "{1}{2} {3} #{4} #{5}".format(
-                                tmp2,
-                                temp,
-                                str(tmp),
-                                rawSpecies["initialAmount"],
-                                rawSpecies["returnID"],
-                                rawSpecies["identifier"],
-                            )
-                        )
-                    else:
-                        speciesText.append(
-                            "{0}:{1}{2} {3} #{4} #{5}".format(
-                                tmp2,
-                                temp,
-                                str(tmp),
-                                rawSpecies["initialAmount"],
-                                rawSpecies["returnID"],
-                                rawSpecies["identifier"],
-                            )
-                        )
-                elif rawSpecies["initialConcentration"] > 0.0:
-                    if self.isConversion:
-                        # convert to molecule counts
-                        if "substance" in unitDefinitions:
-                            newParameterStr = self.convertToStandardUnitString(
-                                rawSpecies["initialConcentration"],
-                                unitDefinitions["substance"],
-                            )
-                            newParameter = self.convertToStandardUnits(
-                                rawSpecies["initialConcentration"],
-                                unitDefinitions["substance"],
-                            )  # conversion to moles
-                        else:
-                            newParameter = rawSpecies["initialConcentration"]
-                            newParameterStr = str(rawSpecies["initialConcentration"])
-                        newParameter = (
-                            newParameter * 6.022e23
-                        )  # convertion to molecule counts
-                        # get compartment size
-                        if self.noCompartment:
-                            compartmentSize = 1.0
-                        else:
-                            compartmentSize = get_size(
-                                self.model.getCompartment(rawSpecies["compartment"])
-                            )
-                        newParameter = compartmentSize * newParameter
-                        # temp testing AS
-                        spec_obj.val = newParameter
-                        spec_obj.isConc = False
-                        # temp testing AS
-                        if unitFlag:
-                            if self.noCompartment:
-                                speciesText.append(
-                                    "{1}{2} {3} # {4}mol/L * 6.022e23/mol *{7}L #{5} #{6}".format(
-                                        tmp2,
-                                        temp,
-                                        str(tmp),
-                                        newParameter,
-                                        newParameterStr,
-                                        rawSpecies["returnID"],
-                                        rawSpecies["identifier"],
-                                        compartmentSize,
-                                        concentrationUnits,
-                                    )
-                                )
-                            else:
-                                speciesText.append(
-                                    "{0}:{1}{2} {3} # {4}mol/L * 6.022e23/mol *{7}L #{5} #{6}".format(
-                                        tmp2,
-                                        temp,
-                                        str(tmp),
-                                        newParameter,
-                                        newParameterStr,
-                                        rawSpecies["returnID"],
-                                        rawSpecies["identifier"],
-                                        compartmentSize,
-                                        concentrationUnits,
-                                    )
-                                )
-                            unitFlag = False
-                        else:
-                            if self.noCompartment:
-                                speciesText.append(
-                                    "{1}{2} {3} #original {4}{8}  #{5} #{6}".format(
-                                        tmp2,
-                                        temp,
-                                        str(tmp),
-                                        newParameter,
-                                        rawSpecies["initialConcentration"],
-                                        rawSpecies["returnID"],
-                                        rawSpecies["identifier"],
-                                        compartmentSize,
-                                        concentrationUnits,
-                                    )
-                                )
-                            else:
-                                speciesText.append(
-                                    "{0}:{1}{2} {3} #original {4}{8}  #{5} #{6}".format(
-                                        tmp2,
-                                        temp,
-                                        str(tmp),
-                                        newParameter,
-                                        rawSpecies["initialConcentration"],
-                                        rawSpecies["returnID"],
-                                        rawSpecies["identifier"],
-                                        compartmentSize,
-                                        concentrationUnits,
-                                    )
-                                )
-                    else:
-                        if self.noCompartment:
-                            speciesText.append(
-                                "{1}{2} {3} #{4} #{5}".format(
-                                    tmp2,
-                                    temp,
-                                    str(tmp),
-                                    rawSpecies["initialConcentration"],
-                                    rawSpecies["returnID"],
-                                    rawSpecies["identifier"],
-                                )
-                            )
-                        else:
-                            speciesText.append(
-                                "{0}:{1}{2} {3} #{4} #{5}".format(
-                                    tmp2,
-                                    temp,
-                                    str(tmp),
-                                    rawSpecies["initialConcentration"],
-                                    rawSpecies["returnID"],
-                                    rawSpecies["identifier"],
-                                )
-                            )
-                elif rawSpecies["isConstant"]:
-                    if self.noCompartment:
-                        speciesText.append(
-                            "{1}{2} {3} #{4} #{5}".format(
-                                tmp2,
-                                temp,
-                                str(tmp),
-                                0,
-                                rawSpecies["returnID"],
-                                rawSpecies["identifier"],
-                            )
-                        )
-                    else:
-                        speciesText.append(
-                            "{0}:{1}{2} {3} #{4} #{5}".format(
-                                tmp2,
-                                temp,
-                                str(tmp),
-                                0,
-                                rawSpecies["returnID"],
-                                rawSpecies["identifier"],
-                            )
-                        )
-            self.bngModel.add_species(spec_obj)
-            if rawSpecies["returnID"] == "e":
-                modifiedName = "__e__"
-            else:
-                modifiedName = rawSpecies["returnID"]
-
-            # user defined zero molecules are not included in the observable list
-            if str(tmp) != "0":
-                if (
-                    rawSpecies["compartment"] != ""
-                    and len(list(self.model.getListOfCompartments())) > 1
-                ):
-                    self.obs_names.append(modifiedName)
-                    # self.obs_map[rawSpecies["identifier"]] = "{0}_{1}".format(
-                    #     modifiedName, rawSpecies["compartment"]
-                    # )
-                    # observablesText.append(
-                    #     "Species {0}_{3} @{3}:{1} #{2}".format(
-                    #         modifiedName,
-                    #         tmp,
-                    #         rawSpecies["name"],
-                    #         rawSpecies["compartment"],
-                    #     )
-                    # )
-                    # observablesDict[modifiedName] = "{0}_{1}".format(
-                    #     modifiedName, rawSpecies["compartment"]
-                    # )
-                    self.obs_map[rawSpecies["identifier"]] = "{0}".format(
-                        modifiedName, rawSpecies["compartment"]
-                    )
-                    observablesText.append(
-                        "Species {0} @{3}:{1} #{2}".format(
-                            modifiedName,
-                            tmp,
-                            rawSpecies["name"],
-                            rawSpecies["compartment"],
-                        )
-                    )
-                    observablesDict[modifiedName] = "{0}".format(
-                        modifiedName, rawSpecies["compartment"]
-                    )
-                else:
-                    # ASS - Is this not supposed to be the version without compartments?
-                    self.obs_names.append(modifiedName)
-                    self.obs_map[rawSpecies["identifier"]] = modifiedName
-                    observablesText.append(
-                        "Species {0} {1} #{2}".format(
-                            modifiedName, tmp, rawSpecies["name"]
-                        )
-                    )
-                    observablesDict[modifiedName] = "{0}".format(modifiedName)
-                speciesTranslationDict[rawSpecies["identifier"]] = tmp
-            # add the observable in the model
-            obs_obj = self.bngModel.make_observable()
-            obs_obj.parse_raw(rawSpecies)
-            obs_obj.Id = modifiedName
-            self.bngModel.add_observable(obs_obj)
-
-        # Note: Since bngModel relies on the order in which molecules are added,
-        # we process rawSpeciesName by length here to ensure consistent and length-ordered addition.
         for species in sorted(rawSpeciesName, key=len):
             if (
                 get_size(translator[species]) == 1
@@ -3025,6 +2731,331 @@ class SBML2BNGL:
             observablesDict,
             annotationInfo,
         )
+
+    def _process_single_species(
+        self,
+        species,
+        parameters,
+        translator,
+        rawSpeciesName,
+        names,
+        speciesAnnotationInfo,
+        moleculesText,
+        annotationInfo,
+        unitDefinitions,
+        unitFlag,
+        speciesText,
+        concentrationUnits,
+        observablesText,
+        observablesDict,
+        speciesTranslationDict,
+    ):
+        # making molecule and seed species objs for
+        # the obj based model
+        molec_obj = self.bngModel.make_molecule()
+        spec_obj = self.bngModel.make_species()
+        #
+        rawSpecies = self.getRawSpecies(species, parameters)
+        # letting the objs parse the rawSpecies
+        molec_obj.parse_raw(rawSpecies)
+        spec_obj.parse_raw(rawSpecies)
+
+        if rawSpecies["compartment"] != "":
+            # ASS - First change for "noCompartments"
+            if self.noCompartment:
+                rawSpecies["compartment"] = ""
+                self.tags[rawSpecies["identifier"]] = ""
+            else:
+                self.tags[rawSpecies["identifier"]] = "@%s" % (
+                    rawSpecies["compartment"]
+                )
+        if rawSpecies["returnID"] in translator:
+            if rawSpecies["returnID"] in rawSpeciesName:
+                rawSpeciesName.remove(rawSpecies["returnID"])
+            if (
+                get_size(translator[rawSpecies["returnID"]]) == 1
+                and translator[rawSpecies["returnID"]].molecules[0].name not in names
+                and translator[rawSpecies["returnID"]].molecules[0].name
+                not in rawSpeciesName
+            ):
+                names.append(translator[rawSpecies["returnID"]].molecules[0].name)
+                annotationTemp = []
+                if rawSpecies["returnID"] in speciesAnnotationInfo:
+                    for annotation in speciesAnnotationInfo[rawSpecies["returnID"]]:
+                        parts = annotation.split("_")
+                        header = annotationHeader[parts[0]]
+                        qual = parts[1].lower() + "".join(
+                            [x.capitalize() for x in parts[2:]]
+                        )
+                        entry = ", ".join(
+                            [
+                                ":".join(x.split("/")[-2:])
+                                for x in speciesAnnotationInfo[rawSpecies["returnID"]][
+                                    annotation
+                                ]
+                            ]
+                        )
+                        annotationTemp.append(
+                            "#^ {0}:{1} {2}".format(header, qual, entry)
+                        )
+
+                # we'll add this to our model
+                self.bngModel.add_molecule(molec_obj)
+                mtext = translator[rawSpecies["returnID"]].str2()
+                moleculesText.append(mtext)
+
+                if rawSpecies["returnID"] in speciesAnnotationInfo:
+                    annotationInfo["moleculeTypes"][
+                        translator[rawSpecies["returnID"]].str2()
+                    ] = annotationTemp
+                    del speciesAnnotationInfo[rawSpecies["returnID"]]
+            # TODO: Not sure if there are more examples of this
+            # but glucose in 380 has both a normal species AND
+            # a boundary species separately
+            # elif rawSpecies['isBoundary']:
+            #     self.bngModel.add_molecule(molec_obj)
+        else:
+            # we'll add this to our model
+            self.bngModel.add_molecule(molec_obj)
+            mtext = rawSpecies["returnID"] + "()"
+            moleculesText.append(mtext)
+
+            if rawSpecies["returnID"] in speciesAnnotationInfo:
+                annotationInfo["moleculeTypes"][rawSpecies["returnID"]] = (
+                    speciesAnnotationInfo[rawSpecies["returnID"]]
+                )
+                del speciesAnnotationInfo[rawSpecies["returnID"]]
+
+        # if rawSpecies['identifier'] == 'glx' and len(translator) > 0:
+        temp = "$" if rawSpecies["isConstant"] != 0 else ""
+        tmp = (
+            translator[str(rawSpecies["returnID"])]
+            if rawSpecies["returnID"] in translator
+            else rawSpecies["returnID"] + "()"
+        )
+        # this determines the name to be written
+        if rawSpecies["initialConcentration"] > 0 or rawSpecies["initialAmount"] > 0:
+            tmp2 = temp
+            if rawSpecies["identifier"] in self.tags:
+                tmp2 = self.tags[rawSpecies["identifier"]]
+            if rawSpecies["initialAmount"] > 0.0:
+                # Removing the compartment section if we are not using it
+                if self.noCompartment:
+                    speciesText.append(
+                        "{1}{2} {3} #{4} #{5}".format(
+                            tmp2,
+                            temp,
+                            str(tmp),
+                            rawSpecies["initialAmount"],
+                            rawSpecies["returnID"],
+                            rawSpecies["identifier"],
+                        )
+                    )
+                else:
+                    speciesText.append(
+                        "{0}:{1}{2} {3} #{4} #{5}".format(
+                            tmp2,
+                            temp,
+                            str(tmp),
+                            rawSpecies["initialAmount"],
+                            rawSpecies["returnID"],
+                            rawSpecies["identifier"],
+                        )
+                    )
+            elif rawSpecies["initialConcentration"] > 0.0:
+                if self.isConversion:
+                    # convert to molecule counts
+                    if "substance" in unitDefinitions:
+                        newParameterStr = self.convertToStandardUnitString(
+                            rawSpecies["initialConcentration"],
+                            unitDefinitions["substance"],
+                        )
+                        newParameter = self.convertToStandardUnits(
+                            rawSpecies["initialConcentration"],
+                            unitDefinitions["substance"],
+                        )  # conversion to moles
+                    else:
+                        newParameter = rawSpecies["initialConcentration"]
+                        newParameterStr = str(rawSpecies["initialConcentration"])
+                    newParameter = (
+                        newParameter * 6.022e23
+                    )  # convertion to molecule counts
+                    # get compartment size
+                    if self.noCompartment:
+                        compartmentSize = 1.0
+                    else:
+                        compartmentSize = get_size(
+                            self.model.getCompartment(rawSpecies["compartment"])
+                        )
+                    newParameter = compartmentSize * newParameter
+                    # temp testing AS
+                    spec_obj.val = newParameter
+                    spec_obj.isConc = False
+                    # temp testing AS
+                    if unitFlag:
+                        if self.noCompartment:
+                            speciesText.append(
+                                "{1}{2} {3} # {4}mol/L * 6.022e23/mol *{7}L #{5} #{6}".format(
+                                    tmp2,
+                                    temp,
+                                    str(tmp),
+                                    newParameter,
+                                    newParameterStr,
+                                    rawSpecies["returnID"],
+                                    rawSpecies["identifier"],
+                                    compartmentSize,
+                                    concentrationUnits,
+                                )
+                            )
+                        else:
+                            speciesText.append(
+                                "{0}:{1}{2} {3} # {4}mol/L * 6.022e23/mol *{7}L #{5} #{6}".format(
+                                    tmp2,
+                                    temp,
+                                    str(tmp),
+                                    newParameter,
+                                    newParameterStr,
+                                    rawSpecies["returnID"],
+                                    rawSpecies["identifier"],
+                                    compartmentSize,
+                                    concentrationUnits,
+                                )
+                            )
+                        unitFlag = False
+                    else:
+                        if self.noCompartment:
+                            speciesText.append(
+                                "{1}{2} {3} #original {4}{8}  #{5} #{6}".format(
+                                    tmp2,
+                                    temp,
+                                    str(tmp),
+                                    newParameter,
+                                    rawSpecies["initialConcentration"],
+                                    rawSpecies["returnID"],
+                                    rawSpecies["identifier"],
+                                    compartmentSize,
+                                    concentrationUnits,
+                                )
+                            )
+                        else:
+                            speciesText.append(
+                                "{0}:{1}{2} {3} #original {4}{8}  #{5} #{6}".format(
+                                    tmp2,
+                                    temp,
+                                    str(tmp),
+                                    newParameter,
+                                    rawSpecies["initialConcentration"],
+                                    rawSpecies["returnID"],
+                                    rawSpecies["identifier"],
+                                    compartmentSize,
+                                    concentrationUnits,
+                                )
+                            )
+                else:
+                    if self.noCompartment:
+                        speciesText.append(
+                            "{1}{2} {3} #{4} #{5}".format(
+                                tmp2,
+                                temp,
+                                str(tmp),
+                                rawSpecies["initialConcentration"],
+                                rawSpecies["returnID"],
+                                rawSpecies["identifier"],
+                            )
+                        )
+                    else:
+                        speciesText.append(
+                            "{0}:{1}{2} {3} #{4} #{5}".format(
+                                tmp2,
+                                temp,
+                                str(tmp),
+                                rawSpecies["initialConcentration"],
+                                rawSpecies["returnID"],
+                                rawSpecies["identifier"],
+                            )
+                        )
+            elif rawSpecies["isConstant"]:
+                if self.noCompartment:
+                    speciesText.append(
+                        "{1}{2} {3} #{4} #{5}".format(
+                            tmp2,
+                            temp,
+                            str(tmp),
+                            0,
+                            rawSpecies["returnID"],
+                            rawSpecies["identifier"],
+                        )
+                    )
+                else:
+                    speciesText.append(
+                        "{0}:{1}{2} {3} #{4} #{5}".format(
+                            tmp2,
+                            temp,
+                            str(tmp),
+                            0,
+                            rawSpecies["returnID"],
+                            rawSpecies["identifier"],
+                        )
+                    )
+        self.bngModel.add_species(spec_obj)
+        if rawSpecies["returnID"] == "e":
+            modifiedName = "__e__"
+        else:
+            modifiedName = rawSpecies["returnID"]
+
+        # user defined zero molecules are not included in the observable list
+        if str(tmp) != "0":
+            if (
+                rawSpecies["compartment"] != ""
+                and len(list(self.model.getListOfCompartments())) > 1
+            ):
+                self.obs_names.append(modifiedName)
+                # self.obs_map[rawSpecies["identifier"]] = "{0}_{1}".format(
+                #     modifiedName, rawSpecies["compartment"]
+                # )
+                # observablesText.append(
+                #     "Species {0}_{3} @{3}:{1} #{2}".format(
+                #         modifiedName,
+                #         tmp,
+                #         rawSpecies["name"],
+                #         rawSpecies["compartment"],
+                #     )
+                # )
+                # observablesDict[modifiedName] = "{0}_{1}".format(
+                #     modifiedName, rawSpecies["compartment"]
+                # )
+                self.obs_map[rawSpecies["identifier"]] = "{0}".format(
+                    modifiedName, rawSpecies["compartment"]
+                )
+                observablesText.append(
+                    "Species {0} @{3}:{1} #{2}".format(
+                        modifiedName,
+                        tmp,
+                        rawSpecies["name"],
+                        rawSpecies["compartment"],
+                    )
+                )
+                observablesDict[modifiedName] = "{0}".format(
+                    modifiedName, rawSpecies["compartment"]
+                )
+            else:
+                # ASS - Is this not supposed to be the version without compartments?
+                self.obs_names.append(modifiedName)
+                self.obs_map[rawSpecies["identifier"]] = modifiedName
+                observablesText.append(
+                    "Species {0} {1} #{2}".format(modifiedName, tmp, rawSpecies["name"])
+                )
+                observablesDict[modifiedName] = "{0}".format(modifiedName)
+            speciesTranslationDict[rawSpecies["identifier"]] = tmp
+        # add the observable in the model
+        obs_obj = self.bngModel.make_observable()
+        obs_obj.parse_raw(rawSpecies)
+        obs_obj.Id = modifiedName
+        self.bngModel.add_observable(obs_obj)
+
+        # Note: Since bngModel relies on the order in which molecules are added,
+        # we process rawSpeciesName by length here to ensure consistent and length-ordered addition.
+        return unitFlag
 
     def getInitialAssignments(
         self, translator, param, zparam, molecules, initialConditions
