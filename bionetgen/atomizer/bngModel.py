@@ -329,10 +329,8 @@ class Function:
         oldrule = ""
         # if the rule contains any mathematical function we need to reformat
         while any(
-            [
-                re.search(r"(\W|^)({0})(\W|$)".format(x), rule) != None
-                for x in functionList
-            ]
+            re.search(r"(\W|^)({0})(\W|$)".format(x), rule) != None
+            for x in functionList
         ) and (oldrule != rule):
             oldrule = rule
             for x in functionList:
@@ -386,7 +384,7 @@ class Function:
                         Function._construct_from_list(argList[idx + 1], optionList)
                     )
                     idx += 1
-                elif argList[idx] in ["pow"]:
+                elif argList[idx] in {"pow"}:
                     index = rindex(argList[idx + 1], ",")
                     parsedString += (
                         "(("
@@ -404,7 +402,7 @@ class Function:
                         + "))"
                     )
                     idx += 1
-                elif argList[idx] in ["sqr", "sqrt"]:
+                elif argList[idx] in {"sqr", "sqrt"}:
                     tag = "1/" if argList[idx] == "sqrt" else ""
                     parsedString += (
                         "(("
@@ -465,7 +463,7 @@ class Function:
                             condition, result, result2
                         )
                     idx += 1
-                elif argList[idx] in ["and", "or"]:
+                elif argList[idx] in {"and", "or"}:
                     symbolDict = {"and": " && ", "or": " || "}
                     indexArray = [-1]
                     elementArray = []
@@ -549,10 +547,8 @@ class Function:
         finalString = ""
 
         if any(
-            [
-                re.search(r"(\W|^)({0})(\W|$)".format(x), fdef) != None
-                for x in ["ceil", "floor", "pow", "sqrt", "sqr", "root", "and", "or"]
-            ]
+            re.search(r"(\W|^)({0})(\W|$)".format(x), fdef) != None
+            for x in {"ceil", "floor", "pow", "sqrt", "sqr", "root", "and", "or"}
         ):
             argList = parens.parseString("(" + fdef + ")").asList()
             fdef = Function._construct_from_list(
