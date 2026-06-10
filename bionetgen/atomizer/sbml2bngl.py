@@ -1602,6 +1602,276 @@ class SBML2BNGL:
 
         return lfact, rfact
 
+    def _create_split_reaction_member(
+        self,
+        item,
+        is_reactant,
+        ctr,
+        rawRules,
+        finalRateStr,
+        isCompartments,
+        translator,
+        modifierComment,
+        reactions,
+        reactants,
+        products,
+    ):
+        i_item = item
+        stoi = i_item[1]
+
+        if is_reactant:
+            if int(stoi) != 1.0:
+                nRateStr = "-1*{}*({})".format(stoi, finalRateStr)
+            else:
+                nRateStr = "-1*({})".format(finalRateStr)
+        else:
+            if int(stoi) != 1.0:
+                nRateStr = "{}*{}".format(stoi, finalRateStr)
+            else:
+                nRateStr = "{}".format(finalRateStr)
+
+        n_item = (i_item[0], 1.0, i_item[2])
+
+        suffix = "reactants" if is_reactant else "products"
+        rxn_name = rawRules["reactionID"] + "_" + suffix + "_" + str(ctr)
+
+        rxn_str = writer.bnglReaction(
+            [],
+            [n_item],
+            nRateStr,
+            self.tags,
+            translator,
+            (
+                isCompartments
+                or (
+                    (len(reactants) == 0 or len(products) == 0)
+                    and self.functionFlag
+                )
+            ),
+            rawRules["reversible"],
+            reactionName=rxn_name,
+            comment=modifierComment,
+        )
+        reactions.append(rxn_str)
+
+        nrule_obj = self.bngModel.make_rule()
+        nrule_obj.parse_raw(rawRules)
+        nrule_obj.reversible = False
+        nrule_obj.Id = rxn_name
+        nrule_obj.rate_cts = (nRateStr,)
+        nrule_obj.reactants = []
+        nrule_obj.products = [n_item]
+        self.bngModel.add_rule(nrule_obj)
+
+    def _handle_split_reactions(
+        self,
+        rule_obj,
+        reactants,
+        products,
+        finalRateStr,
+        rawRules,
+        isCompartments,
+        translator,
+        modifierComment,
+        reactions,
+        functionName
+    ):
+        if "fRate" in rule_obj.rate_cts[0]:
+            if int(rule_obj.symm_factors[0]) != 1:
+                if rule_obj.rate_cts[0] not in self.bngModel.functions:
+                    logMess(
+                        "ERROR:SIM206",
+                        "Rate constant function needs adjusting but can't find function: {}"
+                        % functionName,
+                    )
+                defn = self.bngModel.functions[rule_obj.rate_cts[0]].definition
+                self.bngModel.functions[rule_obj.rate_cts[0]].definition = (
+                    f"({defn})/({rule_obj.symm_factors[0]})"
+                )
+        if rule_obj.reversible:
+            logMess(
+                "ERROR:SIM205",
+                "Splitting a reversible reaction, please check if correct, function: {}"
+                % functionName,
+            )
+        ctr = 0
+        for reactant in reactants:
+            self._create_split_reaction_member(
+                reactant, True, ctr, rawRules, finalRateStr, isCompartments,
+                translator, modifierComment, reactions, reactants, products
+            )
+            ctr += 1
+        ctr = 0
+        for product in products:
+            self._create_split_reaction_member(
+                product, False, ctr, rawRules, finalRateStr, isCompartments,
+                translator, modifierComment, reactions, reactants, products
+            )
+            ctr += 1
+
+    def _generate_rate_function(
+        self,
+        rule_obj,
+        index,
+        rawRules,
+        compartmentList,
+        parameterDict,
+        currParamConv,
+        translator,
+        functions,
+        functionTitle
+    ):
+        threshold = 0
+        if rule_obj.raw_num[0] > threshold or rule_obj.raw_rates[0] in translator:
+            functionName = "%s%d()" % (functionTitle, index)
+        else:
+            finalString = str(rule_obj.raw_rates[0])
+            for parameter in parameterDict:
+                finalString = re.sub(
+                    r"(\W|^)({0})(\W|$)".format(parameter),
+                    r"\1{0}\3".format("r{0}_{1}".format(index + 1, parameter)),
+                    finalString,
+                )
+            functionName = finalString
+
+        if self.functionFlag and "delay" in rule_obj.raw_rates[0]:
+            logMess(
+                "ERROR:SIM202",
+                "BNG cannot handle delay functions in function %s" % functionName,
+            )
+
+        fobj = self.bngModel.make_function()
+        fobj.Id = functionName
+        fobj.rule_ptr = rule_obj
+        fobj.compartmentList = compartmentList
+
+        finalRateStr = ""
+
+        if rule_obj.reversible:
+            if (
+                rule_obj.raw_num[0] > threshold
+                or rule_obj.raw_rates[0] in translator
+            ):
+                fobj.definition = rule_obj.raw_rates[0]
+                if self.functionFlag:
+                    if self.replaceLocParams:
+                        fstr = writer.bnglFunction(
+                            rule_obj.raw_rates[0],
+                            functionName,
+                            rawRules["reactants"],
+                            compartmentList,
+                            parameterDict,
+                            self.reactionDictionary,
+                        )
+                        functions.append(fstr)
+                        fobj.local_dict = parameterDict
+                        self.bngModel.add_function(fobj)
+                    else:
+                        fstr = writer.bnglFunction(
+                            rule_obj.raw_rates[0],
+                            functionName,
+                            rawRules["reactants"],
+                            compartmentList,
+                            currParamConv,
+                            self.reactionDictionary,
+                        )
+                        functions.append(fstr)
+                        fobj.local_dict = currParamConv
+                        self.bngModel.add_function(fobj)
+            if (
+                rawRules["numbers"][1] > threshold
+                or rule_obj.raw_rates[1] in translator
+            ):
+                functionName2 = "%s%dm()" % (functionTitle, index)
+                fobj_2 = self.bngModel.make_function()
+                fobj_2.Id = functionName2
+                fobj_2.rule_ptr = rule_obj
+                fobj_2.definition = rule_obj.raw_rates[1]
+                fobj_2.compartmentList = compartmentList
+                if self.functionFlag:
+                    if self.replaceLocParams:
+                        functions.append(
+                            writer.bnglFunction(
+                                rule_obj.raw_rates[1],
+                                functionName2,
+                                rule_obj.raw_prod,
+                                compartmentList,
+                                parameterDict,
+                                self.reactionDictionary,
+                            )
+                        )
+                        fobj_2.local_dict = parameterDict
+                        self.bngModel.add_function(fobj_2)
+                    else:
+                        functions.append(
+                            writer.bnglFunction(
+                                rule_obj.raw_rates[1],
+                                functionName2,
+                                rule_obj.raw_prod,
+                                compartmentList,
+                                currParamConv,
+                                self.reactionDictionary,
+                            )
+                        )
+                        fobj_2.local_dict = currParamConv
+                        self.bngModel.add_function(fobj_2)
+                self.reactionDictionary[rawRules["reactionID"]] = (
+                    "({0} - {1})".format(functionName, functionName2)
+                )
+                finalRateStr = "{0},{1}".format(functionName, functionName2)
+                rule_obj.rate_cts = (functionName, functionName2)
+            else:
+                finalString = str(rawRules["rates"][1])
+                for parameter in parameterDict:
+                    finalString = re.sub(
+                        r"(\W|^)({0})(\W|$)".format(parameter),
+                        r"\1{0}\3".format("r{0}_{1}".format(index + 1, parameter)),
+                        finalString,
+                    )
+                finalRateStr = "{0},{1}".format(functionName, finalString)
+                rule_obj.rate_cts = (functionName, finalString)
+
+        else:
+            if (
+                rawRules["numbers"][0] > threshold
+                or rawRules["rates"][0] in translator
+            ):
+                fobj.definition = rule_obj.raw_rates[0]
+                if self.functionFlag:
+                    if self.replaceLocParams:
+                        functions.append(
+                            writer.bnglFunction(
+                                rawRules["rates"][0],
+                                functionName,
+                                rawRules["reactants"],
+                                compartmentList,
+                                parameterDict,
+                                self.reactionDictionary,
+                            )
+                        )
+                        fobj.local_dict = parameterDict
+                        self.bngModel.add_function(fobj)
+                    else:
+                        functions.append(
+                            writer.bnglFunction(
+                                rawRules["rates"][0],
+                                functionName,
+                                rawRules["reactants"],
+                                compartmentList,
+                                currParamConv,
+                                self.reactionDictionary,
+                            )
+                        )
+                        fobj.local_dict = currParamConv
+                        self.bngModel.add_function(fobj)
+                self.reactionDictionary[rawRules["reactionID"]] = "{0}".format(
+                    functionName
+                )
+            finalRateStr = functionName
+            rule_obj.rate_cts = (functionName,)
+
+        return finalRateStr, functionName
+
     def getReactions(
         self,
         translator={},
@@ -1707,154 +1977,17 @@ class SBML2BNGL:
                     for x in self.model.getListOfCompartments()
                 ]
             )
-            threshold = 0
-
-            if rule_obj.raw_num[0] > threshold or rule_obj.raw_rates[0] in translator:
-                functionName = "%s%d()" % (functionTitle, index)
-            else:
-                # append reactionNumbers to parameterNames
-                finalString = str(rule_obj.raw_rates[0])
-                for parameter in parameterDict:
-                    finalString = re.sub(
-                        r"(\W|^)({0})(\W|$)".format(parameter),
-                        r"\1{0}\3".format("r{0}_{1}".format(index + 1, parameter)),
-                        finalString,
-                    )
-                functionName = finalString
-            if self.functionFlag and "delay" in rule_obj.raw_rates[0]:
-                logMess(
-                    "ERROR:SIM202",
-                    "BNG cannot handle delay functions in function %s" % functionName,
-                )
-            fobj = self.bngModel.make_function()
-            fobj.Id = functionName
-            fobj.rule_ptr = rule_obj
-            fobj.compartmentList = compartmentList
-            if rule_obj.reversible:
-                if (
-                    rule_obj.raw_num[0] > threshold
-                    or rule_obj.raw_rates[0] in translator
-                ):
-                    fobj.definition = rule_obj.raw_rates[0]
-                    if self.functionFlag:
-                        # local parameter replacement flag
-                        if self.replaceLocParams:
-                            fstr = writer.bnglFunction(
-                                rule_obj.raw_rates[0],
-                                functionName,
-                                rawRules["reactants"],
-                                compartmentList,
-                                parameterDict,
-                                self.reactionDictionary,
-                            )
-                            functions.append(fstr)
-                            fobj.local_dict = parameterDict
-                            self.bngModel.add_function(fobj)
-                        else:
-                            fstr = writer.bnglFunction(
-                                rule_obj.raw_rates[0],
-                                functionName,
-                                rawRules["reactants"],
-                                compartmentList,
-                                currParamConv,
-                                self.reactionDictionary,
-                            )
-                            functions.append(fstr)
-                            fobj.local_dict = currParamConv
-                            self.bngModel.add_function(fobj)
-                if (
-                    rawRules["numbers"][1] > threshold
-                    or rule_obj.raw_rates[1] in translator
-                ):
-                    functionName2 = "%s%dm()" % (functionTitle, index)
-                    fobj_2 = self.bngModel.make_function()
-                    fobj_2.Id = functionName2
-                    fobj_2.rule_ptr = rule_obj
-                    fobj_2.definition = rule_obj.raw_rates[1]
-                    fobj_2.compartmentList = compartmentList
-                    if self.functionFlag:
-                        # local parameter replacement flag
-                        if self.replaceLocParams:
-                            functions.append(
-                                writer.bnglFunction(
-                                    rule_obj.raw_rates[1],
-                                    functionName2,
-                                    rule_obj.raw_prod,
-                                    compartmentList,
-                                    parameterDict,
-                                    self.reactionDictionary,
-                                )
-                            )
-                            fobj_2.local_dict = parameterDict
-                            self.bngModel.add_function(fobj_2)
-                        else:
-                            functions.append(
-                                writer.bnglFunction(
-                                    rule_obj.raw_rates[1],
-                                    functionName2,
-                                    rule_obj.raw_prod,
-                                    compartmentList,
-                                    currParamConv,
-                                    self.reactionDictionary,
-                                )
-                            )
-                            fobj_2.local_dict = currParamConv
-                            self.bngModel.add_function(fobj_2)
-                    self.reactionDictionary[rawRules["reactionID"]] = (
-                        "({0} - {1})".format(functionName, functionName2)
-                    )
-                    finalRateStr = "{0},{1}".format(functionName, functionName2)
-                    rule_obj.rate_cts = (functionName, functionName2)
-                else:
-                    finalString = str(rawRules["rates"][1])
-                    for parameter in parameterDict:
-                        finalString = re.sub(
-                            r"(\W|^)({0})(\W|$)".format(parameter),
-                            r"\1{0}\3".format("r{0}_{1}".format(index + 1, parameter)),
-                            finalString,
-                        )
-                    finalRateStr = "{0},{1}".format(functionName, finalString)
-                    rule_obj.rate_cts = (functionName, finalString)
-
-            else:
-                if (
-                    rawRules["numbers"][0] > threshold
-                    or rawRules["rates"][0] in translator
-                ):
-                    fobj.definition = rule_obj.raw_rates[0]
-                    if self.functionFlag:
-                        # local parameter replacement flag
-                        if self.replaceLocParams:
-                            functions.append(
-                                writer.bnglFunction(
-                                    rawRules["rates"][0],
-                                    functionName,
-                                    rawRules["reactants"],
-                                    compartmentList,
-                                    parameterDict,
-                                    self.reactionDictionary,
-                                )
-                            )
-                            fobj.local_dict = parameterDict
-                            self.bngModel.add_function(fobj)
-                        else:
-                            functions.append(
-                                writer.bnglFunction(
-                                    rawRules["rates"][0],
-                                    functionName,
-                                    rawRules["reactants"],
-                                    compartmentList,
-                                    currParamConv,
-                                    self.reactionDictionary,
-                                )
-                            )
-                            fobj.local_dict = currParamConv
-                            self.bngModel.add_function(fobj)
-                    self.reactionDictionary[rawRules["reactionID"]] = "{0}".format(
-                        functionName
-                    )
-                finalRateStr = functionName
-                rule_obj.rate_cts = (functionName,)
+            finalRateStr, functionName = self._generate_rate_function(
+                rule_obj,
+                index,
+                rawRules,
+                compartmentList,
+                parameterDict,
+                currParamConv,
+                translator,
+                functions,
+                functionTitle
+            )
 
             reactants = [x for x in rawRules["reactants"]]
             products = [x for x in rawRules["products"]]
@@ -1866,113 +1999,18 @@ class SBML2BNGL:
 
             #### ADD RXN SEP HERE ####
             if rule_obj.raw_splt:
-                # if we are splitting, we want to remove symmetry factor
-                # from a fRate because it will spread over all reactants
-                # and products
-                if "fRate" in rule_obj.rate_cts[0]:
-                    # we have functional rate constant
-                    if int(rule_obj.symm_factors[0]) != 1:
-                        # we have a non-zero symmetry factor
-                        if rule_obj.rate_cts[0] not in self.bngModel.functions:
-                            logMess(
-                                "ERROR:SIM206",
-                                "Rate constant function needs adjusting but can't find function: {}"
-                                % functionName,
-                            )
-                        defn = self.bngModel.functions[rule_obj.rate_cts[0]].definition
-                        self.bngModel.functions[rule_obj.rate_cts[0]].definition = (
-                            f"({defn})/({rule_obj.symm_factors[0]})"
-                        )
-                if rule_obj.reversible:
-                    logMess(
-                        "ERROR:SIM205",
-                        "Splitting a reversible reaction, please check if correct, function: {}"
-                        % functionName,
-                    )
-                ctr = 0
-                # Now we write a single reaction for each
-                # member with modified reaction rate constants
-                # first RHS
-                for reactant in reactants:
-                    r = reactant
-                    stoi = r[1]
-                    if int(stoi) != 1.0:
-                        nRateStr = "-1*{}*({})".format(stoi, finalRateStr)
-                    else:
-                        nRateStr = "-1*({})".format(finalRateStr)
-                    nr = (r[0], 1.0, r[2])
-                    # adjust reaction name
-                    rxn_name = rawRules["reactionID"] + "_reactants_" + str(ctr)
-                    rxn_str = writer.bnglReaction(
-                        [],
-                        [nr],
-                        nRateStr,
-                        self.tags,
-                        translator,
-                        (
-                            isCompartments
-                            or (
-                                (len(reactants) == 0 or len(products) == 0)
-                                and self.functionFlag
-                            )
-                        ),
-                        rawRules["reversible"],
-                        reactionName=rxn_name,
-                        comment=modifierComment,
-                    )
-                    reactions.append(rxn_str)
-                    # same thing for the model
-                    nrule_obj = self.bngModel.make_rule()
-                    nrule_obj.parse_raw(rawRules)
-                    nrule_obj.reversible = False
-                    nrule_obj.Id = rxn_name
-                    nrule_obj.rate_cts = (nRateStr,)
-                    nrule_obj.reactants = []
-                    nrule_obj.products = [nr]
-                    self.bngModel.add_rule(nrule_obj)
-                    # tick the ctr
-                    ctr += 1
-                # then LHS
-                ctr = 0
-                for product in products:
-                    p = product
-                    stoi = p[1]
-                    if int(stoi) != 1.0:
-                        nRateStr = "{}*{}".format(stoi, finalRateStr)
-                    else:
-                        nRateStr = "{}".format(finalRateStr)
-                    np = (p[0], 1.0, p[2])
-                    # adjust reaction name
-                    rxn_name = rawRules["reactionID"] + "_products_" + str(ctr)
-                    rxn_str = writer.bnglReaction(
-                        [],
-                        [np],
-                        nRateStr,
-                        self.tags,
-                        translator,
-                        (
-                            isCompartments
-                            or (
-                                (len(reactants) == 0 or len(products) == 0)
-                                and self.functionFlag
-                            )
-                        ),
-                        rawRules["reversible"],
-                        reactionName=rxn_name,
-                        comment=modifierComment,
-                    )
-                    reactions.append(rxn_str)
-                    # same thing for the model
-                    nrule_obj = self.bngModel.make_rule()
-                    nrule_obj.parse_raw(rawRules)
-                    nrule_obj.reversible = False
-                    nrule_obj.Id = rxn_name
-                    nrule_obj.rate_cts = (nRateStr,)
-                    nrule_obj.reactants = []
-                    nrule_obj.products = [np]
-                    self.bngModel.add_rule(nrule_obj)
-                    # tick the ctr
-                    ctr += 1
+                self._handle_split_reactions(
+                    rule_obj,
+                    reactants,
+                    products,
+                    finalRateStr,
+                    rawRules,
+                    isCompartments,
+                    translator,
+                    modifierComment,
+                    reactions,
+                    functionName
+                )
             #### END RXN SEP ####
             else:
                 # add the rule
