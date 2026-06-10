@@ -1081,6 +1081,208 @@ class bngModel:
         self.species = {}
         self.observables = {}
 
+    def _adjust_rules_for_assignment(self, mkey):
+        for rule in self.molecule_mod_dict[mkey]:
+            if len(rule.reactants) == 0 and len(rule.products) == 1:
+                # this is a syn rule, should be only generating the species in question
+                if mkey == rule.products[0][0]:
+                    if rule.Id in self.rules:
+                        self.rules.pop(rule.Id)
+            else:
+                # this is a more complicated rule, we need to adjust the rates
+                for ir, react in enumerate(rule.reactants):
+                    if react[0] == mkey:
+                        # we have the molecule in reactants
+                        if len(rule.rate_cts) == 2:
+                            r = rule.reactants.pop(ir)
+                            fw, bk = rule.rate_cts
+                            rule.rate_cts = (
+                                "{0}*".format(mkey) + fw,
+                                bk,
+                            )
+                        else:
+                            r = rule.reactants.pop(ir)
+                            fw = rule.rate_cts[0]
+                            rule.rate_cts = ("{0}*".format(mkey) + fw,)
+                for ip, prod in enumerate(rule.products):
+                    if prod[0] == mkey:
+                        # molecule in products
+                        if len(rule.rate_cts) == 2:
+                            # adjust back rate
+                            p = rule.products.pop(ip)
+                            fw, bk = rule.rate_cts
+                            rule.rate_cts = (
+                                fw,
+                                "{0}*".format(mkey) + bk,
+                            )
+                        else:
+                            # we can just remove
+                            rule.products.pop(ip)
+                if len(rule.reactants) == 0 and len(rule.products):
+                    if rule.Id in self.rules:
+                        self.rules.pop(rule.Id)
+
+    def _process_rate_rule(self, arule):
+        # this is a rate rule, it'll be turned into a reaction
+        # first make the entry in molecules
+        if len(self.compartments) > 0 and not self.noCompartment:
+            comp = list(self.compartments.values())[0].Id
+        else:
+            comp = None
+        amolec = self.make_molecule()
+        amolec.Id = arule.Id
+        amolec.name = arule.Id
+        if comp is not None:
+            amolec.compartment = self.compartments[comp]
+        self.add_molecule(amolec)
+        # turn the rate cts into a function
+        nfunc = self.make_function()
+        nfunc.Id = "rrate_{}".format(amolec.Id)
+        # we need to divide by volume if we have a compartment
+        if comp is not None:
+            # we also need to check that the definition actually has
+            # species that reside in a volume
+            nfunc.definition = arule.rates[0]
+            corrected = False
+            if not nfunc.volume_adjusted:
+                for mid in self.molecule_ids:
+                    if mid in arule.rates[0]:
+                        vol = self.compartments[comp].size
+                        nfunc.definition = nfunc.definition.replace(
+                            mid, f"({mid})/{vol}"
+                        )
+                        corrected = True
+            nfunc.volume_adjusted = corrected
+        else:
+            nfunc.definition = arule.rates[0]
+        self.add_function(nfunc)
+        # now make the rule
+        if comp is not None:
+            prod_id = "{}()@{}".format(arule.Id, comp)
+        else:
+            prod_id = "{}".format(arule.Id)
+        nrule = self.make_rule()
+        nrule.Id = "rrule_{}".format(arule.Id)
+        nrule.products.append([prod_id, 1.0, prod_id])
+        nrule.rate_cts = (nfunc.Id,)
+        self.add_rule(nrule)
+        # add observable
+        nobs = self.make_observable()
+        nobs.Id = arule.Id
+        nobs.name = "rrule_{}".format(arule.Id)
+        nobs.compartment = comp
+        self.add_observable(nobs)
+        # remove from parameters if exists
+        # otherwise we can get namespace clashes
+        # with observables
+        if arule.Id in self.parameters:
+            seed_val = self.parameters.pop(arule.Id).val
+        else:
+            seed_val = 0
+        # add species
+        nspec = self.make_species()
+        nspec.Id = arule.Id
+        nspec.name = arule.Id
+        nspec.val = seed_val
+        nspec.isConstant = False
+        if comp is not None:
+            nspec.compartment = comp
+        self.add_species(nspec)
+        self.used_in_rrule.append(nspec.Id)
+
+    def _process_assignment_rule(self, arule):
+        # rule is an assignment rule
+        # let's first check parameters
+        if arule.Id in self.parameters:
+            # if not self.parameters[arule.Id].cts:
+            # this means that one of our parameters
+            # is _not_ a constant and is modified by
+            # an assignment rule
+            # Note: Not sure if anything else
+            # can happen here. Confirm via SBML spec
+            self.parameters.pop(arule.Id)
+            # Note: check if an initial value to
+            # a non-constant parameter is relevant?
+            # I think the only thing we need is to
+            # turn this into a function
+            fobj = self.make_function()
+            fobj.Id = arule.Id
+            fobj.definition = arule.rates[0]
+            self.add_function(fobj)
+        elif arule.Id in self.molecule_ids:
+            # we are an assignment rule that modifies
+            # a molecule, this will be converted to
+            # a function if true
+            mname = self.molecule_ids[arule.Id]
+            molec = self.molecules[mname]
+            # We can't have the molecule be _constant_
+            # at which point it's supposed to be encoded
+            # with "$" in BNGL
+            if not molec.isConstant:
+                # we can have it be boundary or not, doesn't
+                # matter since we know an assignment rule is
+                # modifying it and it will take over reactions
+
+                # this should be guaranteed
+                molec = self.molecules.pop(mname)
+
+                # we should also remove this from species,
+                # observables, and parameters to prevent
+                # namespace collisions.
+                if getattr(molec, "name", None) in self.observables:
+                    obs = self.observables.pop(molec.name)
+                    self.obs_map[obs.get_obs_name()] = molec.Id + "()"
+                elif molec.Id in self.observables:
+                    obs = self.observables.pop(molec.Id)
+                    self.obs_map[obs.get_obs_name()] = molec.Id + "()"
+                if getattr(molec, "name", None) in self.species:
+                    spec = self.species.pop(molec.name)
+                elif molec.Id in self.species:
+                    spec = self.species.pop(molec.Id)
+                if getattr(molec, "name", None) in self.parameters:
+                    param = self.parameters.pop(molec.name)
+                elif molec.Id in self.parameters:
+                    param = self.parameters.pop(molec.Id)
+
+                # this will be a function
+                fobj = self.make_function()
+                fobj.Id = molec.Id + "()"
+                fobj.definition = arule.rates[0]
+                if len(arule.compartmentList) > 0:
+                    fobj.local_dict = {}
+                    for comp in arule.compartmentList:
+                        cname, cval = comp
+                        fobj.local_dict[cname] = cval
+                self.add_function(fobj)
+                # we want to make sure arules are the only
+                # things that change species concentrations
+                if (
+                    mname in self.molecule_mod_dict
+                    or molec.Id in self.molecule_mod_dict
+                ):
+                    if mname in self.molecule_mod_dict:
+                        mkey = mname
+                    else:
+                        mkey = molec.Id
+                    self._adjust_rules_for_assignment(mkey)
+
+        else:
+            # this is just a simple assignment (hopefully)
+            # just convert to a function
+            fobj = self.make_function()
+            fobj.Id = arule.Id + "()"
+            fobj.definition = arule.rates[0]
+            self.add_function(fobj)
+            # we also might need to remove these from
+            # observables
+            if arule.Id in self.observables:
+                obs = self.observables.pop(arule.Id)
+                self.obs_map[obs.get_obs_name()] = fobj.Id
+            # we also have to remove this from rules
+            if arule.Id in self.molecule_mod_dict:
+                mkey = arule.Id
+                self._adjust_rules_for_assignment(mkey)
+
     def consolidate_arules(self):
         """
         this figures out what to do with particular
@@ -1094,244 +1296,10 @@ class bngModel:
         c) rate rules get turned into syn reactions
         """
         for arule in self.arules.values():
-            # first one is to check parameters
             if arule.isRate:
-                # this is a rate rule, it'll be turned into a reaction
-                # first make the entry in molecules
-                if len(self.compartments) > 0 and not self.noCompartment:
-                    comp = list(self.compartments.values())[0].Id
-                else:
-                    comp = None
-                amolec = self.make_molecule()
-                amolec.Id = arule.Id
-                amolec.name = arule.Id
-                if comp is not None:
-                    amolec.compartment = self.compartments[comp]
-                self.add_molecule(amolec)
-                # turn the rate cts into a function
-                nfunc = self.make_function()
-                nfunc.Id = "rrate_{}".format(amolec.Id)
-                # we need to divide by volume if we have a compartment
-                if comp is not None:
-                    # we also need to check that the definition actually has
-                    # species that reside in a volume
-                    nfunc.definition = arule.rates[0]
-                    corrected = False
-                    if not nfunc.volume_adjusted:
-                        for mid in self.molecule_ids:
-                            if mid in arule.rates[0]:
-                                vol = self.compartments[comp].size
-                                nfunc.definition = nfunc.definition.replace(
-                                    mid, f"({mid})/{vol}"
-                                )
-                                corrected = True
-                    nfunc.volume_adjusted = corrected
-                else:
-                    nfunc.definition = arule.rates[0]
-                self.add_function(nfunc)
-                # now make the rule
-                if comp is not None:
-                    prod_id = "{}()@{}".format(arule.Id, comp)
-                else:
-                    prod_id = "{}".format(arule.Id)
-                nrule = self.make_rule()
-                nrule.Id = "rrule_{}".format(arule.Id)
-                nrule.products.append([prod_id, 1.0, prod_id])
-                nrule.rate_cts = (nfunc.Id,)
-                self.add_rule(nrule)
-                # add observable
-                nobs = self.make_observable()
-                nobs.Id = arule.Id
-                nobs.name = "rrule_{}".format(arule.Id)
-                nobs.compartment = comp
-                self.add_observable(nobs)
-                # remove from parameters if exists
-                # otherwise we can get namespace clashes
-                # with observables
-                if arule.Id in self.parameters:
-                    seed_val = self.parameters.pop(arule.Id).val
-                else:
-                    seed_val = 0
-                # add species
-                nspec = self.make_species()
-                nspec.Id = arule.Id
-                nspec.name = arule.Id
-                nspec.val = seed_val
-                nspec.isConstant = False
-                if comp is not None:
-                    nspec.compartment = comp
-                self.add_species(nspec)
-                self.used_in_rrule.append(nspec.Id)
+                self._process_rate_rule(arule)
             elif arule.isAssignment:
-                # rule is an assignment rule
-                # let's first check parameters
-                if arule.Id in self.parameters:
-                    # if not self.parameters[arule.Id].cts:
-                    # this means that one of our parameters
-                    # is _not_ a constant and is modified by
-                    # an assignment rule
-                    # Note: Not sure if anything else
-                    # can happen here. Confirm via SBML spec
-                    self.parameters.pop(arule.Id)
-                    # Note: check if an initial value to
-                    # a non-constant parameter is relevant?
-                    # I think the only thing we need is to
-                    # turn this into a function
-                    fobj = self.make_function()
-                    fobj.Id = arule.Id
-                    fobj.definition = arule.rates[0]
-                    self.add_function(fobj)
-                elif arule.Id in self.molecule_ids:
-                    # we are an assignment rule that modifies
-                    # a molecule, this will be converted to
-                    # a function if true
-                    mname = self.molecule_ids[arule.Id]
-                    molec = self.molecules[mname]
-                    # We can't have the molecule be _constant_
-                    # at which point it's supposed to be encoded
-                    # with "$" in BNGL
-                    if not molec.isConstant:
-                        # we can have it be boundary or not, doesn't
-                        # matter since we know an assignment rule is
-                        # modifying it and it will take over reactions
-
-                        # this should be guaranteed
-                        molec = self.molecules.pop(mname)
-
-                        # we should also remove this from species,
-                        # observables, and parameters to prevent
-                        # namespace collisions.
-                        if getattr(molec, "name", None) in self.observables:
-                            obs = self.observables.pop(molec.name)
-                            self.obs_map[obs.get_obs_name()] = molec.Id + "()"
-                        elif molec.Id in self.observables:
-                            obs = self.observables.pop(molec.Id)
-                            self.obs_map[obs.get_obs_name()] = molec.Id + "()"
-                        if getattr(molec, "name", None) in self.species:
-                            spec = self.species.pop(molec.name)
-                        elif molec.Id in self.species:
-                            spec = self.species.pop(molec.Id)
-                        if getattr(molec, "name", None) in self.parameters:
-                            param = self.parameters.pop(molec.name)
-                        elif molec.Id in self.parameters:
-                            param = self.parameters.pop(molec.Id)
-
-                        # this will be a function
-                        fobj = self.make_function()
-                        fobj.Id = molec.Id + "()"
-                        fobj.definition = arule.rates[0]
-                        if len(arule.compartmentList) > 0:
-                            fobj.local_dict = {}
-                            for comp in arule.compartmentList:
-                                cname, cval = comp
-                                fobj.local_dict[cname] = cval
-                        self.add_function(fobj)
-                        # we want to make sure arules are the only
-                        # things that change species concentrations
-                        if (
-                            mname in self.molecule_mod_dict
-                            or molec.Id in self.molecule_mod_dict
-                        ):
-                            if mname in self.molecule_mod_dict:
-                                mkey = mname
-                            else:
-                                mkey = molec.Id
-                            for rule in self.molecule_mod_dict[mkey]:
-                                if len(rule.reactants) == 0 and len(rule.products) == 1:
-                                    # this is a syn rule, should be only generating the species in question
-                                    if mkey == rule.products[0][0]:
-                                        if rule.Id in self.rules:
-                                            self.rules.pop(rule.Id)
-                                else:
-                                    # this is a more complicated rule, we need to adjust the rates
-                                    for ir, react in enumerate(rule.reactants):
-                                        if react[0] == mkey:
-                                            # we have the molecule in reactants
-                                            if len(rule.rate_cts) == 2:
-                                                r = rule.reactants.pop(ir)
-                                                fw, bk = rule.rate_cts
-                                                rule.rate_cts = (
-                                                    "{0}*".format(mkey) + fw,
-                                                    bk,
-                                                )
-                                            else:
-                                                r = rule.reactants.pop(ir)
-                                                fw = rule.rate_cts[0]
-                                                rule.rate_cts = (
-                                                    "{0}*".format(mkey) + fw,
-                                                )
-                                    for ip, prod in enumerate(rule.products):
-                                        if prod[0] == mkey:
-                                            # molecule in products
-                                            if len(rule.rate_cts) == 2:
-                                                # adjust back rate
-                                                p = rule.products.pop(ip)
-                                                fw, bk = rule.rate_cts
-                                                rule.rate_cts = (
-                                                    fw,
-                                                    "{0}*".format(mkey) + bk,
-                                                )
-                                            else:
-                                                # we can just remove
-                                                rule.products.pop(ip)
-                                    if len(rule.reactants) == 0 and len(rule.products):
-                                        if rule.Id in self.rules:
-                                            self.rules.pop(rule.Id)
-
-                else:
-                    # this is just a simple assignment (hopefully)
-                    # just convert to a function
-                    fobj = self.make_function()
-                    fobj.Id = arule.Id + "()"
-                    fobj.definition = arule.rates[0]
-                    self.add_function(fobj)
-                    # we also might need to remove these from
-                    # observables
-                    if arule.Id in self.observables:
-                        obs = self.observables.pop(arule.Id)
-                        self.obs_map[obs.get_obs_name()] = fobj.Id
-                    # we also have to remove this from rules
-                    if arule.Id in self.molecule_mod_dict:
-                        mkey = arule.Id
-                        for rule in self.molecule_mod_dict[mkey]:
-                            if len(rule.reactants) == 0 and len(rule.products) == 1:
-                                # this is a syn rule, should be only generating the species in question
-                                if mkey == rule.products[0][0]:
-                                    if rule.Id in self.rules:
-                                        self.rules.pop(rule.Id)
-                            else:
-                                # this is a more complicated rule, we need to adjust the rates
-                                for ir, react in enumerate(rule.reactants):
-                                    if react[0] == mkey:
-                                        # we have the molecule in reactants
-                                        if len(rule.rate_cts) == 2:
-                                            r = rule.reactants.pop(ir)
-                                            fw, bk = rule.rate_cts
-                                            rule.rate_cts = (
-                                                "{0}*".format(mkey) + fw,
-                                                bk,
-                                            )
-                                        else:
-                                            r = rule.reactants.pop(ir)
-                                            fw = rule.rate_cts[0]
-                                            rule.rate_cts = ("{0}*".format(mkey) + fw,)
-                                for ip, prod in enumerate(rule.products):
-                                    if prod[0] == mkey:
-                                        # molecule in products
-                                        if len(rule.rate_cts) == 2:
-                                            # adjust back rate
-                                            p = rule.products.pop(ip)
-                                            fw, bk = rule.rate_cts
-                                            rule.rate_cts = (
-                                                fw,
-                                                "{0}*".format(mkey) + bk,
-                                            )
-                                        else:
-                                            # we can just remove
-                                            rule.products.pop(ip)
-                                if len(rule.reactants) == 0 and len(rule.products):
-                                    if rule.Id in self.rules:
-                                        self.rules.pop(rule.Id)
+                self._process_assignment_rule(arule)
             else:
                 # not sure what this means, read SBML spec more
                 pass
