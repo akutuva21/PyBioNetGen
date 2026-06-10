@@ -67,6 +67,7 @@ def test_librrsimulator_simulate():
     assert res == "simulation_results"
     mock_simulator.simulate.assert_called_once_with("arg1", kwarg1="val1")
 
+
 def test_librrsimulator_explicit_import_error():
     sim = libRRSimulator()
     real_import = __import__

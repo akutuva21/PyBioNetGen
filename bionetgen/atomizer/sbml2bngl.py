@@ -1643,10 +1643,7 @@ class SBML2BNGL:
             translator,
             (
                 isCompartments
-                or (
-                    (len(reactants) == 0 or len(products) == 0)
-                    and self.functionFlag
-                )
+                or ((len(reactants) == 0 or len(products) == 0) and self.functionFlag)
             ),
             rawRules["reversible"],
             reactionName=rxn_name,
@@ -1674,7 +1671,7 @@ class SBML2BNGL:
         translator,
         modifierComment,
         reactions,
-        functionName
+        functionName,
     ):
         if "fRate" in rule_obj.rate_cts[0]:
             if int(rule_obj.symm_factors[0]) != 1:
@@ -1697,15 +1694,33 @@ class SBML2BNGL:
         ctr = 0
         for reactant in reactants:
             self._create_split_reaction_member(
-                reactant, True, ctr, rawRules, finalRateStr, isCompartments,
-                translator, modifierComment, reactions, reactants, products
+                reactant,
+                True,
+                ctr,
+                rawRules,
+                finalRateStr,
+                isCompartments,
+                translator,
+                modifierComment,
+                reactions,
+                reactants,
+                products,
             )
             ctr += 1
         ctr = 0
         for product in products:
             self._create_split_reaction_member(
-                product, False, ctr, rawRules, finalRateStr, isCompartments,
-                translator, modifierComment, reactions, reactants, products
+                product,
+                False,
+                ctr,
+                rawRules,
+                finalRateStr,
+                isCompartments,
+                translator,
+                modifierComment,
+                reactions,
+                reactants,
+                products,
             )
             ctr += 1
 
@@ -1719,7 +1734,7 @@ class SBML2BNGL:
         currParamConv,
         translator,
         functions,
-        functionTitle
+        functionTitle,
     ):
         threshold = 0
         if rule_obj.raw_num[0] > threshold or rule_obj.raw_rates[0] in translator:
@@ -1748,10 +1763,7 @@ class SBML2BNGL:
         finalRateStr = ""
 
         if rule_obj.reversible:
-            if (
-                rule_obj.raw_num[0] > threshold
-                or rule_obj.raw_rates[0] in translator
-            ):
+            if rule_obj.raw_num[0] > threshold or rule_obj.raw_rates[0] in translator:
                 fobj.definition = rule_obj.raw_rates[0]
                 if self.functionFlag:
                     if self.replaceLocParams:
@@ -1815,8 +1827,8 @@ class SBML2BNGL:
                         )
                         fobj_2.local_dict = currParamConv
                         self.bngModel.add_function(fobj_2)
-                self.reactionDictionary[rawRules["reactionID"]] = (
-                    "({0} - {1})".format(functionName, functionName2)
+                self.reactionDictionary[rawRules["reactionID"]] = "({0} - {1})".format(
+                    functionName, functionName2
                 )
                 finalRateStr = "{0},{1}".format(functionName, functionName2)
                 rule_obj.rate_cts = (functionName, functionName2)
@@ -1832,10 +1844,7 @@ class SBML2BNGL:
                 rule_obj.rate_cts = (functionName, finalString)
 
         else:
-            if (
-                rawRules["numbers"][0] > threshold
-                or rawRules["rates"][0] in translator
-            ):
+            if rawRules["numbers"][0] > threshold or rawRules["rates"][0] in translator:
                 fobj.definition = rule_obj.raw_rates[0]
                 if self.functionFlag:
                     if self.replaceLocParams:
@@ -1986,7 +1995,7 @@ class SBML2BNGL:
                 currParamConv,
                 translator,
                 functions,
-                functionTitle
+                functionTitle,
             )
 
             reactants = [x for x in rawRules["reactants"]]
@@ -2009,7 +2018,7 @@ class SBML2BNGL:
                     translator,
                     modifierComment,
                     reactions,
-                    functionName
+                    functionName,
                 )
             #### END RXN SEP ####
             else:

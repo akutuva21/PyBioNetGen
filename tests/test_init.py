@@ -2,6 +2,7 @@ import importlib.metadata
 import pytest
 from unittest.mock import patch
 
+
 def test_init_version_fallback():
     import bionetgen
 
