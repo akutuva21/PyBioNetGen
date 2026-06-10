@@ -17,7 +17,6 @@ ctr = 0
 while ctr < 100:
     ctr += 1
     try:
-        time.sleep(5)
         rls_resp = urllib.request.urlopen(rls_url)
         print(f"success: {ctr}")
         break

@@ -41,9 +41,9 @@ class TestGetVersionJson(unittest.TestCase):
         # `except urllib.error.HTTPError: pass`
         # However, the actual codebase contains:
         # `except urllib.error.HTTPError: time.sleep(5); print(f"failed: {ctr}")`
-        # Therefore, sleep is called 2 times per error iteration, and 1 time on success.
-        # For 2 errors and 1 success, sleep is called (2*2)+1 = 5 times.
-        self.assertEqual(mock_sleep.call_count, 5)
+        # Therefore, sleep is called 1 time per error iteration.
+        # For 2 errors and 1 success, sleep is called (2*1)+0 = 2 times.
+        self.assertEqual(mock_sleep.call_count, 2)
 
         mock_open_file.assert_called_with("ghapi.json", "w")
 
@@ -78,7 +78,7 @@ class TestGetVersionJson(unittest.TestCase):
             self.assertEqual(cm.exception.code, 1)
 
         self.assertEqual(mock_urlopen.call_count, 100)
-        self.assertEqual(mock_sleep.call_count, 200)
+        self.assertEqual(mock_sleep.call_count, 100)
 
         stdout_val = mock_stdout.getvalue()
         self.assertIn("failed: 100", stdout_val)
