@@ -212,7 +212,7 @@ def bnglFunction(
                         constructFromList(argList[idx + 1], optionList)
                     )
                     idx += 1
-                elif argList[idx] in {"pow"}:
+                elif argList[idx] == "pow":
                     index = rindex(argList[idx + 1], ",")
                     parsedString += (
                         "(("
