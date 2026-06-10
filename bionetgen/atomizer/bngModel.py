@@ -308,38 +308,13 @@ class Function:
     def __repr__(self):
         return str(self)
 
-    @staticmethod
-    def _comp_parse(match):
-        translator = {
-            "gt": ">",
-            "lt": "<",
-            "and": "&&",
-            "or": "||",
-            "geq": ">=",
-            "leq": "<=",
-            "eq": "==",
-            "neq": "!=",
-        }
-        exponent = match.group(3)
-        operator = translator[match.group(1)]
-        return "{0} {1} {2}".format(match.group(2), operator, exponent)
+    def adjust_func_def(self, fdef):
+        # if this function is related to a rule, we'll pull all the
+        # relevant info
+        # SBML function resolution
+        if self.sbmlFunctions is not None:
+            fdef = self.resolve_sbmlfuncs(fdef)
 
-    @staticmethod
-    def _change_to_bngl(functionList, rule, function):
-        oldrule = ""
-        # if the rule contains any mathematical function we need to reformat
-        while any(
-            re.search(r"(\W|^)({0})(\W|$)".format(x), rule) != None
-            for x in functionList
-        ) and (oldrule != rule):
-            oldrule = rule
-            for x in functionList:
-                rule = re.sub(r"({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
-            if rule == oldrule:
-                logMess("ERROR:TRS001", "Malformed pow or root function %s" % rule)
-        return rule
-
-    def _resolve_rule_ptr(self, fdef):
         if self.rule_ptr is not None:
             # pull info
             # react/prod/comp
@@ -347,9 +322,9 @@ class Function:
             products = self.rule_ptr.products
 
             for reactant in reactants:
-                fdef = re.sub(r"(\W|^)({0}\s*\*)".format(reactant[0]), r"\g<1>", fdef)
+                fdef = re.sub(r"(\W|^)({0}\s*\*)".format(reactant[0]), r"\1", fdef)
                 fdef = re.sub(
-                    r"(\W|^)(\*\s*{0}(\s|$))".format(reactant[0]), r"\g<1>", fdef
+                    r"(\W|^)(\*\s*{0}(\s|$))".format(reactant[0]), r"\1", fdef
                 )
 
             if self.rule_ptr.model is not None and hasattr(
@@ -359,174 +334,205 @@ class Function:
                     if comp_id in fdef:
                         fdef = re.sub(
                             r"(\W|^)({0})(\W|$)".format(comp_id),
-                            r"\g<1> {0} \g<3>".format(str(comp.size)),
+                            r"\1 {0} \3".format(str(comp.size)),
                             fdef,
                         )
-        return fdef
 
-    @staticmethod
-    def _construct_from_list(argList, optionList):
-        parsedString = ""
-        idx = 0
-        while idx < len(argList):
-            if type(argList[idx]) is list:
-                parsedString += (
-                    "(" + Function._construct_from_list(argList[idx], optionList) + ")"
-                )
-            elif argList[idx] in optionList:
-                if argList[idx] == "ceil":
-                    parsedString += "min(rint(({0}) + 0.5),rint(({0}) + 1))".format(
-                        Function._construct_from_list(argList[idx + 1], optionList)
-                    )
-                    idx += 1
-                elif argList[idx] == "floor":
-                    parsedString += "min(rint(({0}) -0.5),rint(({0}) + 0.5))".format(
-                        Function._construct_from_list(argList[idx + 1], optionList)
-                    )
-                    idx += 1
-                elif argList[idx] in {"pow"}:
-                    index = rindex(argList[idx + 1], ",")
+        # This is stuff ported from bnglWriter
+        # deals with comparison operators
+        def compParse(match):
+            translator = {
+                "gt": ">",
+                "lt": "<",
+                "and": "&&",
+                "or": "||",
+                "geq": ">=",
+                "leq": "<=",
+                "eq": "==",
+                "neq": "!=",
+            }
+            exponent = match.group(3)
+            operator = translator[match.group(1)]
+            return "{0} {1} {2}".format(match.group(2), operator, exponent)
+
+        def changeToBNGL(functionList, rule, function):
+            oldrule = ""
+            # if the rule contains any mathematical function we need to reformat
+            while any(
+                re.search(r"(\W|^)({0})(\W|$)".format(x), rule) != None
+                for x in functionList
+            ) and (oldrule != rule):
+                oldrule = rule
+                for x in functionList:
+                    rule = re.sub(r"({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
+                if rule == oldrule:
+                    logMess("ERROR:TRS001", "Malformed pow or root function %s" % rule)
+            return rule
+
+        def constructFromList(argList, optionList):
+            parsedString = ""
+            idx = 0
+            translator = {
+                "gt": ">",
+                "lt": "<",
+                "and": "&&",
+                "or": "||",
+                "geq": ">=",
+                "leq": "<=",
+                "eq": "==",
+            }
+            while idx < len(argList):
+                if type(argList[idx]) is list:
                     parsedString += (
-                        "(("
-                        + Function._construct_from_list(
-                            argList[idx + 1][0:index], optionList
-                        )
-                        + ")"
+                        "(" + constructFromList(argList[idx], optionList) + ")"
                     )
-                    parsedString += (
-                        " ^ "
-                        + "("
-                        + Function._construct_from_list(
-                            argList[idx + 1][index + 1 :], optionList
+                elif argList[idx] in optionList:
+                    if argList[idx] == "ceil":
+                        parsedString += "min(rint(({0}) + 0.5),rint(({0}) + 1))".format(
+                            constructFromList(argList[idx + 1], optionList)
                         )
-                        + "))"
-                    )
-                    idx += 1
-                elif argList[idx] in {"sqr", "sqrt"}:
-                    tag = "1/" if argList[idx] == "sqrt" else ""
-                    parsedString += (
-                        "(("
-                        + Function._construct_from_list(argList[idx + 1], optionList)
-                        + ") ^ ({0}2))".format(tag)
-                    )
-                    idx += 1
-                elif argList[idx] == "root":
-                    index = rindex(argList[idx + 1], ",")
-                    tmp = (
-                        "1/("
-                        + Function._construct_from_list(
-                            argList[idx + 1][0:index], optionList
-                        )
-                        + "))"
-                    )
-                    parsedString += (
-                        "(("
-                        + Function._construct_from_list(
-                            argList[idx + 1][index + 1 :], optionList
-                        )
-                        + ") ^ "
-                        + tmp
-                    )
-                    idx += 1
-                elif argList[idx] == "piecewise":
-                    index1 = argList[idx + 1].index(",")
-                    try:
-                        index2 = argList[idx + 1][index1 + 1 :].index(",") + index1 + 1
-                        try:
-                            index3 = (
-                                argList[idx + 1][index2 + 1 :].index(",") + index2 + 1
-                            )
-                        except ValueError:
-                            index3 = -1
-                    except ValueError:
-                        parsedString += Function._construct_from_list(
-                            [argList[idx + 1][index1 + 1 :]], optionList
-                        )
-                        index2 = -1
-                    if index2 != -1:
-                        condition = Function._construct_from_list(
-                            [argList[idx + 1][index1 + 1 : index2]], optionList
-                        )
-                        result = Function._construct_from_list(
-                            [argList[idx + 1][:index1]], optionList
-                        )
-                        if index3 == -1:
-                            result2 = Function._construct_from_list(
-                                [argList[idx + 1][index2 + 1 :]], optionList
-                            )
-                        else:
-                            result2 = Function._construct_from_list(
-                                ["piecewise", argList[idx + 1][index2 + 1 :]],
-                                optionList,
-                            )
-                        parsedString += "if({0},{1},{2})".format(
-                            condition, result, result2
-                        )
-                    idx += 1
-                elif argList[idx] in {"and", "or"}:
-                    symbolDict = {"and": " && ", "or": " || "}
-                    indexArray = [-1]
-                    elementArray = []
-                    for idx2, element in enumerate(argList[idx + 1]):
-                        if element == ",":
-                            indexArray.append(idx2)
-                    indexArray.append(len(argList[idx + 1]))
-                    tmpStr = argList[idx + 1]
-                    for idx2, _ in enumerate(indexArray[0:-1]):
-                        elementArray.append(
-                            Function._construct_from_list(
-                                tmpStr[indexArray[idx2] + 1 : indexArray[idx2 + 1]],
-                                optionList,
-                            )
-                        )
-                    parsedString += symbolDict[argList[idx]].join(elementArray)
-                    idx += 1
-                elif argList[idx] == "lambda":
-                    tmp = "("
-                    try:
-                        upperLimit = rindex(argList[idx + 1], ",")
-                    except ValueError:
                         idx += 1
-                        continue
-                    parsedParams = []
-                    for x in argList[idx + 1][0:upperLimit]:
-                        if x == ",":
-                            tmp += ", "
-                        else:
-                            tmp += "param_" + x
-                            parsedParams.append(x)
-                    tmp2 = ") = " + Function._construct_from_list(
-                        argList[idx + 1][rindex(argList[idx + 1], ",") + 1 :],
-                        optionList,
-                    )
-                    for x in parsedParams:
-                        while re.search(r"(\W|^)({0})(\W|$)".format(x), tmp2) != None:
-                            tmp2 = re.sub(
-                                r"(\W|^)({0})(\W|$)".format(x),
-                                r"\g<1>param_\g<2> \g<3>",
-                                tmp2,
+                    elif argList[idx] == "floor":
+                        parsedString += (
+                            "min(rint(({0}) -0.5),rint(({0}) + 0.5))".format(
+                                constructFromList(argList[idx + 1], optionList)
                             )
-                    idx += 1
-                    parsedString += tmp + tmp2
-            else:
-                parsedString += argList[idx]
-            idx += 1
-        return parsedString
-
-    def adjust_func_def(self, fdef):
-        # if this function is related to a rule, we'll pull all the
-        # relevant info
-        # SBML function resolution
-        if self.sbmlFunctions is not None:
-            fdef = self.resolve_sbmlfuncs(fdef)
-
-        fdef = self._resolve_rule_ptr(fdef)
+                        )
+                        idx += 1
+                    elif argList[idx] in {"pow"}:
+                        index = rindex(argList[idx + 1], ",")
+                        parsedString += (
+                            "(("
+                            + constructFromList(argList[idx + 1][0:index], optionList)
+                            + ")"
+                        )
+                        parsedString += (
+                            " ^ "
+                            + "("
+                            + constructFromList(
+                                argList[idx + 1][index + 1 :], optionList
+                            )
+                            + "))"
+                        )
+                        idx += 1
+                    elif argList[idx] in {"sqr", "sqrt"}:
+                        tag = "1/" if argList[idx] == "sqrt" else ""
+                        parsedString += (
+                            "(("
+                            + constructFromList(argList[idx + 1], optionList)
+                            + ") ^ ({0}2))".format(tag)
+                        )
+                        idx += 1
+                    elif argList[idx] == "root":
+                        index = rindex(argList[idx + 1], ",")
+                        tmp = (
+                            "1/("
+                            + constructFromList(argList[idx + 1][0:index], optionList)
+                            + "))"
+                        )
+                        parsedString += (
+                            "(("
+                            + constructFromList(
+                                argList[idx + 1][index + 1 :], optionList
+                            )
+                            + ") ^ "
+                            + tmp
+                        )
+                        idx += 1
+                    elif argList[idx] == "piecewise":
+                        index1 = argList[idx + 1].index(",")
+                        try:
+                            index2 = (
+                                argList[idx + 1][index1 + 1 :].index(",") + index1 + 1
+                            )
+                            try:
+                                index3 = (
+                                    argList[idx + 1][index2 + 1 :].index(",")
+                                    + index2
+                                    + 1
+                                )
+                            except ValueError:
+                                index3 = -1
+                        except ValueError:
+                            parsedString += constructFromList(
+                                [argList[idx + 1][index1 + 1 :]], optionList
+                            )
+                            index2 = -1
+                        if index2 != -1:
+                            condition = constructFromList(
+                                [argList[idx + 1][index1 + 1 : index2]], optionList
+                            )
+                            result = constructFromList(
+                                [argList[idx + 1][:index1]], optionList
+                            )
+                            if index3 == -1:
+                                result2 = constructFromList(
+                                    [argList[idx + 1][index2 + 1 :]], optionList
+                                )
+                            else:
+                                result2 = constructFromList(
+                                    ["piecewise", argList[idx + 1][index2 + 1 :]],
+                                    optionList,
+                                )
+                            parsedString += "if({0},{1},{2})".format(
+                                condition, result, result2
+                            )
+                        idx += 1
+                    elif argList[idx] in {"and", "or"}:
+                        symbolDict = {"and": " && ", "or": " || "}
+                        indexArray = [-1]
+                        elementArray = []
+                        for idx2, element in enumerate(argList[idx + 1]):
+                            if element == ",":
+                                indexArray.append(idx2)
+                        indexArray.append(len(argList[idx + 1]))
+                        tmpStr = argList[idx + 1]
+                        for idx2, _ in enumerate(indexArray[0:-1]):
+                            elementArray.append(
+                                constructFromList(
+                                    tmpStr[indexArray[idx2] + 1 : indexArray[idx2 + 1]],
+                                    optionList,
+                                )
+                            )
+                        parsedString += symbolDict[argList[idx]].join(elementArray)
+                        idx += 1
+                    elif argList[idx] == "lambda":
+                        tmp = "("
+                        try:
+                            upperLimit = rindex(argList[idx + 1], ",")
+                        except ValueError:
+                            idx += 1
+                            continue
+                        parsedParams = []
+                        for x in argList[idx + 1][0:upperLimit]:
+                            if x == ",":
+                                tmp += ", "
+                            else:
+                                tmp += "param_" + x
+                                parsedParams.append(x)
+                        tmp2 = ") = " + constructFromList(
+                            argList[idx + 1][rindex(argList[idx + 1], ",") + 1 :],
+                            optionList,
+                        )
+                        for x in parsedParams:
+                            while (
+                                re.search(r"(\W|^)({0})(\W|$)".format(x), tmp2) != None
+                            ):
+                                tmp2 = re.sub(
+                                    r"(\W|^)({0})(\W|$)".format(x),
+                                    r"\1param_\2 \3",
+                                    tmp2,
+                                )
+                        idx += 1
+                        parsedString += tmp + tmp2
+                else:
+                    parsedString += argList[idx]
+                idx += 1
+            return parsedString
 
         # This is where the changes happen
         # comparison operators sorted here
-        fdef = Function._change_to_bngl(
-            ["gt", "lt", "leq", "geq", "eq"], fdef, Function._comp_parse
-        )
+        fdef = changeToBNGL(["gt", "lt", "leq", "geq", "eq"], fdef, compParse)
 
         contentRule = (
             pyparsing.Word(pyparsing.alphanums + "_")
@@ -551,19 +557,17 @@ class Function:
             for x in {"ceil", "floor", "pow", "sqrt", "sqr", "root", "and", "or"}
         ):
             argList = parens.parseString("(" + fdef + ")").asList()
-            fdef = Function._construct_from_list(
+            fdef = constructFromList(
                 argList[0], ["floor", "ceil", "pow", "sqrt", "sqr", "root", "and", "or"]
             )
 
         while "piecewise" in fdef:
             argList = parens.parseString("(" + fdef + ")").asList()
-            fdef = Function._construct_from_list(argList[0], ["piecewise"])
+            fdef = constructFromList(argList[0], ["piecewise"])
         # remove references to lambda functions
         if "lambda(" in fdef:
             lambdaList = parens.parseString("(" + fdef + ")")
-            functionBody = Function._construct_from_list(
-                lambdaList[0].asList(), ["lambda"]
-            )
+            functionBody = constructFromList(lambdaList[0].asList(), ["lambda"])
             fdef = "{0}{1}".format(self.Id, functionBody)
 
         # change references to time for time()
@@ -970,51 +974,53 @@ class bngModel:
         self.used_in_rrule = []
 
     def __str__(self):
-        txt = [self.metaString, "begin model\n"]
+        txt = self.metaString
+
+        txt += "begin model\n"
 
         if len(self.parameters.values()) > 0:
-            txt.append("begin parameters\n")
+            txt += "begin parameters\n"
             for param in self.parameters.values():
-                txt.append("  " + str(param) + "\n")
-            txt.append("end parameters\n")
+                txt += "  " + str(param) + "\n"
+            txt += "end parameters\n"
 
         if not self.noCompartment:
-            txt.append("begin compartments\n")
+            txt += "begin compartments\n"
             for comp in self.compartments.values():
-                txt.append("  " + str(comp) + "\n")
-            txt.append("end compartments\n")
+                txt += "  " + str(comp) + "\n"
+            txt += "end compartments\n"
 
         if len(self.molecules.values()) > 0:
-            txt.append("begin molecule types\n")
+            txt += "begin molecule types\n"
             for molec in self.molecules.values():
                 molec.translator = self.translator
-                txt.append("  " + str(molec) + "\n")
-            txt.append("end molecule types\n")
+                txt += "  " + str(molec) + "\n"
+            txt += "end molecule types\n"
 
         if len(self.species.values()) > 0:
-            txt.append("begin seed species\n")
+            txt += "begin seed species\n"
             for spec in self.species.values():
                 spec.translator = self.translator
                 if spec.Id in self.used_in_rrule:
                     spec.isBoundary = False
                 if isinstance(spec.val, str):
                     spec.noCompartment = self.noCompartment
-                    txt.append(f"{str(spec)}\n")
+                    txt += f"{str(spec)}\n"
                 elif spec.val > 0 or spec.isConstant or spec.isBoundary:
                     spec.noCompartment = self.noCompartment
-                    txt.append(f"{str(spec)}\n")
-            txt.append("end seed species\n")
+                    txt += f"{str(spec)}\n"
+            txt += "end seed species\n"
 
         if len(self.observables.values()) > 0:
-            txt.append("begin observables\n")
+            txt += "begin observables\n"
             for obs in self.observables.values():
                 obs.translator = self.translator
                 obs.noCompartment = self.noCompartment
-                txt.append("  " + str(obs) + "\n")
-            txt.append("end observables\n")
+                txt += "  " + str(obs) + "\n"
+            txt += "end observables\n"
 
         if len(self.functions) > 0:
-            txt.append("begin functions\n")
+            txt += "begin functions\n"
             if self.function_order is None:
                 for func in self.functions.values():
                     func.sbmlFunctions = self.sbmlFunctions
@@ -1034,7 +1040,7 @@ class bngModel:
                     if func.Id in self.parsed_func:
                         func.sympy_parsed = self.parsed_func[func.Id]
                     func.all_syms = self.all_syms
-                    txt.append("  " + str(func) + "\n")
+                    txt += "  " + str(func) + "\n"
             else:
                 for fkey in self.function_order:
                     func = self.functions[fkey]
@@ -1055,22 +1061,22 @@ class bngModel:
                     if func.Id in self.parsed_func:
                         func.sympy_parsed = self.parsed_func[fkey]
                     func.all_syms = self.all_syms
-                    txt.append("  " + str(func) + "\n")
-            txt.append("end functions\n")
+                    txt += "  " + str(func) + "\n"
+            txt += "end functions\n"
 
         if len(self.rules.values()) > 0:
-            txt.append("begin reaction rules\n")
+            txt += "begin reaction rules\n"
             for rule in self.rules.values():
                 rule.translator = self.translator
                 rule.tags = self.tags
                 rule.noCompartment = self.noCompartment
                 rule.model = self
-                txt.append("  " + str(rule) + "\n")
-            txt.append("end reaction rules\n")
+                txt += "  " + str(rule) + "\n"
+            txt += "end reaction rules\n"
 
-        txt.append("end model")
+        txt += "end model"
 
-        return "".join(txt)
+        return txt
 
     def __repr__(self):
         return str((self.parameters, self.molecules))
