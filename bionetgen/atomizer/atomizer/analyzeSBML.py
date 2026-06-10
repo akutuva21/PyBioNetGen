@@ -1765,14 +1765,14 @@ class SBMLAnalyzer:
         for idx, element in enumerate(ruleDefinitionMatrix):
             nonZero = np.nonzero(element)[0]
             if len(nonZero) == 0:
-                results.append("None")
+                results.append(["None"])
             # todo: need to do something if it matches more than one reaction
             else:
                 classifications = [
                     reactionDefinition["reactionsNames"][x] for x in nonZero
                 ]
                 # FIXME: we should be able to support more than one transformation
-                results.append(classifications[0])
+                results.append(classifications)
         return results
 
     def setConfigurationFile(self, configurationFile):
@@ -2352,7 +2352,7 @@ class SBMLAnalyzer:
             translationKeys,
         )
         for element in trueBindingReactions:
-            reactionClassification[element] = "Binding"
+            reactionClassification[element] = ["Binding"]
         listOfEquivalences = []
         for element in equivalenceTranslator:
             listOfEquivalences.extend(equivalenceTranslator[element])
