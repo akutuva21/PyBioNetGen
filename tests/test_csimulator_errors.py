@@ -54,7 +54,13 @@ def test_csimulator_init_rmtree_exception(tmp_path):
     model_path = tmp_path / "test.bngl"
     model_path.write_text("begin model\nend model\n")
 
-    fake_model = bionetgen.bngmodel(str(model_path))
+    try:
+        fake_model = bionetgen.bngmodel(str(model_path))
+    except bionetgen.core.exc.BNGModelError:
+        import pytest
+
+        pytest.skip("BNG2.pl is missing, skipping CSimulator test")
+
     fake_compiler = mock.MagicMock()
     mock_conf_get = mock.MagicMock(side_effect=lambda key: None)
 
