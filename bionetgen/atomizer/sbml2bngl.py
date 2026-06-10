@@ -666,6 +666,27 @@ class SBML2BNGL:
                 replace_dict[func] = sympy_func
         return form, replace_dict
 
+    def _return_split_rxn(self, sym, replace_dict):
+        rate = str(sym).replace("**", "^")
+        for it in replace_dict.items():
+            rate = rate.replace(it[1], it[0])
+        return rate, "", 1, 1, False, True
+
+    def _process_rate_expression(self, expr, elements, bols):
+        symbols = sympy.symbols(bols) if bols else ()
+        removed = []
+        for ibol, bol in enumerate(symbols):
+            stoi = int(elements[ibol][1])
+            expr = expr / (bol**stoi)
+            removed += [str(bol) for _ in range(stoi)]
+
+        n, d = expr.as_numer_denom()
+        for ibol, bol in enumerate(symbols):
+            if bol in d.atoms():
+                d = d.subs(bol, 0)
+
+        return expr, removed, d == 0
+
     def analyzeReactionRate(
         self,
         math,
@@ -741,10 +762,7 @@ class SBML2BNGL:
 
         # If we are splitting, we don't need to do much
         if split_rxn:
-            rate = str(sym).replace("**", "^")
-            for it in replace_dict.items():
-                rate = rate.replace(it[1], it[0])
-            return rate, "", 1, 1, False, split_rxn
+            return self._return_split_rxn(sym, replace_dict)
 
         # expand and take the terms out as left and right
         exp = sympy.expand(sym)
@@ -767,11 +785,7 @@ class SBML2BNGL:
             is_mass_action = False
 
         if not is_mass_action:
-            split_rxn = True
-            rate = str(sym).replace("**", "^")
-            for it in replace_dict.items():
-                rate = rate.replace(it[1], it[0])
-            return rate, "", 1, 1, False, split_rxn
+            return self._return_split_rxn(sym, replace_dict)
         ###### SPLIT RXN #######
         if exp.is_Add:
             react_expr, prod_expr = self.gather_terms(exp)
@@ -803,89 +817,28 @@ class SBML2BNGL:
                 # Also get and parse the symbols
                 react_bols = [x[0] for x in react]
                 prod_bols = [x[0] for x in prod]
-                react_symbols = sympy.symbols(react_bols)
-                prod_symbols = sympy.symbols(prod_bols)
-                # Now we can manipulate it
-                # react_expr = fwd_expr
-                removedL = []
-                for ibol, bol in enumerate(react_symbols):
-                    stoi = int(react[ibol][1])
-                    # Now we can remove it
-                    react_expr = react_expr / (bol**stoi)
-                    removedL += [str(bol) for i in range(stoi)]
 
-                # Check if we can get 0 in the denominator
-                add_eps_react = False
-                n, d = react_expr.as_numer_denom()
-                for ibol, bol in enumerate(react_symbols):
-                    if bol in d.atoms():
-                        d = d.subs(bol, 0)
-                if d == 0:
-                    # logMess('WARNING:RATE001', 'Denominator of rate constant in reaction {} can be 0. We are adding a small value epsilon to avoid discontinuities which can cause small errors in the model.'.format(reactionID))
-                    add_eps_react = True
-                    # let's instead split the rxn
-                    split_rxn = True
-                    rate = str(sym).replace("**", "^")
-                    for it in replace_dict.items():
-                        rate = rate.replace(it[1], it[0])
-                    return rate, "", 1, 1, False, split_rxn
+                # Process forward rate
+                react_expr, removedL, split_needed_L = self._process_rate_expression(
+                    react_expr, react, react_bols
+                )
+                if split_needed_L:
+                    return self._return_split_rxn(sym, replace_dict)
 
-                # prod_expr = back_expr
-                removedR = []
-                for ibol, bol in enumerate(prod_symbols):
-                    stoi = int(prod[ibol][1])
-                    # Now we can remove it
-                    prod_expr = prod_expr / (bol**stoi)
-                    removedR += [str(bol) for i in range(stoi)]
+                # Process backward rate
+                prod_expr, removedR, split_needed_R = self._process_rate_expression(
+                    prod_expr, prod, prod_bols
+                )
+                if split_needed_R:
+                    return self._return_split_rxn(sym, replace_dict)
 
-                # Check if we can get 0 in the denominator
-                add_eps_prod = False
-                n, d = prod_expr.as_numer_denom()
-                for ibol, bol in enumerate(prod_symbols):
-                    if bol in d.atoms():
-                        d = d.subs(bol, 0)
-                if d == 0:
-                    # logMess('WARNING:RATE001', 'Denominator of rate constant in reaction {} can be 0. We are adding a small value epsilon to avoid discontinuities which can cause small errors in the model.'.format(reactionID))
-                    # let's instead split the rxn
-                    split_rxn = True
-                    rate = str(sym).replace("**", "^")
-                    add_eps_prod = True
-                    for it in replace_dict.items():
-                        rate = rate.replace(it[1], it[0])
-                    return rate, "", 1, 1, False, split_rxn
-
-                # prod_expr = prod_expr * -1
                 # Reproducing current behavior + expansion
                 re_proc = react_expr.nsimplify().evalf().simplify()
                 pe_proc = prod_expr.nsimplify().evalf().simplify()
 
-                # Adding epsilon if we have to
-                if add_eps_react:
-                    # n,d = re_proc.as_numer_denom()
-                    # rateL = "(" + str(n) + ")/(" + str(d) + "+__epsilon__)"
-                    # self.write_epsilon = True
-                    # add_eps_prod = True
-                    # instead splitting the reaction
-                    split_rxn = True
-                    rate = str(sym).replace("**", "^")
-                    for it in replace_dict.items():
-                        rate = rate.replace(it[1], it[0])
-                    return rate, "", 1, 1, False, split_rxn
-                else:
-                    rateL = str(re_proc)
-                if add_eps_prod:
-                    # n,d = pe_proc.as_numer_denom()
-                    # rateR = "(" + str(n) + ")/(" + str(d) + "+__epsilon__)"
-                    # self.write_epsilon = True
-                    # add_eps_prod = True
-                    # instead splitting the reaction
-                    split_rxn = True
-                    rate = str(sym).replace("**", "^")
-                    for it in replace_dict.items():
-                        rate = rate.replace(it[1], it[0])
-                    return rate, "", 1, 1, False, split_rxn
-                else:
-                    rateR = str(pe_proc)
+                rateL = str(re_proc)
+                rateR = str(pe_proc)
+
                 nl = self.calculate_factor(react, prod, rateL, removedL)
                 nr = self.calculate_factor(prod, react, rateR, removedR)
 
@@ -911,44 +864,17 @@ class SBML2BNGL:
                 )
             # Also get and parse the symbols
             react_bols = [x[0] for x in react]
-            react_symbols = sympy.symbols(react_bols)
-            # Now we can manipulate it
-            react_expr = exp
-            removedL = []
-            for ibol, bol in enumerate(react_symbols):
-                stoi = int(react[ibol][1])
-                # Now we can remove it
-                react_expr = react_expr / (bol**stoi)
-                removedL += [str(bol) for i in range(stoi)]
 
-            # Check if we can get the denominator to be 0
-            add_eps_react = False
-            n, d = react_expr.as_numer_denom()
-            for ibol, bol in enumerate(react_symbols):
-                if bol in d.atoms():
-                    d = d.subs(bol, 0)
-            if d == 0:
-                # logMess('WARNING:RATE001', 'Denominator of rate constant in reaction {} can be 0. We are adding a small value epsilon to avoid discontinuities which can cause small errors in the model.'.format(reactionID))
-                # add_eps_react = True
-                # instead splitting the reaction
-                split_rxn = True
-                rate = str(sym).replace("**", "^")
-                for it in replace_dict.items():
-                    rate = rate.replace(it[1], it[0])
-                return rate, "", 1, 1, False, split_rxn
+            # Process forward rate
+            react_expr, removedL, split_needed_L = self._process_rate_expression(
+                exp, react, react_bols
+            )
+            if split_needed_L:
+                return self._return_split_rxn(sym, replace_dict)
+
             re_proc = react_expr.nsimplify().evalf().simplify()
-            if add_eps_react:
-                # n,d = re_proc.as_numer_denom()
-                # rateL = "(" + str(n) + ")/(" + str(d) + "+__epsilon__)"
-                # self.write_epsilon = True
-                # instead splitting the reaction
-                split_rxn = True
-                rate = str(sym).replace("**", "^")
-                for it in replace_dict.items():
-                    rate = rate.replace(it[1], it[0])
-                return rate, "", 1, 1, False, split_rxn
-            else:
-                rateL = str(re_proc)
+            rateL = str(re_proc)
+
             nl = self.calculate_factor(react, prod, rateL, removedL)
 
             prod_bols = [x[0] for x in prod]
