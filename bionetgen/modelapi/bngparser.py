@@ -392,7 +392,7 @@ class BNGParser:
         will use XML parser objects to generate each block to attach to the
         model object
         """
-        xml_dict = xmltodict.parse(xml_str)
+        xml_dict = xmltodict.parse(xml_str, disable_entities=True)
         # catch non-BNG XML files
         if "sbml" not in xml_dict:
             if "model" not in xml_dict["sbml"]:
