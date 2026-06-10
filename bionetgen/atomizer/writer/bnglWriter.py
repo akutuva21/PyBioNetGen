@@ -392,7 +392,7 @@ def bnglFunction(
     ):
         argList = parens.parseString("(" + rule + ")").asList()
         rule = constructFromList(
-            argList[0], ["floor", "ceil", "pow", "sqrt", "sqr", "root", "and", "or"]
+            argList[0], {"floor", "ceil", "pow", "sqrt", "sqr", "root", "and", "or"}
         )
 
     while "piecewise" in rule:
