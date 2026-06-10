@@ -155,7 +155,7 @@ def bnglFunction(
             exponent = "(1/%s)" % match.group(3)
         else:
             exponent = match.group(3)
-        if match.group(1) in ["root", "pow"]:
+        if match.group(1) in {"root", "pow"}:
             operator = "^"
         return "({0}){1}({2})".format(match.group(2), operator, exponent)
 
@@ -212,7 +212,7 @@ def bnglFunction(
                         constructFromList(argList[idx + 1], optionList)
                     )
                     idx += 1
-                elif argList[idx] in ["pow"]:
+                elif argList[idx] in {"pow"}:
                     index = rindex(argList[idx + 1], ",")
                     parsedString += (
                         "(("
@@ -226,7 +226,7 @@ def bnglFunction(
                         + "))"
                     )
                     idx += 1
-                elif argList[idx] in ["sqr", "sqrt"]:
+                elif argList[idx] in {"sqr", "sqrt"}:
                     tag = "1/" if argList[idx] == "sqrt" else ""
                     parsedString += (
                         "(("
@@ -283,7 +283,7 @@ def bnglFunction(
                             condition, result, result2
                         )
                     idx += 1
-                elif argList[idx] in ["and", "or"]:
+                elif argList[idx] in {"and", "or"}:
                     symbolDict = {"and": " && ", "or": " || "}
                     indexArray = [-1]
                     elementArray = []
@@ -387,7 +387,7 @@ def bnglFunction(
     if any(
         [
             re.search(r"(\W|^)({0})(\W|$)".format(x), rule) != None
-            for x in ["ceil", "floor", "pow", "sqrt", "sqr", "root", "and", "or"]
+            for x in {"ceil", "floor", "pow", "sqrt", "sqr", "root", "and", "or"}
         ]
     ):
         argList = parens.parseString("(" + rule + ")").asList()
