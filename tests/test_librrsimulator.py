@@ -66,3 +66,18 @@ def test_librrsimulator_simulate():
 
     assert res == "simulation_results"
     mock_simulator.simulate.assert_called_once_with("arg1", kwarg1="val1")
+
+def test_librrsimulator_explicit_import_error():
+    sim = libRRSimulator()
+    real_import = __import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "roadrunner":
+            raise ImportError("Explicit ImportError for roadrunner")
+        return real_import(name, *args, **kwargs)
+
+    with unittest.mock.patch("builtins.__import__", side_effect=mock_import):
+        with unittest.mock.patch("builtins.print") as mock_print:
+            sim.simulator = "dummy_model"
+            mock_print.assert_called_once_with("libroadrunner is not installed!")
+            assert not hasattr(sim, "_simulator")
