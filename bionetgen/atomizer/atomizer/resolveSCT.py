@@ -632,7 +632,7 @@ class SCTSolver:
                 tentativeFlag=False,
             )
         )
-        tiebreaker = __import__("copy").deepcopy(completeAnnotationDependencyGraph)
+        tiebreaker = deepcopy(completeAnnotationDependencyGraph)
         for key in completePartialMatches:
             if key not in tiebreaker:
                 tiebreaker[key] = completePartialMatches[key]
