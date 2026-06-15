@@ -41,3 +41,28 @@ def test_modelobj_line_label_setter():
     # Test TypeError (setting a non-string/non-integer like a list)
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
+
+
+def test_modelobj_print_line():
+    class DummyModelObj(ModelObj):
+        def gen_string(self) -> str:
+            return "dummy_object"
+
+    obj = DummyModelObj()
+
+    # Test base case with no line label and no comment
+    assert obj.print_line() == "  dummy_object"
+
+    # Test with line label only
+    obj.line_label = 1
+    assert obj.print_line() == "  1 dummy_object"
+
+    # Test with comment only
+    obj._line_label = None # reset line_label
+    obj.comment = "# test comment"
+    assert obj.print_line() == "  dummy_object # test comment"
+
+    # Test with both line label and comment
+    obj.line_label = 1
+    obj.comment = "# test comment"
+    assert obj.print_line() == "  1 dummy_object # test comment"
