@@ -2372,9 +2372,7 @@ class SBML2BNGL:
             reversible=reversible,
         )
         artificialReactions.append(rxn_str)
-        if (
-            rawArule[0] in zparams
-        ):
+        if rawArule[0] in zparams:
             removeParameters.append("{0} 0".format(rawArule[0]))
             zRules.remove(rawArule[0])
         else:
