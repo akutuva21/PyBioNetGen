@@ -1,5 +1,5 @@
 import pytest
-from bionetgen.modelapi.structs import ModelObj
+from bionetgen.modelapi.structs import ModelObj, EnergyPattern
 
 
 def test_modelobj_setitem():
@@ -41,3 +41,7 @@ def test_modelobj_line_label_setter():
     # Test TypeError (setting a non-string/non-integer like a list)
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
+
+def test_energypattern_gen_string():
+    ep = EnergyPattern(name="ep1", pattern="A()", expression="k1")
+    assert ep.gen_string() == "A() k1"
