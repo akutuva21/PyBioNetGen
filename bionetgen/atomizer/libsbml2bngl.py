@@ -1438,10 +1438,10 @@ def analyzeHelper(
             onames = parts[2]
             useful = False
             # split by commas to get individual patterns
-            patterns = onames.split(',')
+            patterns = onames.split(",")
             for pattern in patterns:
                 # each pattern can be a complex separated by dots
-                mols = pattern.split('.')
+                mols = pattern.split(".")
                 for mol in mols:
                     if "@" in mol:
                         if len(mol.split(":")) > 1:
