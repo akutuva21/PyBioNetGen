@@ -1227,10 +1227,7 @@ def transformMolecules(
             database.artificialEquivalenceTranslator[element]
         )
 
-    # special handling for double modifications like double phosporylation
-    # FIXME: this needs to be done in a cleaner way(e.g. getting them
-    # from a file instead of being hardcoded)
-    doubleModifications = {"Double-Phosporylation": "Phosporylation"}
+    doubleModifications = namingConventions.get("doubleModifications", {})
 
     for element in doubleModifications:
         if doubleModifications[element] not in database.eequivalenceTranslator:
