@@ -780,36 +780,14 @@ class RuleBlockXML(XMLObj):
             )
 
     def get_operations(self, xml):
-        # TODO: create working operations class
         ops = []
-        # List all possible operations & arguments
-        ops_types = [
-            "AddBond",
-            "DeleteBond",
-            "ChangeCompartment",
-            "StateChange",
-            "Add",
-            "Delete",
-        ]
-        op_args = [
-            "@site1",
-            "@site2",
-            "@id",
-            "@source",
-            "@destination",
-            "@flipOrientation",
-            "@moveConnected",
-            "@site",
-            "@finalState",
-            "@DeleteMolecules",
-        ]
-        # Loop through valid arguments and record
-        for op_type in ops_types:
+        for op_type in Operation.valid_ops:
             if op_type in xml:
-                for op_arg in op_args:
-                    if op_arg in xml:
-                        n_op = xml[op_arg]
-                        ops.append(n_op)
+                op_list = xml[op_type]
+                if not isinstance(op_list, list):
+                    op_list = [op_list]
+                for op_dict in op_list:
+                    ops.append(Operation(op_type, op_dict))
         return ops
 
     def get_rule_mod(self, xml):
@@ -1033,7 +1011,6 @@ class PopulationMapBlockXML(XMLObj):
         )
 
 
-# TODO: Store operations!
 class Operation:
     """
     To be used for parsing & storing ListOfOperations information.
@@ -1048,3 +1025,18 @@ class Operation:
         "Add",
         "Delete",
     ]
+
+    def __init__(self, op_type, op_dict):
+        self.op_type = op_type
+        self.args = {}
+        if op_type in self.valid_ops:
+            for key, val in op_dict.items():
+                if key.startswith("@"):
+                    self.args[key[1:]] = val
+
+    def __str__(self):
+        args_str = ", ".join(f'{k}="{v}"' for k, v in self.args.items())
+        return f"{self.op_type}({args_str})"
+
+    def __repr__(self):
+        return self.__str__()
