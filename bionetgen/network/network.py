@@ -65,7 +65,7 @@ class Network:
         if not self.active_blocks:
             raise BNGModelError(
                 self.network_name,
-                message="No active blocks. Please ensure model is in proper BNGL or BNG-XML format"
+                message="No active blocks. Please ensure model is in proper BNGL or BNG-XML format",
             )
 
     def __str__(self):
