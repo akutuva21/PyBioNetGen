@@ -41,3 +41,18 @@ def test_modelobj_line_label_setter():
     # Test TypeError (setting a non-string/non-integer like a list)
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
+
+
+def test_rule_side_string():
+    from bionetgen.modelapi.structs import Rule
+
+    r = Rule(name="test_rule", rate_constants=(1.0,))
+
+    # Test empty list
+    assert r.side_string([]) == ""
+
+    # Test one element
+    assert r.side_string(["A"]) == "A"
+
+    # Test multiple elements
+    assert r.side_string(["A", "B", "C"]) == "A + B + C"
