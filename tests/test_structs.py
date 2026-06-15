@@ -1,5 +1,5 @@
 import pytest
-from bionetgen.modelapi.structs import ModelObj
+from bionetgen.modelapi.structs import ModelObj, Function
 
 
 def test_modelobj_setitem():
@@ -41,3 +41,13 @@ def test_modelobj_line_label_setter():
     # Test TypeError (setting a non-string/non-integer like a list)
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
+
+def test_function_gen_string():
+    f1 = Function(name="f1", expr="2 * x")
+    assert f1.gen_string() == "f1 = 2 * x"
+
+    f2 = Function(name="f2", expr="2 * x", args=["x"])
+    assert f2.gen_string() == "f2(x) = 2 * x"
+
+    f3 = Function(name="f3", expr="x * y", args=["x", "y"])
+    assert f3.gen_string() == "f3(x,y) = x * y"
