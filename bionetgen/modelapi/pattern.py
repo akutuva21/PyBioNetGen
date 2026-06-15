@@ -5,6 +5,71 @@ from bionetgen.core.utils.logging import BNGLogger
 logger = BNGLogger()
 
 
+import networkx as nx
+
+
+def _check_isomorphism(obj1, obj2):
+    def to_graph(obj):
+        G = nx.Graph()
+        if hasattr(obj, "molecules"):
+            molecules = obj.molecules
+        else:
+            molecules = [obj]
+
+        for imol, mol in enumerate(molecules):
+            mol_id = f"m_{imol}"
+            G.add_node(
+                mol_id,
+                type="molecule",
+                name=mol.name,
+                compartment=mol.compartment,
+                label=mol.label,
+            )
+            for icomp, comp in enumerate(mol.components):
+                comp_id = f"c_{imol}_{icomp}"
+                G.add_node(
+                    comp_id,
+                    type="component",
+                    name=comp.name,
+                    state=comp.state,
+                    states=tuple(sorted(comp.states)),
+                    label=comp.label,
+                )
+                G.add_edge(mol_id, comp_id, type="contains")
+                for bond in comp.bonds:
+                    bond_node = f"b_{bond}"
+                    G.add_node(bond_node, type="bond")
+                    G.add_edge(comp_id, bond_node, type="bond")
+        return G
+
+    def node_match(n1, n2):
+        if n1["type"] != n2["type"]:
+            return False
+        if n1["type"] == "molecule":
+            return (
+                n1["name"] == n2["name"]
+                and n1["compartment"] == n2["compartment"]
+                and n1["label"] == n2["label"]
+            )
+        if n1["type"] == "component":
+            return (
+                n1["name"] == n2["name"]
+                and n1["state"] == n2["state"]
+                and n1["states"] == n2["states"]
+                and n1["label"] == n2["label"]
+            )
+        if n1["type"] == "bond":
+            return True
+        return False
+
+    def edge_match(e1, e2):
+        return e1["type"] == e2["type"]
+
+    G1 = to_graph(obj1)
+    G2 = to_graph(obj2)
+    return nx.is_isomorphic(G1, G2, node_match=node_match, edge_match=edge_match)
+
+
 # All classes that deal with patterns
 class Pattern:
     """
@@ -304,13 +369,6 @@ class Pattern:
                                 loc=loc,
                             )
                             return False
-                        # now we can check contents
-                        for molecule in self:
-                            if molecule not in other.molecules:
-                                logger.debug(
-                                    f"molecule doesn't match: {molecule}", loc=loc
-                                )
-                                return False
                         # isomorphism check if we have the certificate
                         if (self.canonical_certificate is not None) and (
                             other.canonical_certificate is not None
@@ -320,10 +378,12 @@ class Pattern:
                                 != other.canonical_certificate
                             ):
                                 return False
-                        # TODO: molecules match, check bonds
-                        # Bonds match, patterns are the same
-                        logger.debug("patterns match!", loc=loc)
-                        return True
+                            return True
+                        # fallback to networkx isomorphism check
+                        if _check_isomorphism(self, other):
+                            logger.debug("patterns match!", loc=loc)
+                            return True
+                        return False
         return False
 
     @property
@@ -464,14 +524,11 @@ class Molecule:
                         loc=loc,
                     )
                     return False
-                # check components now
-                for component in self:
-                    if component not in other.components:
-                        logger.debug(f"component doesn't match: {component}", loc=loc)
-                        return False
-                # everything matches
-                logger.debug("molecules match", loc=loc)
-                return True
+                # check components using exact structural isomorphism
+                if _check_isomorphism(self, other):
+                    logger.debug("molecules match", loc=loc)
+                    return True
+                return False
         return False
 
     def __getitem__(self, key):
@@ -653,16 +710,8 @@ class Component:
                             # we can check canonical labels
                             if self.canonical_label != other.canonical_label:
                                 return False
-                        # check bonds
-                        # TODO: try to decide if A(b!1).B(a!1) is the same
-                        # as A(b!2).B(a!2), if so, the bond check is much harder
-                        # for bond in self.bonds:
-                        #     if bond not in other.bonds:
-                        #         logger.debug(
-                        #             f"bonds don't match!: {other.bonds}", loc=loc
-                        #         )
-                        #         return False
-                        if len(self.bonds) == len(other.bonds):
+                        # check exact bonds
+                        if sorted(self.bonds) == sorted(other.bonds):
                             logger.debug("components match", loc=loc)
                             return True
         return False
