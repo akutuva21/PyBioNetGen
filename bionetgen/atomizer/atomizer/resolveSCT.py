@@ -1030,12 +1030,19 @@ class SCTSolver:
                 flag = False
                 for idx, chemical in enumerate(tmpCandidate):
                     if modifiedElementsCounter[chemical] > 0:
+                        chemical_count_in_candidate = tmpCandidate.count(chemical)
                         modifiedElementsCounter[chemical] -= 1
                         mod = (
                             newModifiedElements[cidx][chemical].pop(0)
                             if newModifiedElements[cidx][chemical]
                             else chemical
                         )
+                        if modifiedElementsCounter[chemical] > (chemical_count_in_candidate - 1):
+                            modifiedElementsCounter[chemical] -= 1
+                            modifiedElementsCounter[mod] += 1
+                            if newModifiedElements[cidx][chemical]:
+                                next_mod = newModifiedElements[cidx][chemical].pop(0)
+                                newModifiedElements[cidx][mod].insert(0, next_mod)
                         tmpCandidate[idx] = mod
                         flag = True
                         break
