@@ -55,8 +55,14 @@ def test_action_print_line():
     # Test with comment
     action = Action("simulate", {"method": "ode", "t_end": 100, "n_steps": 100})
     action.comment = "This is a comment"
-    assert action.print_line() == "simulate({method=>ode,t_end=>100,n_steps=>100}) #This is a comment"
+    assert (
+        action.print_line()
+        == "simulate({method=>ode,t_end=>100,n_steps=>100}) #This is a comment"
+    )
 
     # Test with line_label and comment
     action.line_label = 1
-    assert action.print_line() == "1 simulate({method=>ode,t_end=>100,n_steps=>100}) #This is a comment"
+    assert (
+        action.print_line()
+        == "1 simulate({method=>ode,t_end=>100,n_steps=>100}) #This is a comment"
+    )
