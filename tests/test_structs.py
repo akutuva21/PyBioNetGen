@@ -41,3 +41,13 @@ def test_modelobj_line_label_setter():
     # Test TypeError (setting a non-string/non-integer like a list)
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
+
+def test_species_gen_string():
+    from bionetgen.modelapi.structs import Species
+    # Create a species with a simple string pattern and count
+    species = Species(pattern="A()", count=100)
+    assert species.gen_string() == "A() 100"
+
+    # Test default instantiation
+    default_species = Species()
+    assert default_species.gen_string() == " 0"
