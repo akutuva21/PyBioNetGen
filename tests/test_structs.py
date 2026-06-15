@@ -58,7 +58,7 @@ def test_modelobj_print_line():
     assert obj.print_line() == "  1 dummy_object"
 
     # Test with comment only
-    obj._line_label = None # reset line_label
+    obj._line_label = None  # reset line_label
     obj.comment = "# test comment"
     assert obj.print_line() == "  dummy_object # test comment"
 
