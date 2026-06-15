@@ -257,8 +257,8 @@ def test_extract_define_int():
 def test_replace_indexed_symbols_repl_param():
     from bionetgen.modelapi.sympy_odes import _replace_indexed_symbols
 
-    expr = "params[0] + param[1] + p[2] + p[3]"
+    expr = "NV_Ith_S(y, 0) + y[1] + params[0] + param[1] + p[2] + p[3]"
     species = ["S1"]
     params = ["k1", "k2", "k3"]
     res = _replace_indexed_symbols(expr, species, params)
-    assert res == "k1 + k2 + k3 + p3"
+    assert res == "S1 + s1 + k1 + k2 + k3 + p3"
