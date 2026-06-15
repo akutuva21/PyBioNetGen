@@ -42,6 +42,7 @@ def test_modelobj_line_label_setter():
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
 
+
 def test_modelobj_comment_setter():
     obj = ModelObj()
 
