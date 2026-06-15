@@ -63,8 +63,9 @@ class Network:
         # Check to see if there are no active blocks
         # If not, model is most likely not in BNGL format
         if not self.active_blocks:
-            print(
-                "WARNING: No active blocks. Please ensure model is in proper BNGL or BNG-XML format"
+            raise BNGModelError(
+                self.network_name,
+                message="No active blocks. Please ensure model is in proper BNGL or BNG-XML format"
             )
 
     def __str__(self):

@@ -115,7 +115,7 @@ class bngmodel:
         # If not, model is most likely not in BNGL format
         if not self.active_blocks:
             raise BNGModelError(
-                self,
+                self.model_path,
                 message="No active blocks. Please ensure model is in proper BNGL or BNG-XML format",
             )
 
