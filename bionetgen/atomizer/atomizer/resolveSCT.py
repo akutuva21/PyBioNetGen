@@ -624,8 +624,13 @@ class SCTSolver:
             [x.strip("()") for x in self.database.constructedSpecies]
         )
         # TODO: merge both lists and use them as a tiebreaker for consolidation
-        completeAnnotationDependencyGraph, completePartialMatches = self.fillSCTwithAnnotationInformation(
-            strippedMolecules, self.database.annotationDict, logResults=False, tentativeFlag=False
+        completeAnnotationDependencyGraph, completePartialMatches = (
+            self.fillSCTwithAnnotationInformation(
+                strippedMolecules,
+                self.database.annotationDict,
+                logResults=False,
+                tentativeFlag=False,
+            )
         )
         tiebreaker = __import__("copy").deepcopy(completeAnnotationDependencyGraph)
         for key in completePartialMatches:
@@ -1373,7 +1378,7 @@ this the correct behavior or provide an alternative for {0}".format(
                                             "INFO:SCT001",
                                             "{0}:Using tiebreaker to resolve conflicting definitions {1}".format(
                                                 reactant, tmpCandidates
-                                            )
+                                            ),
                                         )
                                     tmpCandidates = [tb_candidate]
                                     break
@@ -1564,7 +1569,7 @@ this the correct behavior or provide an alternative for {0}".format(
                                         "INFO:SCT001",
                                         "{0}:Using tiebreaker to resolve conflicting definitions {1}".format(
                                             reactant, tmpCandidates
-                                        )
+                                        ),
                                     )
                                 tmpCandidates = [tb_candidate]
                                 break
