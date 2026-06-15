@@ -1,3 +1,4 @@
+import os
 from bionetgen.atomizer.atomizer.analyzeSBML import get_close_matches
 import bionetgen.atomizer.atomizer.analyzeSBML as analyzeSBML
 import pytest
@@ -61,3 +62,58 @@ def test_get_close_matches_caching(mock_difflib):
     assert matches1 == matches2 == ["apple"]
     # verify difflib was only called once
     mock_difflib.assert_called_once()
+
+import json
+import tempfile
+
+def test_loadConfigFiles_dictionaries():
+    """Test loading config files where binding_interactions use dictionaries."""
+    analyzer = analyzeSBML.SBMLAnalyzer(None, "dummy.xml", "")
+
+    config = {
+        "binding_interactions": [
+            [{"name": "MoleculeA", "site": "site_b"}, {"name": "MoleculeB", "site": "site_a"}],
+            [{"name": "MoleculeC", "site": "site_c", "state": ["s", "0"]}, {"name": "MoleculeD"}],
+            ["MoleculeE", {"name": "MoleculeF", "site": "site_f", "state": ["s", "1"]}],
+            [{"name": "MoleculeG", "site": "g1"}, {"name": "MoleculeG", "site": "g2"}]
+        ]
+    }
+
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+        json.dump(config, f)
+        temp_name = f.name
+
+    try:
+        res = analyzer.loadConfigFiles(temp_name)
+
+        complexes = res.get("complexDefinition", [])
+
+        def get_complex(name):
+            for c in complexes:
+                if c[0] == name:
+                    return c[1][0]
+            return None
+
+        a_sites = get_complex("MoleculeA")
+        assert a_sites == ["MoleculeA", "site_b", []], a_sites
+
+        b_sites = get_complex("MoleculeB")
+        assert b_sites == ["MoleculeB", "site_a", []], b_sites
+
+        c_sites = get_complex("MoleculeC")
+        assert c_sites == ["MoleculeC", "site_c", ["s", "0"]], c_sites
+
+        d_sites = get_complex("MoleculeD")
+        assert d_sites == ["MoleculeD", "moleculec", []], d_sites
+
+        e_sites = get_complex("MoleculeE")
+        assert e_sites == ["MoleculeE", "moleculef", []], e_sites
+
+        f_sites = get_complex("MoleculeF")
+        assert f_sites == ["MoleculeF", "site_f", ["s", "1"]], f_sites
+
+        g_sites = get_complex("MoleculeG")
+        assert g_sites == ["MoleculeG", "g1", [], "g2", []], g_sites
+
+    finally:
+        os.remove(temp_name)

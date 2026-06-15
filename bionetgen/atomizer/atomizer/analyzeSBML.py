@@ -784,41 +784,59 @@ class SBMLAnalyzer:
                     # this is a list of pairs
                     for binding_pair in reactionDefinition_new["binding_interactions"]:
                         first, second = binding_pair[0], binding_pair[1]
-                        if isinstance(first, dict) or isinstance(second, dict):
-                            # TODO: Implement dictionaries for binding partners in the future
-                            raise NotImplementedError(
-                                "Dictionaries for binding pairs are not implemented yet"
-                            )
+
+                        first_name = first["name"] if isinstance(first, dict) else first
+                        second_name = (
+                            second["name"] if isinstance(second, dict) else second
+                        )
+
+                        first_site = (
+                            first.get("site", second_name.lower())
+                            if isinstance(first, dict)
+                            else second_name.lower()
+                        )
+                        first_state = (
+                            first.get("state", []) if isinstance(first, dict) else []
+                        )
+
+                        second_site = (
+                            second.get("site", first_name.lower())
+                            if isinstance(second, dict)
+                            else first_name.lower()
+                        )
+                        second_state = (
+                            second.get("state", []) if isinstance(second, dict) else []
+                        )
 
                         # let's deal with first
                         # first initalize the item or pull if it already exists
                         item = None
                         for ix, x in enumerate(reactionDefinition["complexDefinition"]):
-                            if x[0] == first:
+                            if x[0] == first_name:
                                 item = reactionDefinition["complexDefinition"].pop(ix)
                                 break
                         if item is None:
-                            item = [first, [[first]]]
-                        item[1][0].append(second.lower())
-                        item[1][0].append([])
+                            item = [first_name, [[first_name]]]
+                        item[1][0].append(first_site)
+                        item[1][0].append(first_state)
                         reactionDefinition["complexDefinition"].append(item)
 
-                        if first != second:
+                        if first_name != second_name or first_site != second_site:
                             # now deal with second partner
                             # first initalize the item or pull if it already exists
                             item = None
                             for ix, x in enumerate(
                                 reactionDefinition["complexDefinition"]
                             ):
-                                if x[0] == second:
+                                if x[0] == second_name:
                                     item = reactionDefinition["complexDefinition"].pop(
                                         ix
                                     )
                                     break
                             if item is None:
-                                item = [second, [[second]]]
-                            item[1][0].append(first.lower())
-                            item[1][0].append([])
+                                item = [second_name, [[second_name]]]
+                            item[1][0].append(second_site)
+                            item[1][0].append(second_state)
                             reactionDefinition["complexDefinition"].append(item)
                 else:
                     reactionDefinition["complexDefinition"] = []
