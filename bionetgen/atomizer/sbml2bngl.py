@@ -643,7 +643,7 @@ class SBML2BNGL:
         for key, val in replace_dict.items():
             form = re.sub(rf"\b{re.escape(key)}\b", val, form)
         # Let's also pool this in used_symbols
-        for sym in self.all_syms.keys():
+        for sym in self.all_syms:
             if sym not in self.used_symbols:
                 self.used_symbols.append(sym)
         # Sympy doesn't allow and/not/or to be used
