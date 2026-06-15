@@ -253,8 +253,10 @@ def test_extract_define_int():
     assert _extract_define_int("#define MY_VAR abc", "MY_VAR") is None
     assert _extract_define_int("#define MY_VAR 42.5", "MY_VAR") is None
 
+
 def test_replace_indexed_symbols_repl_param():
     from bionetgen.modelapi.sympy_odes import _replace_indexed_symbols
+
     expr = "params[0] + param[1] + p[2] + p[3]"
     species = ["S1"]
     params = ["k1", "k2", "k3"]
