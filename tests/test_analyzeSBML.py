@@ -63,8 +63,10 @@ def test_get_close_matches_caching(mock_difflib):
     # verify difflib was only called once
     mock_difflib.assert_called_once()
 
+
 import json
 import tempfile
+
 
 def test_loadConfigFiles_dictionaries():
     """Test loading config files where binding_interactions use dictionaries."""
@@ -72,10 +74,16 @@ def test_loadConfigFiles_dictionaries():
 
     config = {
         "binding_interactions": [
-            [{"name": "MoleculeA", "site": "site_b"}, {"name": "MoleculeB", "site": "site_a"}],
-            [{"name": "MoleculeC", "site": "site_c", "state": ["s", "0"]}, {"name": "MoleculeD"}],
+            [
+                {"name": "MoleculeA", "site": "site_b"},
+                {"name": "MoleculeB", "site": "site_a"},
+            ],
+            [
+                {"name": "MoleculeC", "site": "site_c", "state": ["s", "0"]},
+                {"name": "MoleculeD"},
+            ],
             ["MoleculeE", {"name": "MoleculeF", "site": "site_f", "state": ["s", "1"]}],
-            [{"name": "MoleculeG", "site": "g1"}, {"name": "MoleculeG", "site": "g2"}]
+            [{"name": "MoleculeG", "site": "g1"}, {"name": "MoleculeG", "site": "g2"}],
         ]
     }
 
