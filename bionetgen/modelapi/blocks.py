@@ -84,7 +84,7 @@ class ModelBlock:
     def __getitem__(self, key):
         if isinstance(key, int):
             # get the item in order
-            return list(self.items.keys())[key]
+            return list(self.items)[key]
         return self.items[key]
 
     def __setitem__(self, key, value) -> None:
@@ -94,7 +94,7 @@ class ModelBlock:
         self.items.pop(key)
 
     def __iter__(self):
-        return self.items.keys().__iter__()
+        return iter(self.items)
 
     def __contains__(self, key) -> bool:
         return key in self.items
@@ -102,7 +102,7 @@ class ModelBlock:
     def __setattr__(self, name, value) -> None:
         changed = False
         if hasattr(self, "items"):
-            if name in self.items.keys():
+            if name in self.items:
                 try:
                     new_value = float(value)
                 except (TypeError, ValueError):
@@ -126,8 +126,8 @@ class ModelBlock:
         else:
             block_lines = ["\nbegin {}".format(self.name)]
         # now we just loop over lines
-        for item in self.items.keys():
-            block_lines.append(self.items[item].print_line())
+        for item in self.items.values():
+            block_lines.append(item.print_line())
         # each block can have a comment at the start
         if self.comment[1] is not None:
             block_lines.append("end {} #{}\n".format(self.name, self.comment[1]))
