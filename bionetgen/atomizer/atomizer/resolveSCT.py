@@ -1037,7 +1037,9 @@ class SCTSolver:
                             if newModifiedElements[cidx][chemical]
                             else chemical
                         )
-                        if modifiedElementsCounter[chemical] > (chemical_count_in_candidate - 1):
+                        if modifiedElementsCounter[chemical] > (
+                            chemical_count_in_candidate - 1
+                        ):
                             modifiedElementsCounter[chemical] -= 1
                             modifiedElementsCounter[mod] += 1
                             if newModifiedElements[cidx][chemical]:
