@@ -1,5 +1,5 @@
 import pytest
-from bionetgen.modelapi.structs import ModelObj
+from bionetgen.modelapi.structs import ModelObj, Compartment
 
 
 def test_modelobj_setitem():
@@ -41,3 +41,13 @@ def test_modelobj_line_label_setter():
     # Test TypeError (setting a non-string/non-integer like a list)
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
+
+
+def test_compartment_gen_string():
+    # Test without outside compartment
+    c1 = Compartment(name="comp1", dim=3, size=1.0)
+    assert c1.gen_string() == "comp1 3 1.0"
+
+    # Test with outside compartment
+    c2 = Compartment(name="comp2", dim=2, size=2.0, outside="comp1")
+    assert c2.gen_string() == "comp2 2 2.0 comp1"
