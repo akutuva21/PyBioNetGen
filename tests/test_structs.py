@@ -41,3 +41,25 @@ def test_modelobj_line_label_setter():
     # Test TypeError (setting a non-string/non-integer like a list)
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
+
+def test_modelobj_comment_setter():
+    obj = ModelObj()
+
+    # Test string with hashtag
+    obj.comment = "   # some comment "
+    assert obj.comment == " some comment "
+
+    obj.comment = "#another comment"
+    assert obj.comment == "another comment"
+
+    # Test string without hashtag
+    obj.comment = "just a string"
+    assert obj.comment == "just a string"
+
+    # Test non-string
+    obj.comment = 123
+    assert obj.comment == 123
+
+    # Test list
+    obj.comment = ["comment"]
+    assert obj.comment == ["comment"]
