@@ -252,3 +252,56 @@ def test_extract_define_int():
     assert _extract_define_int("#define OTHER 1", "MY_VAR") is None
     assert _extract_define_int("#define MY_VAR abc", "MY_VAR") is None
     assert _extract_define_int("#define MY_VAR 42.5", "MY_VAR") is None
+
+
+import sympy as sp
+from bionetgen.modelapi.sympy_odes import _replace_nv_ith_s
+
+
+def test_replace_nv_ith_s():
+    species_symbol_names = ["A", "B", "C"]
+    expr_syms = [sp.Symbol("E1"), sp.Symbol("E2")]
+    obs_syms = [sp.Symbol("O1")]
+    rate_syms = [sp.Symbol("R1"), sp.Symbol("R2"), sp.Symbol("R3")]
+
+    # Test "species" branch (in bounds and out of bounds)
+    expr1 = "NV_Ith_S(species, 1) + NV_Ith_S(species, 5)"
+    res1 = _replace_nv_ith_s(
+        expr1, species_symbol_names, expr_syms, obs_syms, rate_syms
+    )
+    assert res1 == "B + s5"
+
+    # Test "expressions" branch
+    expr2 = "NV_Ith_S(expressions, 0) + NV_Ith_S(expressions, 10)"
+    res2 = _replace_nv_ith_s(
+        expr2, species_symbol_names, expr_syms, obs_syms, rate_syms
+    )
+    assert res2 == "E1 + e10"
+
+    # Test "observables" branch
+    expr3 = "NV_Ith_S(observables, 0) + NV_Ith_S(observables, 5)"
+    res3 = _replace_nv_ith_s(
+        expr3, species_symbol_names, expr_syms, obs_syms, rate_syms
+    )
+    assert res3 == "O1 + o5"
+
+    # Test "ratelaws" branch
+    expr4 = "NV_Ith_S(ratelaws, 2) + NV_Ith_S(ratelaws, 10)"
+    res4 = _replace_nv_ith_s(
+        expr4, species_symbol_names, expr_syms, obs_syms, rate_syms
+    )
+    assert res4 == "R3 + r10"
+
+    # Test "Dspecies" branch
+    expr5 = "NV_Ith_S(Dspecies, 1)"
+    res5 = _replace_nv_ith_s(
+        expr5, species_symbol_names, expr_syms, obs_syms, rate_syms
+    )
+    assert res5 == "ds1"
+
+    # Test unknown variable branch
+    expr6 = "NV_Ith_S(unknown, 2)"
+    res6 = _replace_nv_ith_s(
+        expr6, species_symbol_names, expr_syms, obs_syms, rate_syms
+    )
+    assert res6 == "NV_Ith_S(unknown, 2)"
