@@ -62,9 +62,31 @@ class ModelBlock:
     def __init__(self) -> None:
         self.name = "ModelBlock"
         self.comment = (None, None)
-        self._changes = OrderedDict()
-        self._recompile = False
+        self._changes_dict = OrderedDict()
+        self._recompile_val = False
         self.items = OrderedDict()
+
+    @property
+    def _changes(self):
+        c = OrderedDict()
+        if hasattr(self, "_changes_dict"):
+            c.update(self._changes_dict)
+        iterator = self.items.values() if isinstance(self.items, dict) else self.items
+        for item in iterator:
+            if hasattr(item, "_changes") and item._changes:
+                name = getattr(item, "name", getattr(item, "type", str(item)))
+                c[name] = item._changes
+        return c
+
+    @property
+    def _recompile(self):
+        if hasattr(self, "_recompile_val") and self._recompile_val:
+            return True
+        iterator = self.items.values() if isinstance(self.items, dict) else self.items
+        for item in iterator:
+            if hasattr(item, "_recompile") and item._recompile:
+                return True
+        return False
 
     def __str__(self) -> str:
         return self.gen_string()
@@ -111,7 +133,7 @@ class ModelBlock:
                     changed = True
                     self.items[name] = new_value
                 if changed:
-                    self._changes[name] = new_value
+                    self._changes_dict[name] = new_value
                     self.__dict__[name] = new_value
         else:
             self.__dict__[name] = value
@@ -140,13 +162,14 @@ class ModelBlock:
         """
         Resets the change history for this block.
         """
-        # TODO: Make these properties such that it checks each
-        # item for changes/recompile tags
-        # for item in self.items:
-        #     self.items[item]._recompile = False
-        #     self.items[item]._changes = {}
-        self._changes = OrderedDict()
-        self._recompile = False
+        iterator = self.items.values() if isinstance(self.items, dict) else self.items
+        for item in iterator:
+            if hasattr(item, "_recompile"):
+                item._recompile = False
+            if hasattr(item, "_changes"):
+                item._changes = OrderedDict()
+        self._changes_dict = OrderedDict()
+        self._recompile_val = False
 
     def add_item(self, item_tpl) -> None:
         """
@@ -206,7 +229,7 @@ class ModelBlock:
                 )
         # we just added an item to a block, let's assume we need
         # to recompile if we have a compiled simulator
-        self._recompile = True
+        self._recompile_val = True
 
     def add_items(self, item_list) -> None:
         """
@@ -284,7 +307,7 @@ class ParameterBlock(ModelBlock):
                             loc=f"{__file__} : ParameterBlock.__setattr__()",
                         )
                 if changed:
-                    self._changes[name] = value
+                    self._changes_dict[name] = value
                     self.__dict__[name] = value
             else:
                 self.__dict__[name] = value
@@ -339,7 +362,7 @@ class CompartmentBlock(ModelBlock):
                             loc=f"{__file__} : CompartmentBlock.__setattr__()",
                         )
                 if changed:
-                    self._changes[name] = value
+                    self._changes_dict[name] = value
                     self.__dict__[name] = value
             else:
                 self.__dict__[name] = value
@@ -387,7 +410,7 @@ class ObservableBlock(ModelBlock):
                         loc=f"{__file__} : ObservableBlock.__setattr__()",
                     )
                 if changed:
-                    self._changes[name] = value
+                    self._changes_dict[name] = value
                     self.__dict__[name] = value
             else:
                 self.__dict__[name] = value
@@ -435,7 +458,7 @@ class SpeciesBlock(ModelBlock):
                         loc=f"{__file__} : SpeciesBlock.__setattr__()",
                     )
                 if changed:
-                    self._changes[name] = value
+                    self._changes_dict[name] = value
                     self.__dict__[name] = value
             else:
                 self.__dict__[name] = value
@@ -487,7 +510,7 @@ class MoleculeTypeBlock(ModelBlock):
                         )
                     )
                 if changed:
-                    self._changes[name] = value
+                    self._changes_dict[name] = value
                     self.__dict__[name] = value
             else:
                 self.__dict__[name] = value
@@ -532,7 +555,7 @@ class FunctionBlock(ModelBlock):
                         )
                     )
                 if changed:
-                    self._changes[name] = value
+                    self._changes_dict[name] = value
                     self.__dict__[name] = value
             else:
                 self.__dict__[name] = value
@@ -582,7 +605,7 @@ class RuleBlock(ModelBlock):
                         )
                     )
                 if changed:
-                    self._changes[name] = value
+                    self._changes_dict[name] = value
                     self.__dict__[name] = value
             else:
                 self.__dict__[name] = value
@@ -761,7 +784,7 @@ class EnergyPatternBlock(ModelBlock):
                         )
                     )
                 if changed:
-                    self._changes[name] = value
+                    self._changes_dict[name] = value
                     self.__dict__[name] = value
             else:
                 self.__dict__[name] = value
@@ -806,7 +829,7 @@ class PopulationMapBlock(ModelBlock):
                         )
                     )
                 if changed:
-                    self._changes[name] = value
+                    self._changes_dict[name] = value
                     self.__dict__[name] = value
             else:
                 self.__dict__[name] = value
