@@ -252,3 +252,30 @@ def test_extract_define_int():
     assert _extract_define_int("#define OTHER 1", "MY_VAR") is None
     assert _extract_define_int("#define MY_VAR abc", "MY_VAR") is None
     assert _extract_define_int("#define MY_VAR 42.5", "MY_VAR") is None
+
+
+from bionetgen.modelapi.sympy_odes import _replace_indexed_symbols
+
+def test_replace_indexed_symbols():
+    # Test valid species and parameter indices
+    expr = "NV_Ith_S(y,0) + y[1] + params[0] * param[1] - p[2]"
+    res = _replace_indexed_symbols(expr, ["S1", "S2"], ["k1", "k2", "k3"])
+    assert res == "S1 + S2 + k1 * k2 - k3"
+
+    # Test species index out of bounds
+    expr_out_of_bounds_species = "NV_Ith_S(y,2)"
+    res = _replace_indexed_symbols(expr_out_of_bounds_species, ["S1", "S2"], [])
+    assert res == "s2"
+
+    # Test parameter index out of bounds
+    expr_out_of_bounds_param = "param[2]"
+    res = _replace_indexed_symbols(expr_out_of_bounds_param, [], ["k1", "k2"])
+    assert res == "p2"
+
+    expr_out_of_bounds_params = "params[2]"
+    res = _replace_indexed_symbols(expr_out_of_bounds_params, [], ["k1", "k2"])
+    assert res == "p2"
+
+    expr_out_of_bounds_p = "p[2]"
+    res = _replace_indexed_symbols(expr_out_of_bounds_p, [], ["k1", "k2"])
+    assert res == "p2"
