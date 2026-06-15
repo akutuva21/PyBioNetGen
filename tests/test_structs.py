@@ -43,6 +43,7 @@ def test_modelobj_line_label_setter():
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
 
+
 def test_rule_set_rate_constants():
     # 1 rate constant
     r1 = Rule(name="r1", rate_constants=("k1",))
