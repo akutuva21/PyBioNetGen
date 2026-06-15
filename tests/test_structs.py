@@ -41,3 +41,14 @@ def test_modelobj_line_label_setter():
     # Test TypeError (setting a non-string/non-integer like a list)
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
+
+
+from bionetgen.modelapi.structs import Parameter
+
+
+def test_parameter_gen_string():
+    param = Parameter("k1", "0.1")
+    assert param.gen_string() == "k1 0.1"
+
+    param2 = Parameter("V_max", "100.5")
+    assert param2.gen_string() == "V_max 100.5"
