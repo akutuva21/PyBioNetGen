@@ -643,7 +643,7 @@ class SBML2BNGL:
         for key, val in replace_dict.items():
             form = re.sub(rf"\b{re.escape(key)}\b", val, form)
         # Let's also pool this in used_symbols
-        for sym in self.all_syms.keys():
+        for sym in self.all_syms:
             if sym not in self.used_symbols:
                 self.used_symbols.append(sym)
         # Sympy doesn't allow and/not/or to be used
@@ -1682,9 +1682,9 @@ class SBML2BNGL:
                         % functionName,
                     )
                 defn = self.bngModel.functions[rule_obj.rate_cts[0]].definition
-                self.bngModel.functions[rule_obj.rate_cts[0]].definition = (
-                    f"({defn})/({rule_obj.symm_factors[0]})"
-                )
+                self.bngModel.functions[
+                    rule_obj.rate_cts[0]
+                ].definition = f"({defn})/({rule_obj.symm_factors[0]})"
         if rule_obj.reversible:
             logMess(
                 "ERROR:SIM205",
@@ -2293,6 +2293,241 @@ class SBML2BNGL:
                 adjustedInitialConditions.append(" ".join(initCond))
         return adjustedInitialConditions
 
+    def _process_rate_rule(
+        self,
+        rawArule,
+        arule_obj,
+        compartmentList,
+        translator,
+        arules,
+        artificialReactions,
+        removeParameters,
+        zRules,
+        parameters,
+        zparams,
+    ):
+        # it is a rate rule
+        if rawArule[0] in self.boundaryConditionVariables:
+            logMess(
+                "WARNING:SIM105",
+                "rate rules ({0}) are not properly supported in BioNetGen simulator".format(
+                    rawArule[0]
+                ),
+            )
+
+        rateLaw1 = arule_obj.rates[0]
+        rateLaw2 = arule_obj.rates[1]
+        arate_name = "arRate{0}".format(rawArule[0])
+        func_str = writer.bnglFunction(
+            rateLaw1,
+            arate_name,
+            [],
+            compartments=compartmentList,
+            reactionDict=self.reactionDictionary,
+        )
+        arules.append(func_str)
+        self.bngModel.add_bngl_function(func_str, arate_name, compartmentList)
+
+        if rateLaw2 != "0":
+            armrate_name = "armRate{0}".format(rawArule[0])
+            func2_str = writer.bnglFunction(
+                rateLaw2,
+                armrate_name,
+                [],
+                compartments=compartmentList,
+                reactionDict=self.reactionDictionary,
+            )
+            arules.append(func2_str)
+            self.bngModel.add_bngl_function(func2_str, armrate_name, compartmentList)
+
+        # ASS2019 - I'm not sure if this is the right place to fix the tags. Basically, up until this point, the artificial reactions don't have tags. This results in the 0 <-> A type reactions to lack a compartment, leading to a non-functional BNGL file. I think the better solution might be during rule (SBML rule, not BNGL rule) parsing and update the parser/SBML2BNGL tags instead.
+        try:
+            comp = self.tags[rawArule[0]]
+        except KeyError:
+            # ASS - We need to default to an existing compartment if we are going
+            # to remove @cell as a default compartment
+            if not self.noCompartment:
+                self.tags[rawArule[0]] = "@" + compartmentList[0][0]
+        # ASS - If self.useID is set, use the ID value, not the name
+        molec_name = (
+            rawArule[0] if self.useID else self.convertToName(rawArule[0]).strip()
+        )
+        self.used_molecules.append(molec_name)
+
+        if rateLaw2 == "0":
+            rate_str = "arRate{0}".format(rawArule[0])
+            reversible = False
+        else:
+            rate_str = "arRate{0},armRate{0}".format(rawArule[0], rawArule[0])
+            reversible = True
+
+        rxn_str = writer.bnglReaction(
+            [],
+            [[molec_name, 1, rawArule[0]]],
+            rate_str,
+            self.tags,
+            translator,
+            isCompartments=True,
+            comment="#rateLaw",
+            reversible=reversible,
+        )
+        artificialReactions.append(rxn_str)
+        if rawArule[0] in zparams:
+            removeParameters.append("{0} 0".format(rawArule[0]))
+            zRules.remove(rawArule[0])
+        else:
+            for element in parameters:
+                # Note: if for whatever reason a rate rule
+                # was defined as a parameter that is not 0
+                # remove it. This might not be exact behavior
+                if re.search(r"^{0}\s".format(rawArule[0]), element):
+                    logMess(
+                        "WARNING:SIM106",
+                        "Parameter {0} corresponds both as a non zero parameter                     and a rate rule, verify behavior".format(
+                            element
+                        ),
+                    )
+                    removeParameters.append(element)
+
+    def _process_assignment_rule(
+        self,
+        rawArule,
+        arule_obj,
+        compartmentList,
+        translator,
+        molecules,
+        observablesDict,
+        artificialObservables,
+        zRules,
+        removeParameters,
+        param_map,
+    ):
+        # it is an assigment rule
+        """
+        normal species observables references in functions keep the format <speciesName>_<compartment> in function references,
+        and observables dict keeps track of that. however when a species is defined by an assignment function we wish to
+        keep track of reference <speciesName> that points to a standard BNGL function
+        """
+
+        def _track_assignment_rule(
+            target_name, create_observable=True, fn_suffix="_ar()"
+        ):
+            if create_observable:
+                artificialObservables[target_name + "_ar"] = writer.bnglFunction(
+                    rawArule[1][0],
+                    rawArule[0] + fn_suffix,
+                    [],
+                    compartments=compartmentList,
+                    reactionDict=self.reactionDictionary,
+                )
+            self.arule_map[rawArule[0]] = target_name + "_ar"
+            if target_name in observablesDict:
+                observablesDict[target_name] = target_name + "_ar"
+            for obs_k, obs_v in list(observablesDict.items()):
+                if obs_v == target_name:
+                    observablesDict[obs_k] = target_name + "_ar"
+
+        # it was originially defined as a zero parameter, so delete it from the parameter list definition
+        if rawArule[0] in zRules:
+            # dont show assignment rules as parameters
+            zRules.remove(rawArule[0])
+            matches = [
+                molecules[x] for x in molecules if molecules[x]["name"] == rawArule[0]
+            ]
+
+            if matches:
+                if matches[0]["isBoundary"]:
+                    _track_assignment_rule(rawArule[0])
+                    return True
+                else:
+                    logMess(
+                        "ERROR:SIM201",
+                        "Variables that are both changed by an assignment rule and reactions are not "
+                        "supported in BioNetGen simulator. The variable {0} will be split into two".format(
+                            rawArule[0]
+                        ),
+                    )
+                    _track_assignment_rule(rawArule[0])
+                    return True
+            elif rawArule[0] in [observablesDict[x] for x in observablesDict]:
+                _track_assignment_rule(rawArule[0])
+                return True
+
+        elif rawArule[0] in molecules:
+            name = molecules[rawArule[0]]["returnID"]
+            if not molecules[rawArule[0]]["isBoundary"]:
+                self.arule_map[rawArule[0]] = name + "_ar"
+                logMess(
+                    "WARNING:ARUL004",
+                    "Assuming {} has an assignment rule and therefore cannot be in a reaction. If this is incorrect, the model cannot be correctly translated.".format(
+                        name
+                    ),
+                )
+                self.only_assignment_dict[name] = name + "_ar"
+                self.bngModel.add_arule(arule_obj)
+                return True
+            else:
+                name = molecules[rawArule[0]]["returnID"]
+                _track_assignment_rule(name)
+                logMess(
+                    "WARNING:ARUL004",
+                    "Assuming {} has an assignment rule and therefore cannot be in a reaction. If this is incorrect, the model cannot be correctly translated.".format(
+                        name
+                    ),
+                )
+                self.only_assignment_dict[name] = name + "_ar"
+                self.bngModel.add_arule(arule_obj)
+                return True
+        else:
+            if rawArule[0] in param_map.keys():
+                removeParameters.append(param_map[rawArule[0]])
+            # check if it is defined as an observable
+            if rawArule[0] in observablesDict:
+                _track_assignment_rule(rawArule[0])
+                if rawArule[0] in param_map.keys():
+                    removeParameters.append(param_map[rawArule[0]])
+                return True
+        # if its not a param/species/observable
+        # TODO: now, if we replace this with the returnID do we
+        # overlap with it's other possible uses?
+        # name = molecules[rawArule[0]]['returnID']
+        # self.only_assignment_dict[name] = name+"_ar"
+        # artificialObservables[name+'_ar'] = writer.bnglFunction(rawArule[1][0],name+'()',[],compartments=compartmentList,reactionDict=self.reactionDictionary)
+        _track_assignment_rule(rawArule[0], fn_suffix="()")
+        return False
+
+    def _process_other_rule(
+        self,
+        rawArule,
+        arule_obj,
+        compartmentList,
+        translator,
+        arules,
+        aParameters,
+        zRules,
+        zparams,
+    ):
+        """
+        if for whatever reason you have a rule that is not assigment
+        or rate and it is initialized as a non zero parameter, give it
+        a new name
+        """
+        if rawArule[0] not in zparams:
+            ruleName = "ar" + rawArule[0]
+        else:
+            ruleName = rawArule[0]
+            zRules.remove(rawArule[0])
+        arules.append(
+            writer.bnglFunction(
+                rawArule[1][0],
+                ruleName,
+                [],
+                compartments=compartmentList,
+                reactionDict=self.reactionDictionary,
+            )
+        )
+        aParameters[rawArule[0]] = "ar" + rawArule[0]
+
     def getAssignmentRules(
         self, zparams, parameters, molecules, observablesDict, translator
     ):
@@ -2302,7 +2537,6 @@ class SBML2BNGL:
         and parameters initialized as 0, so they need to be removed from the parameters list
         """
         # TODO: This function removes compartment info and this leads to mis-replacement of variables downstream. e.g. Calc@ER and Calc@MIT both gets written as Calc and downstream the replacement is wrong.
-        # TODO: This function gets a list of observables which sometimes are turned into assignment rules but then are not updated in the observablesDict. E.g. X_comp1 gets in, X_ar is created and you can't have BOTH X_comp1 in a reaction AND X_ar adjusting X itself. You MUST pick one, if both are happening raise and error and exit out. For now I'll say if we have _ar then we replace the X_comp1 with X_ar and test.
 
         # Going to use this to match names and remove params
         # if need be
@@ -2344,217 +2578,45 @@ class SBML2BNGL:
                 nonamecounter += 1
                 arule_obj.Id = new_arule_name
             if arule_obj.isRate == True:
-                # it is a rate rule
-                if rawArule[0] in self.boundaryConditionVariables:
-                    logMess(
-                        "WARNING:SIM105",
-                        "rate rules ({0}) are not properly supported in BioNetGen simulator".format(
-                            rawArule[0]
-                        ),
-                    )
-
-                rateLaw1 = arule_obj.rates[0]
-                rateLaw2 = arule_obj.rates[1]
-                arate_name = "arRate{0}".format(rawArule[0])
-                func_str = writer.bnglFunction(
-                    rateLaw1,
-                    arate_name,
-                    [],
-                    compartments=compartmentList,
-                    reactionDict=self.reactionDictionary,
-                )
-                arules.append(func_str)
-                self.bngModel.add_bngl_function(func_str, arate_name, compartmentList)
-
-                if rateLaw2 != "0":
-                    armrate_name = "armRate{0}".format(rawArule[0])
-                    func2_str = writer.bnglFunction(
-                        rateLaw2,
-                        armrate_name,
-                        [],
-                        compartments=compartmentList,
-                        reactionDict=self.reactionDictionary,
-                    )
-                    arules.append(func2_str)
-                    self.bngModel.add_bngl_function(
-                        func2_str, armrate_name, compartmentList
-                    )
-
-                # ASS2019 - I'm not sure if this is the right place to fix the tags. Basically, up until this point, the artificial reactions don't have tags. This results in the 0 <-> A type reactions to lack a compartment, leading to a non-functional BNGL file. I think the better solution might be during rule (SBML rule, not BNGL rule) parsing and update the parser/SBML2BNGL tags instead.
-                try:
-                    comp = self.tags[rawArule[0]]
-                except KeyError:
-                    # ASS - We need to default to an existing compartment if we are going
-                    # to remove @cell as a default compartment
-                    if not self.noCompartment:
-                        self.tags[rawArule[0]] = "@" + compartmentList[0][0]
-                # ASS - If self.useID is set, use the ID value, not the name
-                molec_name = (
-                    rawArule[0]
-                    if self.useID
-                    else self.convertToName(rawArule[0]).strip()
-                )
-                self.used_molecules.append(molec_name)
-
-                if rateLaw2 == "0":
-                    rate_str = "arRate{0}".format(rawArule[0])
-                    reversible = False
-                else:
-                    rate_str = "arRate{0},armRate{0}".format(rawArule[0], rawArule[0])
-                    reversible = True
-
-                rxn_str = writer.bnglReaction(
-                    [],
-                    [[molec_name, 1, rawArule[0]]],
-                    rate_str,
-                    self.tags,
+                self._process_rate_rule(
+                    rawArule,
+                    arule_obj,
+                    compartmentList,
                     translator,
-                    isCompartments=True,
-                    comment="#rateLaw",
-                    reversible=reversible,
+                    arules,
+                    artificialReactions,
+                    removeParameters,
+                    zRules,
+                    parameters,
+                    zparams,
                 )
-                artificialReactions.append(rxn_str)
-                if rawArule[0] in zparams:
-                    removeParameters.append("{0} 0".format(rawArule[0]))
-                    zRules.remove(rawArule[0])
-                else:
-                    for element in parameters:
-                        # Note: if for whatever reason a rate rule
-                        # was defined as a parameter that is not 0
-                        # remove it. This might not be exact behavior
-                        if re.search(r"^{0}\s".format(rawArule[0]), element):
-                            logMess(
-                                "WARNING:SIM106",
-                                "Parameter {0} corresponds both as a non zero parameter \
-                            and a rate rule, verify behavior".format(
-                                    element
-                                ),
-                            )
-                            removeParameters.append(element)
             # it is an assigment rule
             elif arule_obj.isAssignment:
-                """
-                normal species observables references in functions keep the format <speciesName>_<compartment> in function references,
-                and observables dict keeps track of that. however when a species is defined by an assignment function we wish to
-                keep track of reference <speciesName> that points to a standard BNGL function
-                """
-
-                def _track_assignment_rule(
-                    target_name, create_observable=True, fn_suffix="_ar()"
-                ):
-                    if create_observable:
-                        artificialObservables[target_name + "_ar"] = (
-                            writer.bnglFunction(
-                                rawArule[1][0],
-                                rawArule[0] + fn_suffix,
-                                [],
-                                compartments=compartmentList,
-                                reactionDict=self.reactionDictionary,
-                            )
-                        )
-                    self.arule_map[rawArule[0]] = target_name + "_ar"
-                    if target_name in observablesDict:
-                        observablesDict[target_name] = target_name + "_ar"
-                    for obs_k, obs_v in list(observablesDict.items()):
-                        if obs_v == target_name:
-                            observablesDict[obs_k] = target_name + "_ar"
-
-                # it was originially defined as a zero parameter, so delete it from the parameter list definition
-                if rawArule[0] in zRules:
-                    # dont show assignment rules as parameters
-                    zRules.remove(rawArule[0])
-                    matches = [
-                        molecules[x]
-                        for x in molecules
-                        if molecules[x]["name"] == rawArule[0]
-                    ]
-
-                    if matches:
-                        if matches[0]["isBoundary"]:
-                            _track_assignment_rule(rawArule[0])
-                            continue
-                        else:
-                            logMess(
-                                "ERROR:SIM201",
-                                "Variables that are both changed by an assignment rule and reactions are not "
-                                "supported in BioNetGen simulator. The variable {0} will be split into two".format(
-                                    rawArule[0]
-                                ),
-                            )
-                            _track_assignment_rule(rawArule[0])
-                            continue
-                    elif rawArule[0] in [observablesDict[x] for x in observablesDict]:
-                        _track_assignment_rule(rawArule[0])
-                        continue
-
-                elif rawArule[0] in molecules:
-                    name = molecules[rawArule[0]]["returnID"]
-                    if not molecules[rawArule[0]]["isBoundary"]:
-                        self.arule_map[rawArule[0]] = name + "_ar"
-                        logMess(
-                            "WARNING:ARUL004",
-                            "Assuming {} has an assignment rule and therefore cannot be in a reaction. If this is incorrect, the model cannot be correctly translated.".format(
-                                name
-                            ),
-                        )
-                        self.only_assignment_dict[name] = name + "_ar"
-                        self.bngModel.add_arule(arule_obj)
-                        continue
-                    else:
-                        name = molecules[rawArule[0]]["returnID"]
-                        _track_assignment_rule(name)
-                        logMess(
-                            "WARNING:ARUL004",
-                            "Assuming {} has an assignment rule and therefore cannot be in a reaction. If this is incorrect, the model cannot be correctly translated.".format(
-                                name
-                            ),
-                        )
-                        self.only_assignment_dict[name] = name + "_ar"
-                        self.bngModel.add_arule(arule_obj)
-                        continue
-                else:
-                    if rawArule[0] in param_map.keys():
-                        removeParameters.append(param_map[rawArule[0]])
-                    # check if it is defined as an observable
-                    if rawArule[0] in observablesDict:
-                        _track_assignment_rule(rawArule[0])
-                        if rawArule[0] in param_map.keys():
-                            removeParameters.append(param_map[rawArule[0]])
-                        continue
-                # if its not a param/species/observable
-                # TODO: now, if we replace this with the returnID do we
-                # overlap with it's other possible uses?
-                # name = molecules[rawArule[0]]['returnID']
-                # self.only_assignment_dict[name] = name+"_ar"
-                # artificialObservables[name+'_ar'] = writer.bnglFunction(rawArule[1][0],name+'()',[],compartments=compartmentList,reactionDict=self.reactionDictionary)
-                _track_assignment_rule(rawArule[0], fn_suffix="()")
-            else:
-                """
-                if for whatever reason you have a rule that is not assigment
-                or rate and it is initialized as a non zero parameter, give it
-                a new name
-                """
-                if rawArule[0] not in zparams:
-                    ruleName = "ar" + rawArule[0]
-                else:
-                    ruleName = rawArule[0]
-                    zRules.remove(rawArule[0])
-                arules.append(
-                    writer.bnglFunction(
-                        rawArule[1][0],
-                        ruleName,
-                        [],
-                        compartments=compartmentList,
-                        reactionDict=self.reactionDictionary,
-                    )
+                should_continue = self._process_assignment_rule(
+                    rawArule,
+                    arule_obj,
+                    compartmentList,
+                    translator,
+                    molecules,
+                    observablesDict,
+                    artificialObservables,
+                    zRules,
+                    removeParameters,
+                    param_map,
                 )
-                aParameters[rawArule[0]] = "ar" + rawArule[0]
-            """
-            elif rawArule[2] == True:
-                for parameter in parameters:
-                    if re.search(r'^{0}\s'.format(rawArule[0]),parameter):
-                        print '////',rawArule[0]
-            """
+                if should_continue:
+                    continue
+            else:
+                self._process_other_rule(
+                    rawArule,
+                    arule_obj,
+                    compartmentList,
+                    translator,
+                    arules,
+                    aParameters,
+                    zRules,
+                    zparams,
+                )
             # we can't decide any of this here, we need the
             # full model setup before deciding
             self.bngModel.add_arule(arule_obj)
@@ -2813,8 +2875,8 @@ class SBML2BNGL:
                 rawSpecies["compartment"] = ""
                 self.tags[rawSpecies["identifier"]] = ""
             else:
-                self.tags[rawSpecies["identifier"]] = "@%s" % (
-                    rawSpecies["compartment"]
+                self.tags[rawSpecies["identifier"]] = (
+                    "@%s" % (rawSpecies["compartment"])
                 )
         if rawSpecies["returnID"] in translator:
             if rawSpecies["returnID"] in rawSpeciesName:
