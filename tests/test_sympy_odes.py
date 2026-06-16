@@ -5,7 +5,35 @@ from bionetgen.modelapi.sympy_odes import (
     _extract_nv_assignments,
     _extract_define_int,
     _extract_odes_from_cvode_mex,
+    _replace_parameters_brackets,
 )
+
+
+def test_replace_parameters_brackets():
+    # Normal in-bounds replacements
+    expr = "parameters[0] * parameters[1] + parameters[2]"
+    param_names = ["k1", "k2", "k3"]
+    assert _replace_parameters_brackets(expr, param_names) == "k1 * k2 + k3"
+
+    # Out-of-bounds replacements
+    expr = "parameters[0] + parameters[10]"
+    param_names = ["k1"]
+    assert _replace_parameters_brackets(expr, param_names) == "k1 + p10"
+
+    # Varying whitespace
+    expr = "parameters  [ 0 ] * parameters[1  ]"
+    param_names = ["k1", "k2"]
+    assert _replace_parameters_brackets(expr, param_names) == "k1 * k2"
+
+    # No matches
+    expr = "no parameters here"
+    param_names = ["k1"]
+    assert _replace_parameters_brackets(expr, param_names) == "no parameters here"
+
+    # Empty parameter list
+    expr = "parameters[0] + parameters[1]"
+    param_names = []
+    assert _replace_parameters_brackets(expr, param_names) == "p0 + p1"
 
 
 def test_extract_nv_assignments():
@@ -279,3 +307,85 @@ def test_replace_indexed_symbols():
     expr_out_of_bounds_p = "p[2]"
     res = _replace_indexed_symbols(expr_out_of_bounds_p, [], ["k1", "k2"])
     assert res == "p2"
+
+
+import sympy as sp
+from bionetgen.modelapi.sympy_odes import _replace_nv_ith_s
+
+
+def test_replace_nv_ith_s():
+    species_symbol_names = ["A", "B", "C"]
+    expr_syms = [sp.Symbol("E1"), sp.Symbol("E2")]
+    obs_syms = [sp.Symbol("O1")]
+    rate_syms = [sp.Symbol("R1"), sp.Symbol("R2"), sp.Symbol("R3")]
+
+    # Test "species" branch (in bounds and out of bounds)
+    expr1 = "NV_Ith_S(species, 1) + NV_Ith_S(species, 5)"
+    res1 = _replace_nv_ith_s(
+        expr1, species_symbol_names, expr_syms, obs_syms, rate_syms
+    )
+    assert res1 == "B + s5"
+
+    # Test "expressions" branch
+    expr2 = "NV_Ith_S(expressions, 0) + NV_Ith_S(expressions, 10)"
+    res2 = _replace_nv_ith_s(
+        expr2, species_symbol_names, expr_syms, obs_syms, rate_syms
+    )
+    assert res2 == "E1 + e10"
+
+    # Test "observables" branch
+    expr3 = "NV_Ith_S(observables, 0) + NV_Ith_S(observables, 5)"
+    res3 = _replace_nv_ith_s(
+        expr3, species_symbol_names, expr_syms, obs_syms, rate_syms
+    )
+    assert res3 == "O1 + o5"
+
+    # Test "ratelaws" branch
+    expr4 = "NV_Ith_S(ratelaws, 2) + NV_Ith_S(ratelaws, 10)"
+    res4 = _replace_nv_ith_s(
+        expr4, species_symbol_names, expr_syms, obs_syms, rate_syms
+    )
+    assert res4 == "R3 + r10"
+
+    # Test "Dspecies" branch
+    expr5 = "NV_Ith_S(Dspecies, 1)"
+    res5 = _replace_nv_ith_s(
+        expr5, species_symbol_names, expr_syms, obs_syms, rate_syms
+    )
+    assert res5 == "ds1"
+
+    # Test unknown variable branch
+    expr6 = "NV_Ith_S(unknown, 2)"
+    res6 = _replace_nv_ith_s(
+        expr6, species_symbol_names, expr_syms, obs_syms, rate_syms
+    )
+    assert res6 == "NV_Ith_S(unknown, 2)"
+
+
+def test_replace_indexed_symbols():
+    from bionetgen.modelapi.sympy_odes import _replace_indexed_symbols
+
+    species_names = ["S1", "S2"]
+    param_names = ["k1", "k2"]
+
+    # Test species replacements
+    expr1 = "NV_Ith_S(y, 0) + NV_Ith_S(y, 1)"
+    assert _replace_indexed_symbols(expr1, species_names, param_names) == "S1 + S2"
+
+    expr2 = "y[0] + y[1]"
+    assert _replace_indexed_symbols(expr2, species_names, param_names) == "S1 + S2"
+
+    # Test out of bounds species
+    expr3 = "y[2]"
+    assert _replace_indexed_symbols(expr3, species_names, param_names) == "s2"
+
+    # Test param replacements
+    expr4 = "params[0] + param[1]"
+    assert _replace_indexed_symbols(expr4, species_names, param_names) == "k1 + k2"
+
+    expr5 = "p[0]"
+    assert _replace_indexed_symbols(expr5, species_names, param_names) == "k1"
+
+    # Test out of bounds param
+    expr6 = "p[2]"
+    assert _replace_indexed_symbols(expr6, species_names, param_names) == "p2"
