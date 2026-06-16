@@ -223,6 +223,13 @@ def solveComplexBinding(totalComplex, pathwaycommonsFlag, parser, compositionEnt
         #        dbPair.add((element[0], element[1]))
     dbPair = list(dbPair)
 
+    # Adding validation or error checking for malformed input files
+    dbPair = [
+        element
+        for element in dbPair
+        if element[0] not in (None, "None", "") and element[1] not in (None, "None", "")
+    ]
+
     if dbPair != []:
         mol1 = mol2 = None
         # select the best candidate if there's many ways to bind (in general
@@ -243,30 +250,30 @@ def solveComplexBinding(totalComplex, pathwaycommonsFlag, parser, compositionEnt
             dbPair = finalDBpair
 
         if len(dbPair) > 1:
-            # @FIXME: getNamedMolecule should never receive parameters that cause it to return null, but somehow that's what is happening
-            # when you receive a malformed user definition file. The error
-            # should be caught way before we reach this point
             tmpComplexSubset1 = [
-                getNamedMolecule(totalComplex[0], element[0])
+                mol
                 for element in dbPair
-                if getNamedMolecule(totalComplex[0], element[0]) is not None
+                if (mol := getNamedMolecule(totalComplex[0], element[0])) is not None
             ]
             if not tmpComplexSubset1:
                 tmpComplexSubset1 = [
-                    getNamedMolecule(totalComplex[0], element[1])
+                    mol
                     for element in dbPair
-                    if getNamedMolecule(totalComplex[0], element[1]) is not None
+                    if (mol := getNamedMolecule(totalComplex[0], element[1]))
+                    is not None
                 ]
                 tmpComplexSubset2 = [
-                    getNamedMolecule(totalComplex[1], element[0])
+                    mol
                     for element in dbPair
-                    if getNamedMolecule(totalComplex[1], element[0]) is not None
+                    if (mol := getNamedMolecule(totalComplex[1], element[0]))
+                    is not None
                 ]
             else:
                 tmpComplexSubset2 = [
-                    getNamedMolecule(totalComplex[1], element[1])
+                    mol
                     for element in dbPair
-                    if getNamedMolecule(totalComplex[1], element[1]) is not None
+                    if (mol := getNamedMolecule(totalComplex[1], element[1]))
+                    is not None
                 ]
 
             mol1 = getBiggestMolecule(tmpComplexSubset1)
