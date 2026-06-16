@@ -163,38 +163,6 @@ class SCTSolver:
         # let's store each step separately for analysis downstream
         self.database.scts["03_post_user_sct"] = deepcopy(self.database.dependencyGraph)
 
-        # self.database.eequivalence translator contains 1:1 equivalences
-        # FIXME: do we need this update step or is it enough with the later one?
-        # catalysis reactions
-        """
-        for key in self.database.eequivalenceTranslator:
-            for namingEquivalence in self.database.eequivalenceTranslator[key]:
-                baseElement = min(namingEquivalence, key=len)
-                modElement = max(namingEquivalence, key=len)
-                if key != 'Binding':
-                    if baseElement not in self.database.dependencyGraph or self.database.dependencyGraph[baseElement] == []:
-                        if modElement not in self.database.dependencyGraph or self.database.dependencyGraph[modElement] == []:
-                            self.database.dependencyGraph[baseElement] = []
-                        # do we have a meaningful reverse dependence?
-                        # elif all([baseElement not in x for x in self.database.dependencyGraph[modElement]]):
-                        #    atoAux.addToDependencyGraph(self.database.dependencyGraph,baseElement,[modElement])
-                        #    continue
-
-                            if baseElement in self.database.annotationDict and modElement in self.database.annotationDict:
-                                baseSet = set([y for x in self.database.annotationDict[
-                                              baseElement] for y in self.database.annotationDict[baseElement][x]])
-                                modSet = set([y for x in self.database.annotationDict[
-                                             modElement] for y in self.database.annotationDict[modElement][x]])
-                                if len(baseSet.intersection(modSet)) > 0 or len(baseSet) == 0 or len(modSet) == 0:
-                                    atoAux.addToDependencyGraph(self.database.dependencyGraph, modElement,
-                                                         [baseElement])
-                                else:
-                                    logMess("ERROR:ANN201", "{0} and {1} have a direct correspondence according to reaction information however their annotations are completely different.".format(
-                                        baseElement, modElement))
-                            else:
-                                atoAux.addToDependencyGraph(self.database.dependencyGraph, modElement,
-                                                     [baseElement])
-        """
         # include user label information.
         for element in self.database.userLabelDictionary:
             if self.database.userLabelDictionary[element] in [0, [(0,)]]:
@@ -624,7 +592,21 @@ class SCTSolver:
             [x.strip("()") for x in self.database.constructedSpecies]
         )
         # TODO: merge both lists and use them as a tiebreaker for consolidation
-        # completeAnnotationDependencyGraph, completePartialMatches = fillSCTwithAnnotationInformation(strippedMolecules, annotationDict, self.database, False)
+        completeAnnotationDependencyGraph, completePartialMatches = (
+            self.fillSCTwithAnnotationInformation(
+                strippedMolecules,
+                self.database.annotationDict,
+                logResults=False,
+                tentativeFlag=False,
+            )
+        )
+        tiebreaker = deepcopy(completeAnnotationDependencyGraph)
+        for key in completePartialMatches:
+            if key not in tiebreaker:
+                tiebreaker[key] = completePartialMatches[key]
+            else:
+                tiebreaker[key].extend(completePartialMatches[key])
+
         # pure lexical analysis for the remaining orphaned molecules
         (
             tmpDependency,
@@ -718,6 +700,7 @@ class SCTSolver:
             equivalenceTranslator,
             self.database.eequivalenceTranslator,
             self.database.sbmlAnalyzer,
+            tiebreaker=tiebreaker,
         )
         return self.database
 
@@ -947,6 +930,7 @@ class SCTSolver:
         loginformation,
         equivalenceTranslator,
         equivalenceDictionary,
+        tiebreaker=None,
     ):
         tmpCandidates = []
         modifiedElementsPerCandidate = []
@@ -1030,12 +1014,21 @@ class SCTSolver:
                 flag = False
                 for idx, chemical in enumerate(tmpCandidate):
                     if modifiedElementsCounter[chemical] > 0:
+                        chemical_count_in_candidate = tmpCandidate.count(chemical)
                         modifiedElementsCounter[chemical] -= 1
                         mod = (
                             newModifiedElements[cidx][chemical].pop(0)
                             if newModifiedElements[cidx][chemical]
                             else chemical
                         )
+                        if modifiedElementsCounter[chemical] > (
+                            chemical_count_in_candidate - 1
+                        ):
+                            modifiedElementsCounter[chemical] -= 1
+                            modifiedElementsCounter[mod] += 1
+                            if newModifiedElements[cidx][chemical]:
+                                next_mod = newModifiedElements[cidx][chemical].pop(0)
+                                newModifiedElements[cidx][mod].insert(0, next_mod)
                         tmpCandidate[idx] = mod
                         flag = True
                         break
@@ -1063,38 +1056,37 @@ class SCTSolver:
         if len(tmpCandidates) == 0:
             return None, None, None
 
-        # FIXME: I have no idea wtf this is doing so im commenting it out. i
-        # think it's old code that is no longer ncessary
-        """
         # update candidate chemical references to their modified version if required
         if len(tmpCandidates) > 1:
             # temporal solution for defaulting to the first alternative
             totalElements = [y for x in tmpCandidates for y in x]
-            elementDict = {}
-            for word in totalElements:
-                if word not in elementDict:
-                    elementDict[word] = 0
-                elementDict[word] += 1
+            elementDict = Counter(totalElements)
             newTmpCandidates = [[]]
             for element in elementDict:
                 if elementDict[element] % len(tmpCandidates) == 0:
                     newTmpCandidates[0].append(element)
-                #elif elementDict[element] % len(tmpCandidates) != 0 and re.search('(_|^){0}(_|$)'.format(element),reactant):
-                #    newTmpCandidates[0].append(element)
-                #    unevenElements.append([element])
                 else:
-                    logMess('WARNING:Atomization', 'Are these actually the same? {0}={1}.'.format(reactant,candidates))
+                    logMess(
+                        "WARNING:Atomization",
+                        "Are these actually the same? {0}={1}.".format(
+                            reactant, candidates
+                        ),
+                    )
                     unevenElements.append(element)
             flag = True
-            # FIXME:this should be done on newtmpCandidates instead of tmpcandidates
             while flag:
                 flag = False
-                for idx, chemical in enumerate(tmpCandidates[0]):
-                    if chemical in newModifiedElements: #and newModifiedElements[chemical] in reactant:
-                        tmpCandidates[0][idx] = newModifiedElements[chemical]
+                for idx, chemical in enumerate(newTmpCandidates[0]):
+                    if (
+                        chemical in newModifiedElements[0]
+                        and newModifiedElements[0][chemical]
+                    ):
+                        mod = newModifiedElements[0][chemical].pop(0)
+                        newTmpCandidates[0][idx] = mod
                         flag = True
                         break
-        """
+
+            tmpCandidates[0] = newTmpCandidates[0]
         # if all the candidates are about modification changes to a complex
         # then try to do it through lexical analysis
         if (
@@ -1185,6 +1177,7 @@ this the correct behavior or provide an alternative for {0}".format(
                                 loginformation,
                                 equivalenceTranslator,
                                 equivalenceDictionary,
+                                tiebreaker=tiebreaker,
                             )[0],
                             unevenElements,
                             candidates,
@@ -1353,16 +1346,29 @@ this the correct behavior or provide an alternative for {0}".format(
                                 )
 
                     if len(tmpCandidates) != 1:
-                        if not self.database.softConstraints:
-                            if loginformation:
-                                logMess(
-                                    "ERROR:SCT213",
-                                    "{0}:Atomizer needs user information to determine which element is being modified among components {1}={2}.".format(
-                                        reactant, candidates, tmpCandidates
-                                    ),
-                                )
-                            # print self.database.userLabelDictionary
-                            return None, None, None
+                        if tiebreaker and reactant in tiebreaker:
+                            for tb_candidate in tiebreaker[reactant]:
+                                if tb_candidate in tmpCandidates:
+                                    if loginformation:
+                                        logMess(
+                                            "INFO:SCT001",
+                                            "{0}:Using tiebreaker to resolve conflicting definitions {1}".format(
+                                                reactant, tmpCandidates
+                                            ),
+                                        )
+                                    tmpCandidates = [tb_candidate]
+                                    break
+                        if len(tmpCandidates) != 1:
+                            if not self.database.softConstraints:
+                                if loginformation:
+                                    logMess(
+                                        "ERROR:SCT213",
+                                        "{0}:Atomizer needs user information to determine which element is being modified among components {1}={2}.".format(
+                                            reactant, candidates, tmpCandidates
+                                        ),
+                                    )
+                                # print self.database.userLabelDictionary
+                                return None, None, None
                     else:
                         if not self.database.softConstraints:
                             if loginformation:
@@ -1426,6 +1432,7 @@ this the correct behavior or provide an alternative for {0}".format(
                     loginformation,
                     equivalenceTranslator,
                     equivalenceDictionary,
+                    tiebreaker=tiebreaker,
                 )[0]
                 if not namingTmpCandidates:
                     logMess(
@@ -1523,20 +1530,34 @@ this the correct behavior or provide an alternative for {0}".format(
                         loginformation,
                         equivalenceTranslator,
                         equivalenceDictionary,
+                        tiebreaker=tiebreaker,
                     )
                 elif len(tmpCandidates2) == 0:
                     # the differences is between species that we created so its the LAE fault. Just choose one.
                     tmpCandidates.sort(key=len)
                     tmpCandidates = [tmpCandidates[0]]
                 else:
-                    if loginformation:
-                        logMess(
-                            "ERROR:SCT211",
-                            "{0}:{1}:{2}:Cannot converge to solution, conflicting definitions".format(
-                                reactant, tmpCandidates, originalTmpCandidates
-                            ),
-                        )
-                    return None, None, None
+                    if tiebreaker and reactant in tiebreaker:
+                        for tb_candidate in tiebreaker[reactant]:
+                            if tb_candidate in tmpCandidates:
+                                if loginformation:
+                                    logMess(
+                                        "INFO:SCT001",
+                                        "{0}:Using tiebreaker to resolve conflicting definitions {1}".format(
+                                            reactant, tmpCandidates
+                                        ),
+                                    )
+                                tmpCandidates = [tb_candidate]
+                                break
+                    if len(tmpCandidates) > 1:
+                        if loginformation:
+                            logMess(
+                                "ERROR:SCT211",
+                                "{0}:{1}:{2}:Cannot converge to solution, conflicting definitions".format(
+                                    reactant, tmpCandidates, originalTmpCandidates
+                                ),
+                            )
+                        return None, None, None
         elif reactant in self.database.alternativeDependencyGraph and loginformation:
             # there is one stoichionetry candidate but the naming convention
             # and the stoichionetry dotn agree
@@ -1558,6 +1579,7 @@ this the correct behavior or provide an alternative for {0}".format(
                     loginformation,
                     equivalenceTranslator,
                     equivalenceDictionary,
+                    tiebreaker=tiebreaker,
                 )[0]
 
                 # if they still disagree print error and use stoichiometry
@@ -1620,6 +1642,7 @@ this the correct behavior or provide an alternative for {0}".format(
         equivalenceDictionary,
         sbmlAnalyzer,
         loginformation=True,
+        tiebreaker=None,
     ):
         """
         The second part of the Atomizer algorithm, once the lexical and stoichiometry information has been extracted
@@ -1654,6 +1677,7 @@ this the correct behavior or provide an alternative for {0}".format(
                     loginformation,
                     equivalenceTranslator,
                     equivalenceDictionary,
+                    tiebreaker=tiebreaker,
                 )
                 # except CycleError:
                 #    candidates = None
