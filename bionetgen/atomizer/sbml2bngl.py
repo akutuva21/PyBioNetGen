@@ -1682,9 +1682,9 @@ class SBML2BNGL:
                         % functionName,
                     )
                 defn = self.bngModel.functions[rule_obj.rate_cts[0]].definition
-                self.bngModel.functions[rule_obj.rate_cts[0]].definition = (
-                    f"({defn})/({rule_obj.symm_factors[0]})"
-                )
+                self.bngModel.functions[
+                    rule_obj.rate_cts[0]
+                ].definition = f"({defn})/({rule_obj.symm_factors[0]})"
         if rule_obj.reversible:
             logMess(
                 "ERROR:SIM205",
@@ -2537,7 +2537,6 @@ class SBML2BNGL:
         and parameters initialized as 0, so they need to be removed from the parameters list
         """
         # TODO: This function removes compartment info and this leads to mis-replacement of variables downstream. e.g. Calc@ER and Calc@MIT both gets written as Calc and downstream the replacement is wrong.
-        # TODO: This function gets a list of observables which sometimes are turned into assignment rules but then are not updated in the observablesDict. E.g. X_comp1 gets in, X_ar is created and you can't have BOTH X_comp1 in a reaction AND X_ar adjusting X itself. You MUST pick one, if both are happening raise and error and exit out. For now I'll say if we have _ar then we replace the X_comp1 with X_ar and test.
 
         # Going to use this to match names and remove params
         # if need be
@@ -2876,8 +2875,8 @@ class SBML2BNGL:
                 rawSpecies["compartment"] = ""
                 self.tags[rawSpecies["identifier"]] = ""
             else:
-                self.tags[rawSpecies["identifier"]] = "@%s" % (
-                    rawSpecies["compartment"]
+                self.tags[rawSpecies["identifier"]] = (
+                    "@%s" % (rawSpecies["compartment"])
                 )
         if rawSpecies["returnID"] in translator:
             if rawSpecies["returnID"] in rawSpeciesName:
