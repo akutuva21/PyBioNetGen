@@ -413,9 +413,11 @@ class Pattern:
 
     @label.setter
     def label(self, value):
-        # TODO: Build in logic to set
-        # the outer label
-        # print("Warning: Logical checks are not complete")
+        if value is not None:
+            if not isinstance(value, str):
+                value = str(value)
+            if not re.match(r"^[a-zA-Z0-9_]*$", value):
+                raise ValueError(f"Invalid characters in label: {value}")
         self._label = value
 
     def __str__(self):
@@ -632,7 +634,11 @@ class Molecule:
 
     @label.setter
     def label(self, value):
-        # print("Warning: Logical checks are not complete")
+        if value is not None:
+            if not isinstance(value, str):
+                value = str(value)
+            if not re.match(r"^[a-zA-Z0-9_]*$", value):
+                raise ValueError(f"Invalid characters in label: {value}")
         self._label = value
 
     def _add_component(self, name, state=None, states=None):
@@ -771,8 +777,11 @@ class Component:
 
     @label.setter
     def label(self, value):
-        # TODO: Add built-in logic here
-        # print("Warning: Logical checks are not complete")
+        if value is not None:
+            if not isinstance(value, str):
+                value = str(value)
+            if not re.match(r"^[a-zA-Z0-9_]*$", value):
+                raise ValueError(f"Invalid characters in label: {value}")
         self._label = value
 
     @property
