@@ -1061,15 +1061,13 @@ class SBMLAnalyzer:
         # print('+++',namePairs,differenceList)
         # print('---',detectOntology.defineEditDistanceMatrix2(molecules,similarityThreshold=similarityThreshold))
 
-        # FIXME:in here we need a smarter heuristic to detect actual modifications
-        # for now im just going with a simple heuristic that if the species name
-        # is long enough, and the changes from a to be are all about modification
-        longEnough = 3
+        match_ratio = 0.0
+        if len(differenceList) > 0 and reactant and product:
+            s = difflib.SequenceMatcher(None, reactant, product)
+            match_len = sum(b.size for b in s.get_matching_blocks())
+            match_ratio = match_len / min(len(reactant), len(product))
 
-        if len(differenceList) > 0 and (
-            (len(reactant) >= longEnough and len(reactant) >= len(differenceList[0]))
-            or reactant in moleculeSet
-        ):
+        if len(differenceList) > 0 and (match_ratio >= 0.75 or reactant in moleculeSet):
             # one is strictly a subset of the other a,a_b
             if len([x for x in differenceList[0] if "-" in x]) == 0:
                 return [
