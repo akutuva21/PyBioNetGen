@@ -1472,12 +1472,12 @@ def analyzeHelper(
         if param_name in parser.bngModel.parameters:
             parser.bngModel.parameters[param_name].val = param_val
 
-    # TODO: temporary: check structured molecule ratio
+    # check structured molecule ratio
     struc_count = 0
     for molec_str in molecules:
-        srch = re.search(r"(\W|^)(.+)\((.*)\)", molec_str)
-        if srch is not None:
-            if len(srch.group(3)) > 0:
+        if "(" in molec_str:
+            comp_str = molec_str[molec_str.find("(") + 1 : molec_str.rfind(")")]
+            if len(comp_str.strip()) > 0:
                 struc_count += 1
     struc_ratio = float(struc_count) / len(molecules) if len(molecules) > 0 else 0
     print("Structured molecule type ratio: {}".format(struc_ratio))
