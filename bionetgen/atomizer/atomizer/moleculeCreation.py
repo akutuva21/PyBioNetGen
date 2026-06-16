@@ -223,6 +223,13 @@ def solveComplexBinding(totalComplex, pathwaycommonsFlag, parser, compositionEnt
         #        dbPair.add((element[0], element[1]))
     dbPair = list(dbPair)
 
+    # Adding validation or error checking for malformed input files
+    dbPair = [
+        element
+        for element in dbPair
+        if element[0] not in (None, "None", "") and element[1] not in (None, "None", "")
+    ]
+
     if dbPair != []:
         mol1 = mol2 = None
         # select the best candidate if there's many ways to bind (in general
@@ -243,30 +250,30 @@ def solveComplexBinding(totalComplex, pathwaycommonsFlag, parser, compositionEnt
             dbPair = finalDBpair
 
         if len(dbPair) > 1:
-            # @FIXME: getNamedMolecule should never receive parameters that cause it to return null, but somehow that's what is happening
-            # when you receive a malformed user definition file. The error
-            # should be caught way before we reach this point
             tmpComplexSubset1 = [
-                getNamedMolecule(totalComplex[0], element[0])
+                mol
                 for element in dbPair
-                if getNamedMolecule(totalComplex[0], element[0]) is not None
+                if (mol := getNamedMolecule(totalComplex[0], element[0])) is not None
             ]
             if not tmpComplexSubset1:
                 tmpComplexSubset1 = [
-                    getNamedMolecule(totalComplex[0], element[1])
+                    mol
                     for element in dbPair
-                    if getNamedMolecule(totalComplex[0], element[1]) is not None
+                    if (mol := getNamedMolecule(totalComplex[0], element[1]))
+                    is not None
                 ]
                 tmpComplexSubset2 = [
-                    getNamedMolecule(totalComplex[1], element[0])
+                    mol
                     for element in dbPair
-                    if getNamedMolecule(totalComplex[1], element[0]) is not None
+                    if (mol := getNamedMolecule(totalComplex[1], element[0]))
+                    is not None
                 ]
             else:
                 tmpComplexSubset2 = [
-                    getNamedMolecule(totalComplex[1], element[1])
+                    mol
                     for element in dbPair
-                    if getNamedMolecule(totalComplex[1], element[1]) is not None
+                    if (mol := getNamedMolecule(totalComplex[1], element[1]))
+                    is not None
                 ]
 
             mol1 = getBiggestMolecule(tmpComplexSubset1)
@@ -399,36 +406,7 @@ def getComplexationComponents2(
                         ):
                             speciesDict[x.name.lower()].remove(mol)
                             speciesDict[component.name].remove(x)
-                            if (
-                                x not in orphanedMolecules
-                                and mol not in orphanedMolecules
-                            ):
-                                # FIXME: is it necessary to remove double bonds
-                                # in complexes?
 
-                                lhs = set([])
-                                rhs = set([])
-                                repeatedFlag = False
-                                for pair in pairedMolecules:
-                                    if x in pair:
-                                        lhs.add(pair[0])
-                                        lhs.add(pair[1])
-                                    elif mol in pair:
-                                        rhs.add(pair[0])
-                                        rhs.add(pair[1])
-                                    # is this particular pair of molecules bound together?
-                                    if x in pair and mol in pair:
-                                        repeatedFlag = True
-                                        break
-                                # this pair already exists
-                                if repeatedFlag:
-                                    continue
-                                redundantBonds.append([x, mol])
-                                intersection = lhs.intersection(rhs)
-                                redundantBonds[-1].extend(list(intersection))
-                                if len(redundantBonds[-1]) < 3:
-                                    redundantBonds.pop()
-                                # continue
                             if (
                                 [x, mol] not in bondSeeding
                                 and [mol, x] not in bondSeeding
