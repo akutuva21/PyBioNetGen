@@ -1,3 +1,4 @@
+from bionetgen.modelapi.structs import Action
 import pytest
 from bionetgen.modelapi.structs import ModelObj, Action
 
@@ -43,7 +44,7 @@ def test_modelobj_line_label_setter():
     assert obj.line_label == "[1, 2, 3]: "
 
 
-def test_action_print_line():
+def test_action_print_line_v2():
     action = Action("simulate", {"method": "ode", "t_end": 100, "n_steps": 100})
     # Test base print_line
     assert action.print_line() == "simulate({method=>ode,t_end=>100,n_steps=>100})"
@@ -66,3 +67,66 @@ def test_action_print_line():
         action.print_line()
         == "1 simulate({method=>ode,t_end=>100,n_steps=>100}) #This is a comment"
     )
+
+
+def test_modelobj_print_line():
+    class DummyModelObj(ModelObj):
+        def gen_string(self) -> str:
+            return "dummy_object"
+
+    obj = DummyModelObj()
+
+    # Test base case with no line label and no comment
+    assert obj.print_line() == "  dummy_object"
+
+    # Test with line label only
+    obj.line_label = 1
+    assert obj.print_line() == "  1 dummy_object"
+
+    # Test with comment only
+    obj._line_label = None  # reset line_label
+    obj.comment = "# test comment"
+    assert obj.print_line() == "  dummy_object # test comment"
+
+    # Test with both line label and comment
+    obj.line_label = 1
+    obj.comment = "# test comment"
+    assert obj.print_line() == "  1 dummy_object # test comment"
+
+
+def test_action_print_line():
+    action = Action(action_type="simulate", action_args={"method": "ode", "t_end": 10})
+    # Basic print_line without comment or label
+    assert action.print_line() == "simulate({method=>ode,t_end=>10})"
+
+    # Print with line label
+    action.line_label = 1
+    assert action.print_line() == "1 simulate({method=>ode,t_end=>10})"
+
+    # Print with comment
+    action.comment = "test comment"
+    assert action.print_line() == "1 simulate({method=>ode,t_end=>10}) #test comment"
+
+    # Print with comment but no label
+    action._line_label = None
+    assert action.print_line() == "simulate({method=>ode,t_end=>10}) #test comment"
+
+
+def test_action_gen_string():
+    from bionetgen.modelapi.structs import Action
+
+    # Normal action with arguments
+    a1 = Action("simulate", {"method": "ode", "t_end": 10})
+    assert a1.gen_string() == "simulate({method=>ode,t_end=>10})"
+
+    # Normal action with no arguments
+    a2 = Action("simulate", {})
+    assert a2.gen_string() == "simulate()"
+
+    # Positional action without => setter syntax
+    a3 = Action("setConcentration", {"A": None, "10": None})
+    assert a3.gen_string() == "setConcentration(A,10)"
+
+    # Positional action with square braces
+    a4 = Action("saveConcentrations", {"A": None, "B": None})
+    assert a4.gen_string() == "saveConcentrations([A,B])"
