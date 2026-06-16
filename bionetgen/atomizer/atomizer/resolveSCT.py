@@ -592,7 +592,21 @@ class SCTSolver:
             [x.strip("()") for x in self.database.constructedSpecies]
         )
         # TODO: merge both lists and use them as a tiebreaker for consolidation
-        # completeAnnotationDependencyGraph, completePartialMatches = fillSCTwithAnnotationInformation(strippedMolecules, annotationDict, self.database, False)
+        completeAnnotationDependencyGraph, completePartialMatches = (
+            self.fillSCTwithAnnotationInformation(
+                strippedMolecules,
+                self.database.annotationDict,
+                logResults=False,
+                tentativeFlag=False,
+            )
+        )
+        tiebreaker = deepcopy(completeAnnotationDependencyGraph)
+        for key in completePartialMatches:
+            if key not in tiebreaker:
+                tiebreaker[key] = completePartialMatches[key]
+            else:
+                tiebreaker[key].extend(completePartialMatches[key])
+
         # pure lexical analysis for the remaining orphaned molecules
         (
             tmpDependency,
@@ -686,6 +700,7 @@ class SCTSolver:
             equivalenceTranslator,
             self.database.eequivalenceTranslator,
             self.database.sbmlAnalyzer,
+            tiebreaker=tiebreaker,
         )
         return self.database
 
@@ -915,6 +930,7 @@ class SCTSolver:
         loginformation,
         equivalenceTranslator,
         equivalenceDictionary,
+        tiebreaker=None,
     ):
         tmpCandidates = []
         modifiedElementsPerCandidate = []
@@ -1153,6 +1169,7 @@ this the correct behavior or provide an alternative for {0}".format(
                                 loginformation,
                                 equivalenceTranslator,
                                 equivalenceDictionary,
+                                tiebreaker=tiebreaker,
                             )[0],
                             unevenElements,
                             candidates,
@@ -1321,16 +1338,29 @@ this the correct behavior or provide an alternative for {0}".format(
                                 )
 
                     if len(tmpCandidates) != 1:
-                        if not self.database.softConstraints:
-                            if loginformation:
-                                logMess(
-                                    "ERROR:SCT213",
-                                    "{0}:Atomizer needs user information to determine which element is being modified among components {1}={2}.".format(
-                                        reactant, candidates, tmpCandidates
-                                    ),
-                                )
-                            # print self.database.userLabelDictionary
-                            return None, None, None
+                        if tiebreaker and reactant in tiebreaker:
+                            for tb_candidate in tiebreaker[reactant]:
+                                if tb_candidate in tmpCandidates:
+                                    if loginformation:
+                                        logMess(
+                                            "INFO:SCT001",
+                                            "{0}:Using tiebreaker to resolve conflicting definitions {1}".format(
+                                                reactant, tmpCandidates
+                                            ),
+                                        )
+                                    tmpCandidates = [tb_candidate]
+                                    break
+                        if len(tmpCandidates) != 1:
+                            if not self.database.softConstraints:
+                                if loginformation:
+                                    logMess(
+                                        "ERROR:SCT213",
+                                        "{0}:Atomizer needs user information to determine which element is being modified among components {1}={2}.".format(
+                                            reactant, candidates, tmpCandidates
+                                        ),
+                                    )
+                                # print self.database.userLabelDictionary
+                                return None, None, None
                     else:
                         if not self.database.softConstraints:
                             if loginformation:
@@ -1394,6 +1424,7 @@ this the correct behavior or provide an alternative for {0}".format(
                     loginformation,
                     equivalenceTranslator,
                     equivalenceDictionary,
+                    tiebreaker=tiebreaker,
                 )[0]
                 if not namingTmpCandidates:
                     logMess(
@@ -1491,20 +1522,34 @@ this the correct behavior or provide an alternative for {0}".format(
                         loginformation,
                         equivalenceTranslator,
                         equivalenceDictionary,
+                        tiebreaker=tiebreaker,
                     )
                 elif len(tmpCandidates2) == 0:
                     # the differences is between species that we created so its the LAE fault. Just choose one.
                     tmpCandidates.sort(key=len)
                     tmpCandidates = [tmpCandidates[0]]
                 else:
-                    if loginformation:
-                        logMess(
-                            "ERROR:SCT211",
-                            "{0}:{1}:{2}:Cannot converge to solution, conflicting definitions".format(
-                                reactant, tmpCandidates, originalTmpCandidates
-                            ),
-                        )
-                    return None, None, None
+                    if tiebreaker and reactant in tiebreaker:
+                        for tb_candidate in tiebreaker[reactant]:
+                            if tb_candidate in tmpCandidates:
+                                if loginformation:
+                                    logMess(
+                                        "INFO:SCT001",
+                                        "{0}:Using tiebreaker to resolve conflicting definitions {1}".format(
+                                            reactant, tmpCandidates
+                                        ),
+                                    )
+                                tmpCandidates = [tb_candidate]
+                                break
+                    if len(tmpCandidates) > 1:
+                        if loginformation:
+                            logMess(
+                                "ERROR:SCT211",
+                                "{0}:{1}:{2}:Cannot converge to solution, conflicting definitions".format(
+                                    reactant, tmpCandidates, originalTmpCandidates
+                                ),
+                            )
+                        return None, None, None
         elif reactant in self.database.alternativeDependencyGraph and loginformation:
             # there is one stoichionetry candidate but the naming convention
             # and the stoichionetry dotn agree
@@ -1526,6 +1571,7 @@ this the correct behavior or provide an alternative for {0}".format(
                     loginformation,
                     equivalenceTranslator,
                     equivalenceDictionary,
+                    tiebreaker=tiebreaker,
                 )[0]
 
                 # if they still disagree print error and use stoichiometry
@@ -1588,6 +1634,7 @@ this the correct behavior or provide an alternative for {0}".format(
         equivalenceDictionary,
         sbmlAnalyzer,
         loginformation=True,
+        tiebreaker=None,
     ):
         """
         The second part of the Atomizer algorithm, once the lexical and stoichiometry information has been extracted
@@ -1622,6 +1669,7 @@ this the correct behavior or provide an alternative for {0}".format(
                     loginformation,
                     equivalenceTranslator,
                     equivalenceDictionary,
+                    tiebreaker=tiebreaker,
                 )
                 # except CycleError:
                 #    candidates = None
