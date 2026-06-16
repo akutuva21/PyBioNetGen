@@ -37,8 +37,8 @@ class BNGNotebook:
         with open(self.template, "r") as f:
             content = f.read()
 
-        for key in self.odict:
-            content = content.replace(key, self.odict[key])
+        for key, val in self.odict.items():
+            content = content.replace(key, val)
 
         with open(outfile, "w") as f:
             f.write(content)
