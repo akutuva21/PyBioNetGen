@@ -617,7 +617,7 @@ class BNGGdiff:
 
     def _get_node_text(self, node):
         noded = node["data"]["y:ProxyAutoBoundsNode"]["y:Realizers"]
-        for key in noded.keys():
+        for key in noded:
             if "y:" in key:
                 return noded[key]["y:NodeLabel"]["#text"]
         return None
@@ -724,7 +724,7 @@ class BNGGdiff:
         self.logger.debug("Running", loc=f"{__file__} : BNGGdiff.run()")
         # Now we have the graphml files, now we do diff
         graphs = self.diff_graphs(self.gdict_1, self.gdict_2, self.colors)
-        for graph_name in graphs.keys():
+        for graph_name in graphs:
             # now write gml as graphml
             with open(graph_name, "w") as f:
                 xmltodict.unparse(graphs[graph_name], output=f, pretty=True)
