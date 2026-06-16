@@ -2243,10 +2243,30 @@ class SBMLAnalyzer:
                 )
                 # print('...',reaction, reactantString, productString)
                 if not reactantString or not productString:
-                    reactantString = [x.split("_") for x in reaction[0]]
-                    reactantString = [[y for y in x if y != ""] for x in reactantString]
-                    productString = [x.split("_") for x in reaction[1]]
-                    productString = [[y for y in x if y != ""] for x in productString]
+                    reactantString = []
+                    for x in reaction[0]:
+                        if x in strippedMolecules:
+                            reactantString.append([x])
+                        else:
+                            tmp = self.greedyModificationMatching(x, strippedMolecules)
+                            if isinstance(tmp, list) and len(tmp) > 0:
+                                reactantString.append(tmp)
+                            else:
+                                reactantString.append(
+                                    [y for y in x.split("_") if y != ""]
+                                )
+                    productString = []
+                    for x in reaction[1]:
+                        if x in strippedMolecules:
+                            productString.append([x])
+                        else:
+                            tmp = self.greedyModificationMatching(x, strippedMolecules)
+                            if isinstance(tmp, list) and len(tmp) > 0:
+                                productString.append(tmp)
+                            else:
+                                productString.append(
+                                    [y for y in x.split("_") if y != ""]
+                                )
 
             else:
                 reactantString = []
