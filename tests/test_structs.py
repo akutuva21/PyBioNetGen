@@ -59,6 +59,21 @@ def test_modelobj_line_label_setter():
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
 
+def test_rule_side_string():
+    from bionetgen.modelapi.structs import Rule
+
+    r = Rule(name="test_rule", rate_constants=(1.0,))
+
+    # Test empty list
+    assert r.side_string([]) == ""
+
+    # Test one element
+    assert r.side_string(["A"]) == "A"
+
+    # Test multiple elements
+    assert r.side_string(["A", "B", "C"]) == "A + B + C"
+
+
 def test_rule_set_rate_constants():
     # 1 rate constant
     r1 = Rule(name="r1", rate_constants=("k1",))
