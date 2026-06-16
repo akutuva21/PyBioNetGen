@@ -138,6 +138,7 @@ def loadOntology(ontologyFile):
                 "('+ P', '+ P', '+ _')": "Double-Phosporylation",
                 "('+ p', '+ p')": "Double-Phosporylation",
             },
+            "doubleModifications": {"Double-Phosporylation": "Phosporylation"},
         }
         for element in ontology["patterns"]:
             tmp[_parse_pattern_key(element)] = ontology["patterns"][element]
