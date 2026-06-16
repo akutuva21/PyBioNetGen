@@ -1056,38 +1056,37 @@ class SCTSolver:
         if len(tmpCandidates) == 0:
             return None, None, None
 
-        # FIXME: I have no idea wtf this is doing so im commenting it out. i
-        # think it's old code that is no longer ncessary
-        """
         # update candidate chemical references to their modified version if required
         if len(tmpCandidates) > 1:
             # temporal solution for defaulting to the first alternative
             totalElements = [y for x in tmpCandidates for y in x]
-            elementDict = {}
-            for word in totalElements:
-                if word not in elementDict:
-                    elementDict[word] = 0
-                elementDict[word] += 1
+            elementDict = Counter(totalElements)
             newTmpCandidates = [[]]
             for element in elementDict:
                 if elementDict[element] % len(tmpCandidates) == 0:
                     newTmpCandidates[0].append(element)
-                #elif elementDict[element] % len(tmpCandidates) != 0 and re.search('(_|^){0}(_|$)'.format(element),reactant):
-                #    newTmpCandidates[0].append(element)
-                #    unevenElements.append([element])
                 else:
-                    logMess('WARNING:Atomization', 'Are these actually the same? {0}={1}.'.format(reactant,candidates))
+                    logMess(
+                        "WARNING:Atomization",
+                        "Are these actually the same? {0}={1}.".format(
+                            reactant, candidates
+                        ),
+                    )
                     unevenElements.append(element)
             flag = True
-            # FIXME:this should be done on newtmpCandidates instead of tmpcandidates
             while flag:
                 flag = False
-                for idx, chemical in enumerate(tmpCandidates[0]):
-                    if chemical in newModifiedElements: #and newModifiedElements[chemical] in reactant:
-                        tmpCandidates[0][idx] = newModifiedElements[chemical]
+                for idx, chemical in enumerate(newTmpCandidates[0]):
+                    if (
+                        chemical in newModifiedElements[0]
+                        and newModifiedElements[0][chemical]
+                    ):
+                        mod = newModifiedElements[0][chemical].pop(0)
+                        newTmpCandidates[0][idx] = mod
                         flag = True
                         break
-        """
+
+            tmpCandidates[0] = newTmpCandidates[0]
         # if all the candidates are about modification changes to a complex
         # then try to do it through lexical analysis
         if (
