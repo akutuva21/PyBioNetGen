@@ -784,41 +784,59 @@ class SBMLAnalyzer:
                     # this is a list of pairs
                     for binding_pair in reactionDefinition_new["binding_interactions"]:
                         first, second = binding_pair[0], binding_pair[1]
-                        if isinstance(first, dict) or isinstance(second, dict):
-                            # TODO: Implement dictionaries for binding partners in the future
-                            raise NotImplementedError(
-                                "Dictionaries for binding pairs are not implemented yet"
-                            )
+
+                        first_name = first["name"] if isinstance(first, dict) else first
+                        second_name = (
+                            second["name"] if isinstance(second, dict) else second
+                        )
+
+                        first_site = (
+                            first.get("site", second_name.lower())
+                            if isinstance(first, dict)
+                            else second_name.lower()
+                        )
+                        first_state = (
+                            first.get("state", []) if isinstance(first, dict) else []
+                        )
+
+                        second_site = (
+                            second.get("site", first_name.lower())
+                            if isinstance(second, dict)
+                            else first_name.lower()
+                        )
+                        second_state = (
+                            second.get("state", []) if isinstance(second, dict) else []
+                        )
 
                         # let's deal with first
                         # first initalize the item or pull if it already exists
                         item = None
                         for ix, x in enumerate(reactionDefinition["complexDefinition"]):
-                            if x[0] == first:
+                            if x[0] == first_name:
                                 item = reactionDefinition["complexDefinition"].pop(ix)
                                 break
                         if item is None:
-                            item = [first, [[first]]]
-                        item[1][0].append(second.lower())
-                        item[1][0].append([])
+                            item = [first_name, [[first_name]]]
+                        item[1][0].append(first_site)
+                        item[1][0].append(first_state)
                         reactionDefinition["complexDefinition"].append(item)
 
-                        if first != second:
+                        if first_name != second_name or first_site != second_site:
                             # now deal with second partner
                             # first initalize the item or pull if it already exists
                             item = None
                             for ix, x in enumerate(
                                 reactionDefinition["complexDefinition"]
                             ):
-                                if x[0] == second:
+                                if x[0] == second_name:
                                     item = reactionDefinition["complexDefinition"].pop(
                                         ix
                                     )
                                     break
                             if item is None:
-                                item = [second, [[second]]]
-                            item[1][0].append(first.lower())
-                            item[1][0].append([])
+                                item = [second_name, [[second_name]]]
+                            item[1][0].append(second_site)
+                            item[1][0].append(second_state)
                             reactionDefinition["complexDefinition"].append(item)
                 else:
                     reactionDefinition["complexDefinition"] = []
@@ -1043,15 +1061,13 @@ class SBMLAnalyzer:
         # print('+++',namePairs,differenceList)
         # print('---',detectOntology.defineEditDistanceMatrix2(molecules,similarityThreshold=similarityThreshold))
 
-        # FIXME:in here we need a smarter heuristic to detect actual modifications
-        # for now im just going with a simple heuristic that if the species name
-        # is long enough, and the changes from a to be are all about modification
-        longEnough = 3
+        match_ratio = 0.0
+        if len(differenceList) > 0 and reactant and product:
+            s = difflib.SequenceMatcher(None, reactant, product)
+            match_len = sum(b.size for b in s.get_matching_blocks())
+            match_ratio = match_len / min(len(reactant), len(product))
 
-        if len(differenceList) > 0 and (
-            (len(reactant) >= longEnough and len(reactant) >= len(differenceList[0]))
-            or reactant in moleculeSet
-        ):
+        if len(differenceList) > 0 and (match_ratio >= 0.75 or reactant in moleculeSet):
             # one is strictly a subset of the other a,a_b
             if len([x for x in differenceList[0] if "-" in x]) == 0:
                 return [
@@ -2227,10 +2243,30 @@ class SBMLAnalyzer:
                 )
                 # print('...',reaction, reactantString, productString)
                 if not reactantString or not productString:
-                    reactantString = [x.split("_") for x in reaction[0]]
-                    reactantString = [[y for y in x if y != ""] for x in reactantString]
-                    productString = [x.split("_") for x in reaction[1]]
-                    productString = [[y for y in x if y != ""] for x in productString]
+                    reactantString = []
+                    for x in reaction[0]:
+                        if x in strippedMolecules:
+                            reactantString.append([x])
+                        else:
+                            tmp = self.greedyModificationMatching(x, strippedMolecules)
+                            if isinstance(tmp, list) and len(tmp) > 0:
+                                reactantString.append(tmp)
+                            else:
+                                reactantString.append(
+                                    [y for y in x.split("_") if y != ""]
+                                )
+                    productString = []
+                    for x in reaction[1]:
+                        if x in strippedMolecules:
+                            productString.append([x])
+                        else:
+                            tmp = self.greedyModificationMatching(x, strippedMolecules)
+                            if isinstance(tmp, list) and len(tmp) > 0:
+                                productString.append(tmp)
+                            else:
+                                productString.append(
+                                    [y for y in x.split("_") if y != ""]
+                                )
 
             else:
                 reactantString = []
