@@ -5,7 +5,35 @@ from bionetgen.modelapi.sympy_odes import (
     _extract_nv_assignments,
     _extract_define_int,
     _extract_odes_from_cvode_mex,
+    _replace_parameters_brackets,
 )
+
+
+def test_replace_parameters_brackets():
+    # Normal in-bounds replacements
+    expr = "parameters[0] * parameters[1] + parameters[2]"
+    param_names = ["k1", "k2", "k3"]
+    assert _replace_parameters_brackets(expr, param_names) == "k1 * k2 + k3"
+
+    # Out-of-bounds replacements
+    expr = "parameters[0] + parameters[10]"
+    param_names = ["k1"]
+    assert _replace_parameters_brackets(expr, param_names) == "k1 + p10"
+
+    # Varying whitespace
+    expr = "parameters  [ 0 ] * parameters[1  ]"
+    param_names = ["k1", "k2"]
+    assert _replace_parameters_brackets(expr, param_names) == "k1 * k2"
+
+    # No matches
+    expr = "no parameters here"
+    param_names = ["k1"]
+    assert _replace_parameters_brackets(expr, param_names) == "no parameters here"
+
+    # Empty parameter list
+    expr = "parameters[0] + parameters[1]"
+    param_names = []
+    assert _replace_parameters_brackets(expr, param_names) == "p0 + p1"
 
 
 def test_extract_nv_assignments():
