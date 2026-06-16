@@ -1,5 +1,8 @@
 from bionetgen.modelapi.structs import Action
 import pytest
+from bionetgen.modelapi.structs import ModelObj, Observable
+
+
 from bionetgen.modelapi.structs import ModelObj, Rule
 from bionetgen.core.exc import BNGParseError
 
@@ -58,6 +61,34 @@ def test_modelobj_line_label_setter():
     # Test TypeError (setting a non-string/non-integer like a list)
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
+
+class MockPattern:
+    def __init__(self, name, match_once=False):
+        self.name = name
+        self.MatchOnce = match_once
+
+    def __str__(self):
+        return self.name
+
+
+def test_observable_gen_string():
+    # Test with one pattern
+    obs1 = Observable(name="O1", otype="Molecules", patterns=[MockPattern("P1")])
+    assert obs1.gen_string() == "Molecules O1 P1"
+
+    # Test with multiple patterns
+    obs2 = Observable(
+        name="O2", otype="Molecules", patterns=[MockPattern("P1"), MockPattern("P2")]
+    )
+    assert obs2.gen_string() == "Molecules O2 P1,P2"
+
+    # Test with Species type which sets MatchOnce
+    obs3 = Observable(
+        name="S1", otype="Species", patterns=[MockPattern("P1", match_once=True)]
+    )
+    assert obs3.gen_string() == "Species S1 P1"
+    assert obs3.patterns[0].MatchOnce is False
+
 
 def test_rule_side_string():
     from bionetgen.modelapi.structs import Rule
