@@ -41,3 +41,23 @@ def test_modelobj_line_label_setter():
     # Test TypeError (setting a non-string/non-integer like a list)
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
+
+
+def test_action_gen_string():
+    from bionetgen.modelapi.structs import Action
+
+    # Normal action with arguments
+    a1 = Action("simulate", {"method": "ode", "t_end": 10})
+    assert a1.gen_string() == "simulate({method=>ode,t_end=>10})"
+
+    # Normal action with no arguments
+    a2 = Action("simulate", {})
+    assert a2.gen_string() == "simulate()"
+
+    # Positional action without => setter syntax
+    a3 = Action("setConcentration", {"A": None, "10": None})
+    assert a3.gen_string() == "setConcentration(A,10)"
+
+    # Positional action with square braces
+    a4 = Action("saveConcentrations", {"A": None, "B": None})
+    assert a4.gen_string() == "saveConcentrations([A,B])"
