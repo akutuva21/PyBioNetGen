@@ -64,7 +64,7 @@ class Network:
         # If not, model is most likely not in BNGL format
         if not self.active_blocks:
             raise BNGModelError(
-                self.network_name,
+                bngl_model,
                 message="No active blocks. Please ensure model is in proper BNGL or BNG-XML format",
             )
 
