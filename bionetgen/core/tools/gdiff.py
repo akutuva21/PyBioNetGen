@@ -617,7 +617,7 @@ class BNGGdiff:
 
     def _get_node_text(self, node):
         noded = node["data"]["y:ProxyAutoBoundsNode"]["y:Realizers"]
-        for key in noded.keys():
+        for key in noded:
             if "y:" in key:
                 return noded[key]["y:NodeLabel"]["#text"]
         return None
