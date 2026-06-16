@@ -26,9 +26,7 @@ class BNGNotebook:
 
     def __init__(self, nb_template, **kwargs):
         self.template = nb_template
-        self.odict = {}
-        for key in kwargs:
-            self.odict[key] = kwargs[key]
+        self.odict = dict(kwargs)
 
     def write(self, outfile):
         """
