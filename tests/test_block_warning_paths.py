@@ -76,7 +76,7 @@ def test_parameter_block_invalid_numeric_assignment_logs_warning():
 
     block = ParameterBlock()
     block.add_parameter("k1", 0.5)
-    block._changes.clear()
+    block.reset_compilation_tags()
 
     with patch.object(blocks_module, "logger") as mock_logger:
         block.k1 = object()
@@ -95,7 +95,7 @@ def test_compartment_block_invalid_numeric_assignment_logs_warning():
 
     block = CompartmentBlock()
     block.add_compartment("EC", 3, 1.0)
-    block._changes.clear()
+    block.reset_compilation_tags()
 
     with patch.object(blocks_module, "logger") as mock_logger:
         block.EC = object()
@@ -114,7 +114,7 @@ def test_observable_block_invalid_type_logs_warning():
 
     block = ObservableBlock()
     block.add_observable("obsA", "Molecules", [FakePattern("A()")])
-    block._changes.clear()
+    block.reset_compilation_tags()
     existing_observable = block["obsA"]
 
     with patch.object(blocks_module, "logger") as mock_logger:
@@ -135,7 +135,7 @@ def test_species_block_invalid_type_logs_warning():
     block = SpeciesBlock()
     existing_species = Species(pattern=FakePattern("A()"), count=100)
     block.items["A()"] = existing_species
-    block._changes.clear()
+    block.reset_compilation_tags()
 
     with patch.object(blocks_module, "logger") as mock_logger:
         setattr(block, "A()", 42)
