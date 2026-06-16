@@ -47,6 +47,18 @@ def test_modelobj_line_label_setter():
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
 
+def test_molecule_type_gen_string():
+    from bionetgen.modelapi.structs import MoleculeType
+    from bionetgen.modelapi.pattern import Component
+
+    comp = Component()
+    comp.name = "site"
+    comp.states = ["state1", "state2"]
+    mol_type = MoleculeType("A", [comp])
+
+    assert mol_type.gen_string() == "A(site~state1~state2)"
+
+
 def test_function_gen_string():
     f1 = Function(name="f1", expr="2 * x")
     assert f1.gen_string() == "f1 = 2 * x"
