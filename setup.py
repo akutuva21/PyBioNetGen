@@ -61,8 +61,10 @@ for asset in assets:
         linux_url = browser_url
     elif "mac" in browser_url:
         mac_url = browser_url
-    elif ("win" in browser_url and "tgz" in browser_url) or (
-        "win" in browser_url and "tar.gz" in browser_url
+    elif (
+        ("win" in browser_url and "tgz" in browser_url)
+        or ("win" in browser_url and "tar.gz" in browser_url)
+        or ("win" in browser_url and "zip" in browser_url)
     ):
         windows_url = browser_url
 
@@ -141,14 +143,14 @@ for iurl, bng_url in enumerate([linux_url, mac_url, windows_url]):
         os.remove(fname)
         shutil.rmtree(fold_name)
     if iurl == 2:
-        # elif "zip" == etx:
-        # TODO: handle zip/windows case
-        # bng_arch = zipfile.Zipfile(fname)
-        # fold_name = bng_arch.namelist()[0]
-        # safe_extract(bng_arch)
-        bng_arch = tarfile.open(fname)
-        fold_name = get_folder(bng_arch)
-        safe_extract(bng_arch)
+        if fname.endswith(".zip"):
+            bng_arch = zipfile.ZipFile(fname)
+            fold_name = bng_arch.namelist()[0].split("/")[0]
+            bng_arch.extractall()
+        else:
+            bng_arch = tarfile.open(fname)
+            fold_name = get_folder(bng_arch)
+            safe_extract(bng_arch)
         # bng folder
         if iurl == 2:
             bng_path_to_move = "bionetgen/bng-win"
