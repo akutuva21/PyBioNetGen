@@ -403,8 +403,6 @@ def getComplexationComponents2(
                                 x not in orphanedMolecules
                                 and mol not in orphanedMolecules
                             ):
-                                # FIXME: is it necessary to remove double bonds
-                                # in complexes?
 
                                 lhs = set([])
                                 rhs = set([])
