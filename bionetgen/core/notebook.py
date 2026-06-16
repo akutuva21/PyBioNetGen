@@ -35,13 +35,10 @@ class BNGNotebook:
         This method will overwrite the given arguments
         """
         with open(self.template, "r") as f:
-            temp_lines = f.readlines()
+            content = f.read()
 
-        new_lines = []
-        for line in temp_lines:
-            for key in self.odict:
-                line = line.replace(key, self.odict[key])
-            new_lines.append(line)
+        for key in self.odict:
+            content = content.replace(key, self.odict[key])
 
         with open(outfile, "w") as f:
-            f.writelines(new_lines)
+            f.write(content)

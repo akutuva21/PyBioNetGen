@@ -49,9 +49,7 @@ class AtomizeTool:
             config["input"] = input_file
         # dictionary override
         if options_dict is not None:
-            for key in config:
-                if key in options_dict:
-                    config[key] = options_dict[key]
+            config.update({k: v for k, v in options_dict.items() if k in config})
         # namespace override
         if parser_namespace is not None:
             for key in config:
