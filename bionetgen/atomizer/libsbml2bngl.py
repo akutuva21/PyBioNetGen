@@ -1433,23 +1433,33 @@ def analyzeHelper(
     # and observables
     obs_to_rem = []
     for iobs, obs_str in enumerate(observables):
-        oname = obs_str.split()[2]
-        comp = None
-        # we can have multiple patterns and/or molecules, if so
-        # let's assume they are useful
-        if "." in oname:
-            continue
-        if "@" in oname:
-            if len(oname.split(":")) > 1:
-                # using @comp:spec
-                oname = oname.split(":")[1]
-            else:
-                # using spec@comp
-                oname, comp = oname.split("@")
-        if "(" in oname:
-            oname = oname[: oname.find("(")]
-        if oname not in parser.used_molecules:
-            obs_to_rem.append(obs_str)
+        parts = obs_str.split()
+        if len(parts) > 2:
+            onames = parts[2]
+            useful = False
+            # split by commas to get individual patterns
+            patterns = onames.split(",")
+            for pattern in patterns:
+                # each pattern can be a complex separated by dots
+                mols = pattern.split(".")
+                for mol in mols:
+                    if "@" in mol:
+                        if len(mol.split(":")) > 1:
+                            # using @comp:spec
+                            mol = mol.split(":")[1]
+                        else:
+                            # using spec@comp
+                            mol = mol.split("@")[0]
+                    if "(" in mol:
+                        mol = mol[: mol.find("(")]
+                    # If ANY molecule in the pattern is used, we keep the observable
+                    if mol in parser.used_molecules:
+                        useful = True
+                        break
+                if useful:
+                    break
+            if not useful:
+                obs_to_rem.append(obs_str)
     for i in obs_to_rem:
         observables.remove(i)
     # done removing useless species/seed species/obs
@@ -1462,12 +1472,12 @@ def analyzeHelper(
         if param_name in parser.bngModel.parameters:
             parser.bngModel.parameters[param_name].val = param_val
 
-    # TODO: temporary: check structured molecule ratio
+    # check structured molecule ratio
     struc_count = 0
     for molec_str in molecules:
-        srch = re.search(r"(\W|^)(.+)\((.*)\)", molec_str)
-        if srch is not None:
-            if len(srch.group(3)) > 0:
+        if "(" in molec_str:
+            comp_str = molec_str[molec_str.find("(") + 1 : molec_str.rfind(")")]
+            if len(comp_str.strip()) > 0:
                 struc_count += 1
     struc_ratio = float(struc_count) / len(molecules) if len(molecules) > 0 else 0
     print("Structured molecule type ratio: {}".format(struc_ratio))
