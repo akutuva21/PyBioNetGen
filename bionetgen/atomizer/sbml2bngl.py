@@ -1682,9 +1682,9 @@ class SBML2BNGL:
                         % functionName,
                     )
                 defn = self.bngModel.functions[rule_obj.rate_cts[0]].definition
-                self.bngModel.functions[
-                    rule_obj.rate_cts[0]
-                ].definition = f"({defn})/({rule_obj.symm_factors[0]})"
+                self.bngModel.functions[rule_obj.rate_cts[0]].definition = (
+                    f"({defn})/({rule_obj.symm_factors[0]})"
+                )
         if rule_obj.reversible:
             logMess(
                 "ERROR:SIM205",
@@ -2875,8 +2875,8 @@ class SBML2BNGL:
                 rawSpecies["compartment"] = ""
                 self.tags[rawSpecies["identifier"]] = ""
             else:
-                self.tags[rawSpecies["identifier"]] = (
-                    "@%s" % (rawSpecies["compartment"])
+                self.tags[rawSpecies["identifier"]] = "@%s" % (
+                    rawSpecies["compartment"]
                 )
         if rawSpecies["returnID"] in translator:
             if rawSpecies["returnID"] in rawSpeciesName:

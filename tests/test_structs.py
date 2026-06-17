@@ -62,6 +62,7 @@ def test_modelobj_line_label_setter():
     obj.line_label = [1, 2, 3]
     assert obj.line_label == "[1, 2, 3]: "
 
+
 class MockPattern:
     def __init__(self, name, match_once=False):
         self.name = name

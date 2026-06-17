@@ -294,6 +294,7 @@ def test_replace_indexed_symbols_repl_param():
 
 from bionetgen.modelapi.sympy_odes import _replace_indexed_symbols
 
+
 def test_replace_indexed_symbols():
     # Test valid species and parameter indices
     expr = "NV_Ith_S(y,0) + y[1] + params[0] * param[1] - p[2]"
