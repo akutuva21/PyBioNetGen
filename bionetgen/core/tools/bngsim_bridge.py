@@ -1201,6 +1201,14 @@ _DIRECT_BNGSIM_FORMATS = {
 
 _BNGSIM_NETWORK_METHODS = frozenset({"ode", "ssa", "psa", "rm"})
 
+# Every method string BNG2.pl's simulate() accepts: its $METHODS hash keys
+# (cvode, ssa, pla, psa, nf) plus the documented 'ode' alias for 'cvode',
+# extended with 'rm' (RuleMonkey), which the bridge rewrites onto the nf
+# backend. A method outside this set is malformed — BNG2.pl itself rejects it
+# ("Simulation method '...' is not a valid option.") — so the router surfaces
+# it as an error rather than silently shipping it to the legacy stack.
+_KNOWN_BNGL_METHODS = frozenset({"ode", "cvode", "ssa", "psa", "pla", "nf", "rm"})
+
 _BNGL_ROUTING_COMPLEX_ACTIONS = frozenset(
     {
         "parameter_scan",
@@ -1244,6 +1252,29 @@ def _method_supported_by_bngsim_for_routing(method, bngsim_has_nfsim=None):
             bngsim_has_nfsim = BNGSIM_HAS_NFSIM
         return bool(bngsim_has_nfsim)
     return False
+
+
+def _unsupported_method_route(method_name):
+    """Route a (non-PLA) method the direct BNGsim path can't run.
+
+    A known BNG method this BNGsim build can't run — currently only ``nf``
+    when the install lacks an NFsim binary — falls back to the legacy
+    subprocess. A method outside the valid BNG universe is malformed (BNG2.pl
+    rejects it too), so it is surfaced as an error in every mode rather than
+    silently shipped to legacy.
+    """
+    if method_name in _KNOWN_BNGL_METHODS:
+        return BngsimRouteDecision(
+            ROUTE_SUBPROCESS,
+            f"BNGL method '{method_name}' is not supported by the BNGsim route",
+            method=method_name,
+        )
+    return BngsimRouteDecision(
+        ROUTE_ERROR,
+        f"BNGL method '{method_name}' is not a recognized simulation method "
+        "(expected one of ode, ssa, pla, psa, nf).",
+        method=method_name,
+    )
 
 
 def _bngl_action_method_for_routing(action):
@@ -1517,11 +1548,7 @@ def _classify_bngl_actions_for_bngsim(
                 "BNGL method override is a BNGsim-supported simulation",
                 method=method_name,
             )
-        return BngsimRouteDecision(
-            ROUTE_SUBPROCESS,
-            f"BNGL method '{method_name}' is not supported by the BNGsim route",
-            method=method_name,
-        )
+        return _unsupported_method_route(method_name)
 
     candidate_methods = []
     for action in sim_actions:
@@ -1552,11 +1579,7 @@ def _classify_bngl_actions_for_bngsim(
 
     for method_name in candidate_methods:
         if not _method_supported_by_bngsim_for_routing(method_name, bngsim_has_nfsim):
-            return BngsimRouteDecision(
-                ROUTE_SUBPROCESS,
-                f"BNGL method '{method_name}' is not supported by the BNGsim route",
-                method=method_name,
-            )
+            return _unsupported_method_route(method_name)
 
     if has_backend_hook_workflow:
         return BngsimRouteDecision(

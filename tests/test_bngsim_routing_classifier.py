@@ -779,8 +779,9 @@ class TestStrictModeClassifierDeclines:
         [
             # PLA: BNGsim genuinely can't run it.
             ([_action("simulate_pla")], None),
-            # Method override BNGsim doesn't support.
-            ([_action("simulate_ode")], "quadratic"),
+            # cvode: a valid BNG2.pl method (the 'ode' alias) the bridge keeps
+            # on the legacy route — known, so it stays subprocess, not error.
+            ([_action("simulate_ode")], "cvode"),
         ],
     )
     def test_bngsim_genuine_incapability_stays_on_legacy(self, actions, method):
@@ -792,6 +793,59 @@ class TestStrictModeClassifierDeclines:
             bngsim_available=True,
             actions=actions,
             method=method,
+        )
+
+        assert decision.route == ROUTE_SUBPROCESS
+
+
+class TestMethodValidationRouting:
+    """A method outside BNG2.pl's valid set (ode/ssa/pla/psa/nf, the cvode
+    alias, and the rm extension) is malformed — BNG2.pl rejects it too — so the
+    router errors in BOTH modes instead of silently routing to legacy. Known
+    methods this BNGsim can't run (pla, nf without an NFsim build) stay on the
+    subprocess route."""
+
+    @pytest.mark.parametrize("simulator", ["auto", "bngsim"])
+    @pytest.mark.parametrize("method", ["quadratic", "oed", "euler"])
+    def test_unknown_method_errors_in_both_modes(self, simulator, method):
+        from bionetgen.core.tools.bngsim_bridge import ROUTE_ERROR
+
+        decision = _classify(
+            "bngl",
+            simulator=simulator,
+            bngsim_available=True,
+            method=method,
+            actions=[_action("simulate_ode")],
+        )
+
+        assert decision.route == ROUTE_ERROR
+        assert method in decision.reason
+
+    @pytest.mark.parametrize("simulator", ["auto", "bngsim"])
+    def test_cvode_alias_stays_on_subprocess_not_error(self, simulator):
+        from bionetgen.core.tools.bngsim_bridge import ROUTE_SUBPROCESS
+
+        decision = _classify(
+            "bngl",
+            simulator=simulator,
+            bngsim_available=True,
+            method="cvode",
+            actions=[_action("simulate_ode")],
+        )
+
+        assert decision.route == ROUTE_SUBPROCESS
+
+    @pytest.mark.parametrize("simulator", ["auto", "bngsim"])
+    def test_nf_without_nfsim_build_falls_back_not_error(self, simulator):
+        from bionetgen.core.tools.bngsim_bridge import ROUTE_SUBPROCESS
+
+        decision = _classify(
+            "bngl",
+            simulator=simulator,
+            bngsim_available=True,
+            bngsim_has_nfsim=False,
+            method="nf",
+            actions=[_action("simulate_ode")],
         )
 
         assert decision.route == ROUTE_SUBPROCESS
