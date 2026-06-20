@@ -1,3 +1,4 @@
+import logging
 import os
 import textwrap
 import time
@@ -624,9 +625,120 @@ class TestRoutingActionCache:
 
         bridge._clear_routing_actions_cache()
         with patch(
-            f"{BRIDGE}._parse_bngl_actions_for_routing", return_value=None
+            f"{BRIDGE}._parse_bngl_actions_for_routing", return_value=(None, "boom")
         ) as parse:
             bridge._load_bngl_actions_for_routing("/no/such/file.bngl")
             bridge._load_bngl_actions_for_routing("/no/such/file.bngl")
 
         assert parse.call_count == 2
+
+    def test_parse_failure_reason_rides_along_with_actions(self, tmp_path):
+        from bionetgen.core.tools import bngsim_bridge as bridge
+
+        bridge._clear_routing_actions_cache()
+        bngl = tmp_path / "broken.bngl"
+        bngl.write_text("not valid bngl\n", encoding="utf-8")
+
+        with patch(
+            "bionetgen.modelapi.model.bngmodel",
+            side_effect=RuntimeError("argument atoll not recognized"),
+        ):
+            actions, reason = bridge._load_bngl_routing_actions(str(bngl))
+
+        assert actions is None
+        assert "atoll" in reason
+
+
+class TestUninspectableActionsRouting:
+    """Issue #109: under ``simulator='bngsim'``, a BNGL whose actions can't be
+    inspected (the Python parser rejects an argument BNG2.pl tolerates) must
+    raise — not silently downgrade to the legacy subprocess engine."""
+
+    def test_bngsim_uninspectable_actions_error_not_silent_subprocess(self):
+        from bionetgen.core.tools import bngsim_bridge as bridge
+
+        reason = "argument atoll not recognized for action simulate"
+        with patch(
+            f"{BRIDGE}._load_bngl_routing_actions", return_value=(None, reason)
+        ):
+            decision = bridge.classify_bngsim_route(
+                "model.bngl",
+                "bngl",
+                simulator="bngsim",
+                bngsim_available=True,
+                has_protocol=False,
+            )
+
+        assert decision.route == bridge.ROUTE_ERROR
+        assert "bngsim" in decision.reason
+        assert reason in decision.reason
+
+    def test_auto_uninspectable_actions_fall_back_with_one_warning(self, caplog):
+        from bionetgen.core.tools import bngsim_bridge as bridge
+
+        bridge._clear_routing_actions_cache()
+        reason = "argument atoll not recognized for action simulate"
+        with patch(
+            f"{BRIDGE}._load_bngl_routing_actions", return_value=(None, reason)
+        ), caplog.at_level(logging.WARNING, logger="bionetgen.bngsim_bridge"):
+            first = bridge.classify_bngsim_route(
+                "model.bngl",
+                "bngl",
+                simulator="auto",
+                bngsim_available=True,
+                has_protocol=False,
+            )
+            second = bridge.classify_bngsim_route(
+                "model.bngl",
+                "bngl",
+                simulator="auto",
+                bngsim_available=True,
+                has_protocol=False,
+            )
+
+        assert first.route == bridge.ROUTE_SUBPROCESS
+        assert second.route == bridge.ROUTE_SUBPROCESS
+        # One warning per file across the repeated routing queries, not per call.
+        warnings = [
+            r
+            for r in caplog.records
+            if r.levelno == logging.WARNING
+            and "inspect BNGL actions for BNGsim routing" in r.getMessage()
+        ]
+        assert len(warnings) == 1
+
+    def test_subprocess_simulator_does_not_inspect_actions(self):
+        from bionetgen.core.tools import bngsim_bridge as bridge
+
+        with patch(f"{BRIDGE}._load_bngl_routing_actions") as load:
+            decision = bridge.classify_bngsim_route(
+                "model.bngl",
+                "bngl",
+                simulator="subprocess",
+                bngsim_available=True,
+            )
+
+        assert decision.route == bridge.ROUTE_SUBPROCESS
+        load.assert_not_called()
+
+    def test_bngsim_error_surfaces_parser_reason_end_to_end(self, tmp_path):
+        from bionetgen.core.tools import bngsim_bridge as bridge
+
+        bridge._clear_routing_actions_cache()
+        bngl = tmp_path / "atoll.bngl"
+        bngl.write_text(
+            'simulate({method=>"ode",t_end=>10,n_steps=>100,atoll=>1e-8})\n',
+            encoding="utf-8",
+        )
+        err = RuntimeError("argument atoll not recognized for action simulate")
+        with patch("bionetgen.modelapi.model.bngmodel", side_effect=err):
+            decision = bridge.classify_bngsim_route(
+                str(bngl),
+                "bngl",
+                simulator="bngsim",
+                bngsim_available=True,
+                has_protocol=False,
+            )
+
+        assert decision.route == bridge.ROUTE_ERROR
+        assert "atoll" in decision.reason
