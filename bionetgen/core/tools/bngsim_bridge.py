@@ -1415,11 +1415,18 @@ def _classify_bngl_actions_for_bngsim(
     method=None,
     has_protocol=False,
     bngsim_has_nfsim=None,
+    simulator="auto",
 ):
     """Classify whether BNGL can use the BNG2.pl-owned BNGsim backend hook.
 
     This routing pass only reads action names and method hints. It does not
     evaluate BNGL expressions or replay any action semantics in Python.
+
+    ``simulator`` only affects the *unrecognized action* decline: BNGsim could
+    run such a model via the BNG2.pl backend hook, so under a strict
+    ``simulator='bngsim'`` request that decline is surfaced as ``ROUTE_ERROR``
+    rather than silently running legacy. PLA and BNGsim-unsupported methods are
+    genuine BNGsim incapabilities and stay on the subprocess route regardless.
     """
     if actions_items is None:
         return BngsimRouteDecision(
@@ -1455,10 +1462,17 @@ def _classify_bngl_actions_for_bngsim(
             continue
 
         if atype is not None:
-            return BngsimRouteDecision(
-                ROUTE_SUBPROCESS,
-                f"BNGL action '{atype}' is not a conservative BNGsim route",
-            )
+            reason = f"BNGL action '{atype}' is not a conservative BNGsim route"
+            if simulator == "bngsim":
+                # Strict mode: BNGsim could run this through the BNG2.pl
+                # backend hook, but the router can't confirm an unrecognized
+                # action is safe to delegate. Surface it instead of silently
+                # downgrading to legacy (issue #109 contract).
+                return BngsimRouteDecision(
+                    ROUTE_ERROR,
+                    f"simulator='bngsim' was requested but {reason}.",
+                )
+            return BngsimRouteDecision(ROUTE_SUBPROCESS, reason)
 
     if len(sim_actions) > 1:
         has_backend_hook_workflow = True
@@ -1689,6 +1703,7 @@ def classify_bngsim_route(
         method=method,
         has_protocol=has_protocol,
         bngsim_has_nfsim=bngsim_has_nfsim,
+        simulator=simulator,
     )
 
 

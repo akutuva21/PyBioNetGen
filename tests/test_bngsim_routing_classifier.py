@@ -740,3 +740,58 @@ class TestUninspectableActionsRouting:
 
         assert decision.route == bridge.ROUTE_ERROR
         assert "atoll" in decision.reason
+
+
+class TestStrictModeClassifierDeclines:
+    """Issue #109 follow-up: under ``simulator='bngsim'`` an *unrecognized*
+    action must error (BNGsim could run it via the BNG2.pl backend hook), but
+    PLA and BNGsim-unsupported methods are genuine incapabilities and stay on
+    the legacy subprocess route in every mode."""
+
+    def test_bngsim_unknown_action_errors_instead_of_silent_legacy(self):
+        from bionetgen.core.tools.bngsim_bridge import ROUTE_ERROR
+
+        decision = _classify(
+            "bngl",
+            simulator="bngsim",
+            bngsim_available=True,
+            actions=[_action("someExoticAction"), _action("simulate_ode")],
+        )
+
+        assert decision.route == ROUTE_ERROR
+        assert "bngsim" in decision.reason
+        assert "someExoticAction" in decision.reason
+
+    def test_auto_unknown_action_still_falls_back_to_subprocess(self):
+        from bionetgen.core.tools.bngsim_bridge import ROUTE_SUBPROCESS
+
+        decision = _classify(
+            "bngl",
+            simulator="auto",
+            bngsim_available=True,
+            actions=[_action("someExoticAction"), _action("simulate_ode")],
+        )
+
+        assert decision.route == ROUTE_SUBPROCESS
+
+    @pytest.mark.parametrize(
+        "actions,method",
+        [
+            # PLA: BNGsim genuinely can't run it.
+            ([_action("simulate_pla")], None),
+            # Method override BNGsim doesn't support.
+            ([_action("simulate_ode")], "quadratic"),
+        ],
+    )
+    def test_bngsim_genuine_incapability_stays_on_legacy(self, actions, method):
+        from bionetgen.core.tools.bngsim_bridge import ROUTE_SUBPROCESS
+
+        decision = _classify(
+            "bngl",
+            simulator="bngsim",
+            bngsim_available=True,
+            actions=actions,
+            method=method,
+        )
+
+        assert decision.route == ROUTE_SUBPROCESS
