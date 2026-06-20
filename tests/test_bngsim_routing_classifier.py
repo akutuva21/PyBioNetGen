@@ -658,9 +658,7 @@ class TestUninspectableActionsRouting:
         from bionetgen.core.tools import bngsim_bridge as bridge
 
         reason = "argument atoll not recognized for action simulate"
-        with patch(
-            f"{BRIDGE}._load_bngl_routing_actions", return_value=(None, reason)
-        ):
+        with patch(f"{BRIDGE}._load_bngl_routing_actions", return_value=(None, reason)):
             decision = bridge.classify_bngsim_route(
                 "model.bngl",
                 "bngl",
