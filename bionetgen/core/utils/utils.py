@@ -576,7 +576,18 @@ class ActionList:
         arg_type_expr = pp.Word(
             pp.nums + "." + "+" + "-" + "e" + "E" + "(" + ")" + "/" + "*" + "^"
         )
-        arg_type_list = "[" + pp.delimitedList((quote_word ^ arg_type_float)) + "]"
+        # Match BNG2.pl/Perl list syntax: elements may be quoted strings or
+        # numeric expressions including scientific notation (arg_type_expr
+        # covers e/E and +/-), an empty list `[]` is allowed, and a single
+        # trailing comma `[1,2,]` is tolerated. arg_type_float only spans
+        # digits and '.', so it rejected `2.3e-10`; delimitedList rejected the
+        # trailing comma — both are valid Perl that BNG2.pl runs (issue #110).
+        arg_type_list = (
+            "["
+            + pp.Optional(pp.delimitedList(quote_word ^ arg_type_expr))
+            + pp.Optional(",")
+            + "]"
+        )
         arg_type_string = quote_word
         #
         # BNGL/Perl `=>` auto-quotes its left operand, so dict keys
