@@ -204,10 +204,15 @@ class TestBngsimRouteClassifier:
     def test_atomic_supported_bngl_methods_use_bngsim(self, action, expected_method):
         from bionetgen.core.tools.bngsim_bridge import ROUTE_BNGL_BNGSIM
 
+        # Force the optional-component flags, not just availability: rm needs
+        # RuleMonkey and nf needs NFsim, and the ambient values are False in
+        # environments without a feature-complete BNGsim install (e.g. CI).
         decision = _classify(
             "bngl",
             simulator="auto",
             bngsim_available=True,
+            bngsim_has_nfsim=True,
+            bngsim_has_rulemonkey=True,
             actions=[action],
         )
 
