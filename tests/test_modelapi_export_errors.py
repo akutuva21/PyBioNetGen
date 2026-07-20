@@ -247,6 +247,7 @@ def test_bngmodel_passes_path_options_to_bngparser(mock_parser_cls):
         BNGPATH="/custom/bng",
         generate_network=True,
         suppress=False,
+        verbose=False,
     )
     parser.parse_model.assert_called_once()
 
