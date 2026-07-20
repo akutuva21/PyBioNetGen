@@ -84,11 +84,9 @@ class BNGFile:
                     xml_file, stripped_bngl
                 )  # no need to chdir here, handled by finally block
 
-            app_stdout = conf.get("stdout")
-            app_suppress = False if app_stdout == "STDOUT" else self.suppress
             rc, _ = run_command(
                 ["perl", self.bngexec, "--xml", stripped_bngl],
-                suppress=app_suppress,
+                suppress=self.suppress,
                 cwd=temp_folder,
             )
             if rc != 0:

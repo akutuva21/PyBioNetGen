@@ -189,8 +189,10 @@ def test_csimulator_init_str():
     with unittest.mock.patch(
         "bionetgen.simulator.csimulator._new_ccompiler"
     ) as mock_new_comp:
-        with unittest.mock.patch("bionetgen.simulator.csimulator.conf") as mock_conf:
-            mock_conf.get.return_value = "dummy"
+        with unittest.mock.patch(
+            "bionetgen.simulator.csimulator.get_conf"
+        ) as mock_conf:
+            mock_conf.return_value = {"cvode_include": "dummy", "cvode_lib": "dummy"}
 
             with unittest.mock.patch(
                 "bionetgen.simulator.csimulator.bionetgen.run"
@@ -222,8 +224,10 @@ def test_csimulator_init_bngmodel():
     with unittest.mock.patch(
         "bionetgen.simulator.csimulator._new_ccompiler"
     ) as mock_new_comp:
-        with unittest.mock.patch("bionetgen.simulator.csimulator.conf") as mock_conf:
-            mock_conf.get.return_value = "dummy"
+        with unittest.mock.patch(
+            "bionetgen.simulator.csimulator.get_conf"
+        ) as mock_conf:
+            mock_conf.return_value = {"cvode_include": "dummy", "cvode_lib": "dummy"}
 
             with unittest.mock.patch(
                 "bionetgen.simulator.csimulator.bionetgen.run"
