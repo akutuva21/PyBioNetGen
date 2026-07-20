@@ -1,4 +1,5 @@
 import os, glob
+import pytest
 from pytest import raises
 import bionetgen as bng
 from bionetgen.main import BioNetGenTest
@@ -107,3 +108,54 @@ def test_action_normalization_preserves_double_commas_inside_quotes():
 
     out = _normalize_action_text('something({xs=>"0,,1,,2"})')
     assert '"0,,1,,2"' in out
+
+
+def _build_action_parser():
+    from bionetgen.core.utils.utils import ActionList
+
+    al = ActionList()
+    al.define_parser()
+    return al.action_parser
+
+
+# Issue #110: the list-valued action-argument grammar must accept the same
+# forms BNG2.pl/Perl runs — scientific notation and an optional trailing
+# comma — or `simulator='bngsim'` silently routes these models to the legacy
+# stack. Mirrors the model forms seen in RuleHub (Mitra2019, Salazar-Cavazos2019).
+@pytest.mark.parametrize(
+    "action_text",
+    [
+        # Issue repro: e-notation in par_scan_vals.
+        'parameter_scan({parameter=>"x",par_scan_vals=>[2.3e-10,5.1e-10],method=>"ode"})',
+        # Mixed plain and decimal values.
+        'parameter_scan({parameter=>"x",par_scan_vals=>[0.3,1,3],method=>"ode"})',
+        # Zero plus e-notation values.
+        'parameter_scan({parameter=>"x",par_scan_vals=>[0.0,0.05e-9,50.0e-9],method=>"ode"})',
+        # Trailing comma plus e-notation (both gaps at once).
+        'parameter_scan({parameter=>"x",par_scan_vals=>[2.3e-10,4.9e-07,],method=>"ode"})',
+        # Quoted-string list still parses.
+        'simulate({method=>"ode",foo=>["a","b"]})',
+        # Empty list.
+        'simulate({method=>"ode",foo=>[]})',
+    ],
+)
+def test_action_grammar_accepts_perl_list_forms(action_text):
+    parser = _build_action_parser()
+    parser.parse_string(action_text, parse_all=True)
+
+
+@pytest.mark.parametrize(
+    "action_text",
+    [
+        # Double comma is genuinely malformed at the grammar level.
+        'simulate({method=>"ode",foo=>[1,,2]})',
+        # Unclosed list (no `]`).
+        'simulate({method=>"ode",foo=>[1,2,})',
+    ],
+)
+def test_action_grammar_still_rejects_malformed_lists(action_text):
+    import pyparsing as pp
+
+    parser = _build_action_parser()
+    with raises(pp.ParseBaseException):
+        parser.parse_string(action_text, parse_all=True)

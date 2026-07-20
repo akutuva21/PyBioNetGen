@@ -1,3 +1,4 @@
+import logging
 import os
 import textwrap
 import time
@@ -203,10 +204,15 @@ class TestBngsimRouteClassifier:
     def test_atomic_supported_bngl_methods_use_bngsim(self, action, expected_method):
         from bionetgen.core.tools.bngsim_bridge import ROUTE_BNGL_BNGSIM
 
+        # Force the optional-component flags, not just availability: rm needs
+        # RuleMonkey and nf needs NFsim, and the ambient values are False in
+        # environments without a feature-complete BNGsim install (e.g. CI).
         decision = _classify(
             "bngl",
             simulator="auto",
             bngsim_available=True,
+            bngsim_has_nfsim=True,
+            bngsim_has_rulemonkey=True,
             actions=[action],
         )
 
@@ -624,9 +630,253 @@ class TestRoutingActionCache:
 
         bridge._clear_routing_actions_cache()
         with patch(
-            f"{BRIDGE}._parse_bngl_actions_for_routing", return_value=None
+            f"{BRIDGE}._parse_bngl_actions_for_routing", return_value=(None, "boom")
         ) as parse:
             bridge._load_bngl_actions_for_routing("/no/such/file.bngl")
             bridge._load_bngl_actions_for_routing("/no/such/file.bngl")
 
         assert parse.call_count == 2
+
+    def test_parse_failure_reason_rides_along_with_actions(self, tmp_path):
+        from bionetgen.core.tools import bngsim_bridge as bridge
+
+        bridge._clear_routing_actions_cache()
+        bngl = tmp_path / "broken.bngl"
+        bngl.write_text("not valid bngl\n", encoding="utf-8")
+
+        with patch(
+            "bionetgen.modelapi.model.bngmodel",
+            side_effect=RuntimeError("argument atoll not recognized"),
+        ):
+            actions, reason = bridge._load_bngl_routing_actions(str(bngl))
+
+        assert actions is None
+        assert "atoll" in reason
+
+
+class TestUninspectableActionsRouting:
+    """Issue #109: under ``simulator='bngsim'``, a BNGL whose actions can't be
+    inspected (the Python parser rejects an argument BNG2.pl tolerates) must
+    raise — not silently downgrade to the legacy subprocess engine."""
+
+    def test_bngsim_uninspectable_actions_error_not_silent_subprocess(self):
+        from bionetgen.core.tools import bngsim_bridge as bridge
+
+        reason = "argument atoll not recognized for action simulate"
+        with patch(f"{BRIDGE}._load_bngl_routing_actions", return_value=(None, reason)):
+            decision = bridge.classify_bngsim_route(
+                "model.bngl",
+                "bngl",
+                simulator="bngsim",
+                bngsim_available=True,
+                has_protocol=False,
+            )
+
+        assert decision.route == bridge.ROUTE_ERROR
+        assert "bngsim" in decision.reason
+        assert reason in decision.reason
+
+    def test_auto_uninspectable_actions_fall_back_with_one_warning(self, caplog):
+        from bionetgen.core.tools import bngsim_bridge as bridge
+
+        bridge._clear_routing_actions_cache()
+        reason = "argument atoll not recognized for action simulate"
+        with patch(
+            f"{BRIDGE}._load_bngl_routing_actions", return_value=(None, reason)
+        ), caplog.at_level(logging.WARNING, logger="bionetgen.bngsim_bridge"):
+            first = bridge.classify_bngsim_route(
+                "model.bngl",
+                "bngl",
+                simulator="auto",
+                bngsim_available=True,
+                has_protocol=False,
+            )
+            second = bridge.classify_bngsim_route(
+                "model.bngl",
+                "bngl",
+                simulator="auto",
+                bngsim_available=True,
+                has_protocol=False,
+            )
+
+        assert first.route == bridge.ROUTE_SUBPROCESS
+        assert second.route == bridge.ROUTE_SUBPROCESS
+        # One warning per file across the repeated routing queries, not per call.
+        warnings = [
+            r
+            for r in caplog.records
+            if r.levelno == logging.WARNING
+            and "inspect BNGL actions for BNGsim routing" in r.getMessage()
+        ]
+        assert len(warnings) == 1
+
+    def test_subprocess_simulator_does_not_inspect_actions(self):
+        from bionetgen.core.tools import bngsim_bridge as bridge
+
+        with patch(f"{BRIDGE}._load_bngl_routing_actions") as load:
+            decision = bridge.classify_bngsim_route(
+                "model.bngl",
+                "bngl",
+                simulator="subprocess",
+                bngsim_available=True,
+            )
+
+        assert decision.route == bridge.ROUTE_SUBPROCESS
+        load.assert_not_called()
+
+    def test_bngsim_error_surfaces_parser_reason_end_to_end(self, tmp_path):
+        from bionetgen.core.tools import bngsim_bridge as bridge
+
+        bridge._clear_routing_actions_cache()
+        bngl = tmp_path / "atoll.bngl"
+        bngl.write_text(
+            'simulate({method=>"ode",t_end=>10,n_steps=>100,atoll=>1e-8})\n',
+            encoding="utf-8",
+        )
+        err = RuntimeError("argument atoll not recognized for action simulate")
+        with patch("bionetgen.modelapi.model.bngmodel", side_effect=err):
+            decision = bridge.classify_bngsim_route(
+                str(bngl),
+                "bngl",
+                simulator="bngsim",
+                bngsim_available=True,
+                has_protocol=False,
+            )
+
+        assert decision.route == bridge.ROUTE_ERROR
+        assert "atoll" in decision.reason
+
+
+class TestStrictModeClassifierDeclines:
+    """Issue #109 follow-up: under ``simulator='bngsim'`` an *unrecognized*
+    action must error (BNGsim could run it via the BNG2.pl backend hook), but
+    PLA and BNGsim-unsupported methods are genuine incapabilities and stay on
+    the legacy subprocess route in every mode."""
+
+    def test_bngsim_unknown_action_errors_instead_of_silent_legacy(self):
+        from bionetgen.core.tools.bngsim_bridge import ROUTE_ERROR
+
+        decision = _classify(
+            "bngl",
+            simulator="bngsim",
+            bngsim_available=True,
+            actions=[_action("someExoticAction"), _action("simulate_ode")],
+        )
+
+        assert decision.route == ROUTE_ERROR
+        assert "bngsim" in decision.reason
+        assert "someExoticAction" in decision.reason
+
+    def test_auto_unknown_action_still_falls_back_to_subprocess(self):
+        from bionetgen.core.tools.bngsim_bridge import ROUTE_SUBPROCESS
+
+        decision = _classify(
+            "bngl",
+            simulator="auto",
+            bngsim_available=True,
+            actions=[_action("someExoticAction"), _action("simulate_ode")],
+        )
+
+        assert decision.route == ROUTE_SUBPROCESS
+
+    @pytest.mark.parametrize(
+        "actions,method",
+        [
+            # PLA: BNGsim genuinely can't run it.
+            ([_action("simulate_pla")], None),
+            # cvode: a valid BNG2.pl method (the 'ode' alias) the bridge keeps
+            # on the legacy route — known, so it stays subprocess, not error.
+            ([_action("simulate_ode")], "cvode"),
+        ],
+    )
+    def test_bngsim_genuine_incapability_stays_on_legacy(self, actions, method):
+        from bionetgen.core.tools.bngsim_bridge import ROUTE_SUBPROCESS
+
+        decision = _classify(
+            "bngl",
+            simulator="bngsim",
+            bngsim_available=True,
+            actions=actions,
+            method=method,
+        )
+
+        assert decision.route == ROUTE_SUBPROCESS
+
+
+class TestMethodValidationRouting:
+    """A method outside BNG2.pl's valid set (ode/ssa/pla/psa/nf, the cvode
+    alias, and the rm extension) is malformed — BNG2.pl rejects it too — so the
+    router errors in BOTH modes instead of silently routing to legacy. A build
+    incapability (nf without NFsim, rm without RuleMonkey) errors under bngsim
+    but falls back under auto; the cvode alias keeps its legacy route."""
+
+    @pytest.mark.parametrize("simulator", ["auto", "bngsim"])
+    @pytest.mark.parametrize("method", ["quadratic", "oed", "euler"])
+    def test_unknown_method_errors_in_both_modes(self, simulator, method):
+        from bionetgen.core.tools.bngsim_bridge import ROUTE_ERROR
+
+        decision = _classify(
+            "bngl",
+            simulator=simulator,
+            bngsim_available=True,
+            method=method,
+            actions=[_action("simulate_ode")],
+        )
+
+        assert decision.route == ROUTE_ERROR
+        assert method in decision.reason
+
+    @pytest.mark.parametrize("simulator", ["auto", "bngsim"])
+    def test_cvode_alias_stays_on_subprocess_not_error(self, simulator):
+        from bionetgen.core.tools.bngsim_bridge import ROUTE_SUBPROCESS
+
+        decision = _classify(
+            "bngl",
+            simulator=simulator,
+            bngsim_available=True,
+            method="cvode",
+            actions=[_action("simulate_ode")],
+        )
+
+        assert decision.route == ROUTE_SUBPROCESS
+
+    @pytest.mark.parametrize(
+        "method,absent_component",
+        [
+            ("nf", {"bngsim_has_nfsim": False}),
+            ("rm", {"bngsim_has_rulemonkey": False}),
+        ],
+    )
+    def test_build_incapability_errors_under_bngsim_but_falls_back_under_auto(
+        self, method, absent_component
+    ):
+        from bionetgen.core.tools.bngsim_bridge import ROUTE_ERROR, ROUTE_SUBPROCESS
+
+        common = dict(
+            bngsim_available=True,
+            method=method,
+            actions=[_action("simulate_ode")],
+            **absent_component,
+        )
+        auto = _classify("bngl", simulator="auto", **common)
+        strict = _classify("bngl", simulator="bngsim", **common)
+
+        assert auto.route == ROUTE_SUBPROCESS
+        assert strict.route == ROUTE_ERROR
+        assert method in strict.reason
+
+    @pytest.mark.parametrize("simulator", ["auto", "bngsim"])
+    def test_rm_with_rulemonkey_routes_to_bngsim(self, simulator):
+        from bionetgen.core.tools.bngsim_bridge import ROUTE_BNGL_BNGSIM
+
+        decision = _classify(
+            "bngl",
+            simulator=simulator,
+            bngsim_available=True,
+            bngsim_has_rulemonkey=True,
+            method="rm",
+            actions=[_action("simulate_ode")],
+        )
+
+        assert decision.route == ROUTE_BNGL_BNGSIM
+        assert decision.method == "rm"

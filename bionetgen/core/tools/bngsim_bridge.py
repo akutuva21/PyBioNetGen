@@ -1201,6 +1201,21 @@ _DIRECT_BNGSIM_FORMATS = {
 
 _BNGSIM_NETWORK_METHODS = frozenset({"ode", "ssa", "psa", "rm"})
 
+# Every method string BNG2.pl's simulate() accepts: its $METHODS hash keys
+# (cvode, ssa, pla, psa, nf) plus the documented 'ode' alias for 'cvode',
+# extended with 'rm' (RuleMonkey), which the bridge rewrites onto the nf
+# backend. A method outside this set is malformed — BNG2.pl itself rejects it
+# ("Simulation method '...' is not a valid option.") — so the router surfaces
+# it as an error rather than silently shipping it to the legacy stack.
+_KNOWN_BNGL_METHODS = frozenset({"ode", "cvode", "ssa", "psa", "pla", "nf", "rm"})
+
+# Methods that need an optional BNGsim component the build may lack: nf needs
+# NFsim, rm (RuleMonkey) needs the RuleMonkey session. BNGsim *can* run these
+# when the component is present, so an absent component is a build incapability
+# (surfaced as an error under strict simulator='bngsim', legacy fallback under
+# auto) rather than a categorical one like pla.
+_BNGSIM_OPTIONAL_COMPONENT_METHODS = frozenset({"nf", "rm"})
+
 _BNGL_ROUTING_COMPLEX_ACTIONS = frozenset(
     {
         "parameter_scan",
@@ -1235,8 +1250,15 @@ _BNGL_ROUTING_PASSTHROUGH_ACTIONS = frozenset(
 )
 
 
-def _method_supported_by_bngsim_for_routing(method, bngsim_has_nfsim=None):
+def _method_supported_by_bngsim_for_routing(
+    method, bngsim_has_nfsim=None, bngsim_has_rulemonkey=None
+):
     """Return True if a normalized method can be handed to BNGsim."""
+    if method == "rm":
+        # RuleMonkey is an optional BNGsim component, like NFsim for nf.
+        if bngsim_has_rulemonkey is None:
+            bngsim_has_rulemonkey = BNGSIM_HAS_RULEMONKEY
+        return bool(bngsim_has_rulemonkey)
     if method in _BNGSIM_NETWORK_METHODS:
         return True
     if _is_nf_method(method):
@@ -1244,6 +1266,49 @@ def _method_supported_by_bngsim_for_routing(method, bngsim_has_nfsim=None):
             bngsim_has_nfsim = BNGSIM_HAS_NFSIM
         return bool(bngsim_has_nfsim)
     return False
+
+
+def _unsupported_method_route(method_name, simulator="auto"):
+    """Route a (non-PLA) method the direct BNGsim path can't run.
+
+    Three cases:
+
+    * A valid method that needs an optional BNGsim component the build lacks
+      (``nf`` without NFsim, ``rm`` without RuleMonkey) is a *build*
+      incapability: BNGsim could run it with the component installed, so a
+      strict ``simulator='bngsim'`` request surfaces it as an error while
+      ``auto`` falls back to legacy.
+    * Another known method the BNGsim path doesn't drive directly (e.g. the
+      ``cvode`` alias) keeps the legacy subprocess route in every mode.
+    * A method outside the valid BNG universe is malformed — BNG2.pl rejects
+      it too — so it errors in every mode rather than silently going legacy.
+    """
+    if method_name not in _KNOWN_BNGL_METHODS:
+        return BngsimRouteDecision(
+            ROUTE_ERROR,
+            f"BNGL method '{method_name}' is not a recognized simulation method "
+            "(expected one of ode, ssa, pla, psa, nf).",
+            method=method_name,
+        )
+    if method_name in _BNGSIM_OPTIONAL_COMPONENT_METHODS:
+        component = "NFsim" if _is_nf_method(method_name) else "RuleMonkey"
+        if simulator == "bngsim":
+            return BngsimRouteDecision(
+                ROUTE_ERROR,
+                f"simulator='bngsim' was requested but method '{method_name}' "
+                f"requires BNGsim {component} support, which this build lacks.",
+                method=method_name,
+            )
+        return BngsimRouteDecision(
+            ROUTE_SUBPROCESS,
+            f"BNGsim {component} support is unavailable; using legacy route.",
+            method=method_name,
+        )
+    return BngsimRouteDecision(
+        ROUTE_SUBPROCESS,
+        f"BNGL method '{method_name}' is not supported by the BNGsim route",
+        method=method_name,
+    )
 
 
 def _bngl_action_method_for_routing(action):
@@ -1310,9 +1375,16 @@ def _bngl_has_protocol_block(bngl_path):
 # on its next run (matters for long-lived consumers like the VS Code
 # extension).
 _CACHE_MISS = object()
-# key: (abspath, st_mtime_ns, st_size); value: parsed actions list (or None).
-_ROUTING_ACTIONS_CACHE: dict[tuple[str, int, int], list | None] = {}
+# key: (abspath, st_mtime_ns, st_size); value: (actions list or None, parse
+# failure reason or None). The reason rides along so a strict
+# ``simulator='bngsim'`` request can surface *why* inspection failed instead
+# of silently downgrading to the legacy subprocess route (see issue #109).
+_ROUTING_ACTIONS_CACHE: dict[tuple[str, int, int], tuple[list | None, str | None]] = {}
 _ROUTING_ACTIONS_CACHE_MAX = 128
+# Paths already warned about in auto mode, so a model whose actions can't be
+# inspected for BNGsim routing produces one WARNING per run, not one per the
+# ~4 routing queries each ``bionetgen.run`` makes for the same file.
+_ROUTING_INSPECT_WARNED: set[str] = set()
 
 
 def _clear_routing_actions_cache():
@@ -1321,16 +1393,18 @@ def _clear_routing_actions_cache():
     never needs this because the cache key invalidates on file change.
     """
     _ROUTING_ACTIONS_CACHE.clear()
+    _ROUTING_INSPECT_WARNED.clear()
 
 
-def _load_bngl_actions_for_routing(bngl_path):
-    """Parse BNGL actions for routing only — memoized per file identity.
+def _load_bngl_routing_actions(bngl_path):
+    """Parse BNGL actions for routing — memoized per file identity.
 
-    Returns the parsed action items (treat the list as read-only — routing
-    callers never mutate it) or ``None`` when the file cannot be parsed.
-    Parse failures fall back to BNG2.pl rather than blocking the legacy
-    path, and the ``None`` is cached too so a failing parse is not retried
-    several times per run.
+    Returns ``(actions, reason)``: the parsed action items (treat the list as
+    read-only — routing callers never mutate it) with ``reason=None``, or
+    ``(None, reason)`` when the file cannot be parsed, where ``reason`` is the
+    underlying parse message. Parse failures fall back to BNG2.pl rather than
+    blocking the legacy path, and the failure is cached too so a failing parse
+    is not retried several times per run.
     """
     try:
         st = os.stat(bngl_path)
@@ -1341,19 +1415,30 @@ def _load_bngl_actions_for_routing(bngl_path):
     cached = _ROUTING_ACTIONS_CACHE.get(key, _CACHE_MISS)
     if cached is not _CACHE_MISS:
         return cached
-    actions = _parse_bngl_actions_for_routing(bngl_path)
+    result = _parse_bngl_actions_for_routing(bngl_path)
     if len(_ROUTING_ACTIONS_CACHE) >= _ROUTING_ACTIONS_CACHE_MAX:
         # FIFO eviction — drop the oldest entry (dicts keep insertion order).
         _ROUTING_ACTIONS_CACHE.pop(next(iter(_ROUTING_ACTIONS_CACHE)), None)
-    _ROUTING_ACTIONS_CACHE[key] = actions
-    return actions
+    _ROUTING_ACTIONS_CACHE[key] = result
+    return result
+
+
+def _load_bngl_actions_for_routing(bngl_path):
+    """Memoized routing action list (or ``None`` on parse failure).
+
+    Thin wrapper over :func:`_load_bngl_routing_actions` for callers that
+    only need the action items, not the parse-failure reason.
+    """
+    return _load_bngl_routing_actions(bngl_path)[0]
 
 
 def _parse_bngl_actions_for_routing(bngl_path):
     """Parse a BNGL file's action items via a throwaway ``bngmodel``.
 
-    Uncached — :func:`_load_bngl_actions_for_routing` is the memoized
-    entry point callers should use.
+    Returns ``(actions, reason)`` — the action list with ``reason=None`` on
+    success, or ``(None, reason)`` with the parse message on failure. Uncached
+    — :func:`_load_bngl_routing_actions` is the memoized entry point callers
+    should use.
     """
     try:
         import bionetgen.modelapi.model as mdl
@@ -1361,14 +1446,33 @@ def _parse_bngl_actions_for_routing(bngl_path):
         model = mdl.bngmodel(bngl_path)
     except Exception as exc:
         logger.debug("could not parse BNGL for BNGsim routing (%s): %s", bngl_path, exc)
-        return None
+        return None, str(exc) or exc.__class__.__name__
     try:
-        return list(model.actions.items)
+        return list(model.actions.items), None
     except Exception as exc:
         logger.debug(
             "could not read BNGL actions for BNGsim routing (%s): %s", bngl_path, exc
         )
-        return None
+        return None, str(exc) or exc.__class__.__name__
+
+
+def _warn_routing_inspection_fallback_once(bngl_path, reason):
+    """Warn once per file when auto-mode can't inspect a BNGL's actions for
+    BNGsim routing and falls back to the legacy subprocess engine."""
+    try:
+        key = os.path.abspath(bngl_path)
+    except Exception:
+        key = bngl_path
+    if key in _ROUTING_INSPECT_WARNED:
+        return
+    _ROUTING_INSPECT_WARNED.add(key)
+    logger.warning(
+        "Could not inspect BNGL actions for BNGsim routing (%s): %s. Using the "
+        "legacy subprocess (BNG2.pl) route. Pass simulator='bngsim' to require "
+        "BNGsim and surface this as an error instead.",
+        bngl_path,
+        reason,
+    )
 
 
 def _classify_bngl_actions_for_bngsim(
@@ -1376,11 +1480,20 @@ def _classify_bngl_actions_for_bngsim(
     method=None,
     has_protocol=False,
     bngsim_has_nfsim=None,
+    bngsim_has_rulemonkey=None,
+    simulator="auto",
 ):
     """Classify whether BNGL can use the BNG2.pl-owned BNGsim backend hook.
 
     This routing pass only reads action names and method hints. It does not
     evaluate BNGL expressions or replay any action semantics in Python.
+
+    ``simulator`` affects the declines BNGsim *could* satisfy: under a strict
+    ``simulator='bngsim'`` request an *unrecognized action* (runnable via the
+    BNG2.pl backend hook) and a *build incapability* (``nf`` without NFsim,
+    ``rm`` without RuleMonkey) are surfaced as ``ROUTE_ERROR`` instead of
+    silently running legacy; ``auto`` falls back. PLA is a categorical BNGsim
+    incapability and stays on the subprocess route in every mode.
     """
     if actions_items is None:
         return BngsimRouteDecision(
@@ -1416,10 +1529,17 @@ def _classify_bngl_actions_for_bngsim(
             continue
 
         if atype is not None:
-            return BngsimRouteDecision(
-                ROUTE_SUBPROCESS,
-                f"BNGL action '{atype}' is not a conservative BNGsim route",
-            )
+            reason = f"BNGL action '{atype}' is not a conservative BNGsim route"
+            if simulator == "bngsim":
+                # Strict mode: BNGsim could run this through the BNG2.pl
+                # backend hook, but the router can't confirm an unrecognized
+                # action is safe to delegate. Surface it instead of silently
+                # downgrading to legacy (issue #109 contract).
+                return BngsimRouteDecision(
+                    ROUTE_ERROR,
+                    f"simulator='bngsim' was requested but {reason}.",
+                )
+            return BngsimRouteDecision(ROUTE_SUBPROCESS, reason)
 
     if len(sim_actions) > 1:
         has_backend_hook_workflow = True
@@ -1458,17 +1578,15 @@ def _classify_bngl_actions_for_bngsim(
                 "BNGL PLA is not supported by BNGsim",
                 method="pla",
             )
-        if _method_supported_by_bngsim_for_routing(method_name, bngsim_has_nfsim):
+        if _method_supported_by_bngsim_for_routing(
+            method_name, bngsim_has_nfsim, bngsim_has_rulemonkey
+        ):
             return BngsimRouteDecision(
                 ROUTE_BNGL_BNGSIM,
                 "BNGL method override is a BNGsim-supported simulation",
                 method=method_name,
             )
-        return BngsimRouteDecision(
-            ROUTE_SUBPROCESS,
-            f"BNGL method '{method_name}' is not supported by the BNGsim route",
-            method=method_name,
-        )
+        return _unsupported_method_route(method_name, simulator)
 
     candidate_methods = []
     for action in sim_actions:
@@ -1498,12 +1616,10 @@ def _classify_bngl_actions_for_bngsim(
         )
 
     for method_name in candidate_methods:
-        if not _method_supported_by_bngsim_for_routing(method_name, bngsim_has_nfsim):
-            return BngsimRouteDecision(
-                ROUTE_SUBPROCESS,
-                f"BNGL method '{method_name}' is not supported by the BNGsim route",
-                method=method_name,
-            )
+        if not _method_supported_by_bngsim_for_routing(
+            method_name, bngsim_has_nfsim, bngsim_has_rulemonkey
+        ):
+            return _unsupported_method_route(method_name, simulator)
 
     if has_backend_hook_workflow:
         return BngsimRouteDecision(
@@ -1529,12 +1645,15 @@ def classify_bngsim_route(
     bngsim_has_nfsim=None,
     bngl_actions=None,
     has_protocol=None,
+    bngsim_has_rulemonkey=None,
 ):
     """Choose the conservative Stage 1 route for a simulation request."""
     if bngsim_available is None:
         bngsim_available = BNGSIM_AVAILABLE
     if bngsim_has_nfsim is None:
         bngsim_has_nfsim = BNGSIM_HAS_NFSIM
+    if bngsim_has_rulemonkey is None:
+        bngsim_has_rulemonkey = BNGSIM_HAS_RULEMONKEY
 
     if simulator not in {"auto", "bngsim", "subprocess"}:
         raise ValueError(
@@ -1628,13 +1747,30 @@ def classify_bngsim_route(
 
     if has_protocol is None:
         has_protocol = _bngl_has_protocol_block(input_path)
+    parse_reason = None
     if bngl_actions is None:
-        bngl_actions = _load_bngl_actions_for_routing(input_path)
+        bngl_actions, parse_reason = _load_bngl_routing_actions(input_path)
+    if bngl_actions is None:
+        # Action inspection failed: the Python parser rejects this BNGL even
+        # though BNG2.pl may tolerate it (e.g. a typo'd or unknown ``simulate``
+        # argument). A strict ``simulator='bngsim'`` request must not silently
+        # downgrade to legacy BNG2.pl — surface why instead (issue #109). For
+        # ``auto`` the subprocess fallback stays, with a one-time warning.
+        detail = parse_reason or "the BNGL actions could not be parsed"
+        if simulator == "bngsim":
+            return BngsimRouteDecision(
+                ROUTE_ERROR,
+                "simulator='bngsim' was requested but the BNGL actions could "
+                f"not be inspected for BNGsim routing: {detail}",
+            )
+        _warn_routing_inspection_fallback_once(input_path, detail)
     return _classify_bngl_actions_for_bngsim(
         bngl_actions,
         method=method,
         has_protocol=has_protocol,
         bngsim_has_nfsim=bngsim_has_nfsim,
+        bngsim_has_rulemonkey=bngsim_has_rulemonkey,
+        simulator=simulator,
     )
 
 
