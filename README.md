@@ -1,3 +1,5 @@
+<img src="docs/source/assets/pybionetgen-readme-card.png" alt="PyBioNetGen" width="480">
+
 # A simple CLI for BioNetGen 
 
 [![BNG CLI build status](https://github.com/RuleWorld/PyBioNetGen/workflows/bng-cli-tests/badge.svg)](https://github.com/RuleWorld/PyBioNetGen/actions)
