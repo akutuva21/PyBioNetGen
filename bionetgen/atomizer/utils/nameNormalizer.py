@@ -87,7 +87,7 @@ if __name__ == "__main__":
     parser = defineConsole()
     namespace = parser.parse_args()
     with open(namespace.normalize) as f:
-        normalizationSettings = yaml.load(f)
+        normalizationSettings = yaml.safe_load(f)
 
     for model in normalizationSettings["model"]:
         bnglNamespace = readBNGXML.parseFullXML(model["name"])

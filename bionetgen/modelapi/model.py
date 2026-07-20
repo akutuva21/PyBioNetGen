@@ -1,6 +1,7 @@
-import copy, tempfile, shutil
+import copy, tempfile, shutil, os
 
 from bionetgen.core.exc import BNGFileError, BNGModelError
+from bionetgen.core.utils.logging import BNGLogger
 
 from .bngparser import BNGParser
 from .blocks import (
@@ -66,7 +67,14 @@ class bngmodel:
         "population_maps", "rules", "reaction_rules", "actions".
     """
 
-    def __init__(self, bngl_model, BNGPATH=None, generate_network=False, suppress=True):
+    def __init__(
+        self,
+        bngl_model,
+        BNGPATH=None,
+        generate_network=False,
+        suppress=True,
+        verbose=False,
+    ):
         self.active_blocks = []
         # We want blocks to be printed in the same order every time
         self._block_order = [
@@ -82,13 +90,16 @@ class bngmodel:
             "protocol",
             "actions",
         ]
+        self.logger = BNGLogger()
         self.model_name = ""
         self.model_path = bngl_model
+        self.verbose = verbose
         self.bngparser = BNGParser(
             bngl_model,
             BNGPATH=BNGPATH,
             generate_network=generate_network,
             suppress=suppress,
+            verbose=self.verbose,
         )
         self.bngparser.parse_model(self)
         for block in self._block_order:
@@ -97,13 +108,9 @@ class bngmodel:
         # Check to see if there are no active blocks
         # If not, model is most likely not in BNGL format
         if not self.active_blocks:
-            # TODO: consider raising a BNGModelError() here
-            # raise BNGModelError(
-            #                 self.model_path,
-            #                 message="WARNING: No active blocks. Please ensure model is in proper BNGL or BNG-XML format",
-            #             )
-            print(
-                "WARNING: No active blocks. Please ensure model is in proper BNGL or BNG-XML format"
+            raise BNGModelError(
+                self.model_path,
+                message="No active blocks. Please ensure model is in proper BNGL or BNG-XML format",
             )
 
     @property
@@ -125,14 +132,14 @@ class bngmodel:
         """
         write the model to str
         """
-        model_str = ""
+        model_lines = []
         # gotta check for "before model" type actions
         if hasattr(self, "actions"):
             ablock = getattr(self, "actions")
             if len(ablock.before_model) > 0:
                 for baction in ablock.before_model:
-                    model_str += str(baction) + "\n"
-        model_str += "begin model\n"
+                    model_lines.append(str(baction) + "\n")
+        model_lines.append("begin model\n")
         for block in self._block_order:
             # ensure we didn't get new items into a
             # previously inactive block, if we did
@@ -149,11 +156,11 @@ class bngmodel:
             # print only the active blocks
             if block in self.active_blocks:
                 if block != "actions" and len(getattr(self, block)) > 0:
-                    model_str += str(getattr(self, block))
-        model_str += "\nend model\n\n"
+                    model_lines.append(str(getattr(self, block)))
+        model_lines.append("\nend model\n\n")
         if "actions" in self.active_blocks:
-            model_str += str(self.actions)
-        return model_str
+            model_lines.append(str(self.actions))
+        return "".join(model_lines)
 
     def __repr__(self):
         return self.model_name
@@ -204,9 +211,12 @@ class bngmodel:
         }
         if normalized_name not in block_adders:
             supported_names = ", ".join(block_adders)
-            raise ValueError(
-                f"Unsupported block name '{block_name}'. "
-                f"Supported block names: {supported_names}"
+            raise BNGModelError(
+                self,
+                message=(
+                    f"Block type {normalized_name} is not supported. "
+                    f"Supported block names: {supported_names}"
+                ),
             )
         return block_adders[normalized_name]
 
@@ -215,11 +225,20 @@ class bngmodel:
         Adds a parameters block to the model object.
         """
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, ParameterBlock)
+            if not isinstance(block, ParameterBlock):
+                self.logger.error(
+                    "The block is not a ParameterBlock.",
+                    loc=f"{__file__} : bngmodel.add_parameters_block()",
+                )
+                raise BNGModelError(self, message="The block is not a ParameterBlock.")
             self.parameters = block
             if "parameters" not in self.active_blocks:
                 self.active_blocks.append("parameters")
+            else:
+                self.logger.warning(
+                    "Network already has parameters block, replacing the old one",
+                    loc=f"{__file__} : bngmodel.add_parameters_block()",
+                )
         else:
             self.parameters = ParameterBlock()
 
@@ -228,11 +247,22 @@ class bngmodel:
         Adds a compartments block to the model object.
         """
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, CompartmentBlock)
+            if not isinstance(block, CompartmentBlock):
+                self.logger.error(
+                    "The block is not a CompartmentBlock.",
+                    loc=f"{__file__} : bngmodel.add_compartments_block()",
+                )
+                raise BNGModelError(
+                    self, message="The block is not a CompartmentBlock."
+                )
             self.compartments = block
             if "compartments" not in self.active_blocks:
                 self.active_blocks.append("compartments")
+            else:
+                self.logger.warning(
+                    "Network already has compartments block, replacing the old one",
+                    loc=f"{__file__} : bngmodel.add_compartments_block()",
+                )
         else:
             self.compartments = CompartmentBlock()
 
@@ -241,11 +271,22 @@ class bngmodel:
         Adds a molecule types block to the model object.
         """
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, MoleculeTypeBlock)
+            if not isinstance(block, MoleculeTypeBlock):
+                self.logger.error(
+                    "The block is not a MoleculeTypeBlock.",
+                    loc=f"{__file__} : bngmodel.add_molecule_types_block()",
+                )
+                raise BNGModelError(
+                    self, message="The block is not a MoleculeTypeBlock."
+                )
             self.molecule_types = block
             if "molecule_types" not in self.active_blocks:
                 self.active_blocks.append("molecule_types")
+            else:
+                self.logger.warning(
+                    "Network already has molecule_types block, replacing the old one",
+                    loc=f"{__file__} : bngmodel.add_molecule_types_block()",
+                )
         else:
             self.molecule_types = MoleculeTypeBlock()
 
@@ -254,11 +295,20 @@ class bngmodel:
         Adds a species block to the model object.
         """
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, SpeciesBlock)
+            if not isinstance(block, SpeciesBlock):
+                self.logger.error(
+                    "The block is not a SpeciesBlock.",
+                    loc=f"{__file__} : bngmodel.add_species_block()",
+                )
+                raise BNGModelError(self, message="The block is not a SpeciesBlock.")
             self.species = block
             if "species" not in self.active_blocks:
                 self.active_blocks.append("species")
+            else:
+                self.logger.warning(
+                    "Network already has species block, replacing the old one",
+                    loc=f"{__file__} : bngmodel.add_species_block()",
+                )
         else:
             self.species = SpeciesBlock()
 
@@ -267,11 +317,20 @@ class bngmodel:
         Adds an observable block to the model object.
         """
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, ObservableBlock)
+            if not isinstance(block, ObservableBlock):
+                self.logger.error(
+                    "The block is not a ObservableBlock.",
+                    loc=f"{__file__} : bngmodel.add_observables_block()",
+                )
+                raise BNGModelError(self, message="The block is not a ObservableBlock.")
             self.observables = block
             if "observables" not in self.active_blocks:
                 self.active_blocks.append("observables")
+            else:
+                self.logger.warning(
+                    "Network already has observables block, replacing the old one",
+                    loc=f"{__file__} : bngmodel.add_observables_block()",
+                )
         else:
             self.observables = ObservableBlock()
 
@@ -280,11 +339,20 @@ class bngmodel:
         Adds a functions block to the model object.
         """
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, FunctionBlock)
+            if not isinstance(block, FunctionBlock):
+                self.logger.error(
+                    "The block is not a FunctionBlock.",
+                    loc=f"{__file__} : bngmodel.add_functions_block()",
+                )
+                raise BNGModelError(self, message="The block is not a FunctionBlock.")
             self.functions = block
             if "functions" not in self.active_blocks:
                 self.active_blocks.append("functions")
+            else:
+                self.logger.warning(
+                    "Network already has functions block, replacing the old one",
+                    loc=f"{__file__} : bngmodel.add_functions_block()",
+                )
         else:
             self.functions = FunctionBlock()
 
@@ -293,11 +361,20 @@ class bngmodel:
         Adds a rules block to the model object.
         """
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, RuleBlock)
+            if not isinstance(block, RuleBlock):
+                self.logger.error(
+                    "The block is not a RuleBlock.",
+                    loc=f"{__file__} : bngmodel.add_rules_block()",
+                )
+                raise BNGModelError(self, message="The block is not a RuleBlock.")
             self.rules = block
             if "rules" not in self.active_blocks:
                 self.active_blocks.append("rules")
+            else:
+                self.logger.warning(
+                    "Network already has rules block, replacing the old one",
+                    loc=f"{__file__} : bngmodel.add_rules_block()",
+                )
         else:
             self.rules = RuleBlock()
 
@@ -306,11 +383,22 @@ class bngmodel:
         Adds an energy patterns block to the model object.
         """
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, EnergyPatternBlock)
+            if not isinstance(block, EnergyPatternBlock):
+                self.logger.error(
+                    "The block is not a EnergyPatternBlock.",
+                    loc=f"{__file__} : bngmodel.add_energy_patterns_block()",
+                )
+                raise BNGModelError(
+                    self, message="The block is not a EnergyPatternBlock."
+                )
             self.energy_patterns = block
             if "energy_patterns" not in self.active_blocks:
                 self.active_blocks.append("energy_patterns")
+            else:
+                self.logger.warning(
+                    "Network already has energy_patterns block, replacing the old one",
+                    loc=f"{__file__} : bngmodel.add_energy_patterns_block()",
+                )
         else:
             self.energy_patterns = EnergyPatternBlock()
 
@@ -319,11 +407,22 @@ class bngmodel:
         Adds a population maps block to the model object.
         """
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, PopulationMapBlock)
+            if not isinstance(block, PopulationMapBlock):
+                self.logger.error(
+                    "The block is not a PopulationMapBlock.",
+                    loc=f"{__file__} : bngmodel.add_population_maps_block()",
+                )
+                raise BNGModelError(
+                    self, message="The block is not a PopulationMapBlock."
+                )
             self.population_maps = block
             if "population_maps" not in self.active_blocks:
                 self.active_blocks.append("population_maps")
+            else:
+                self.logger.warning(
+                    "Network already has population_maps block, replacing the old one",
+                    loc=f"{__file__} : bngmodel.add_population_maps_block()",
+                )
         else:
             self.population_maps = PopulationMapBlock()
 
@@ -337,11 +436,20 @@ class bngmodel:
         executes when ``parameter_scan({method=>"protocol"})`` is invoked.
         """
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, ProtocolBlock)
+            if not isinstance(block, ProtocolBlock):
+                self.logger.error(
+                    "The block is not a ProtocolBlock.",
+                    loc=f"{__file__} : bngmodel.add_protocol_block()",
+                )
+                raise BNGModelError(self, message="The block is not a ProtocolBlock.")
             self.protocol = block
             if "protocol" not in self.active_blocks:
                 self.active_blocks.append("protocol")
+            else:
+                self.logger.warning(
+                    "Network already has protocol block, replacing the old one",
+                    loc=f"{__file__} : bngmodel.add_protocol_block()",
+                )
         else:
             self.protocol = ProtocolBlock()
 
@@ -350,11 +458,20 @@ class bngmodel:
         Adds an actions block to the model object.
         """
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, ActionBlock)
+            if not isinstance(block, ActionBlock):
+                self.logger.error(
+                    "The block is not a ActionBlock.",
+                    loc=f"{__file__} : bngmodel.add_actions_block()",
+                )
+                raise BNGModelError(self, message="The block is not a ActionBlock.")
             self.actions = block
             if "actions" not in self.active_blocks:
                 self.active_blocks.append("actions")
+            else:
+                self.logger.warning(
+                    "Network already has actions block, replacing the old one",
+                    loc=f"{__file__} : bngmodel.add_actions_block()",
+                )
         else:
             self.actions = ActionBlock()
 
@@ -386,6 +503,11 @@ class bngmodel:
             self.actions = ActionBlock()
             if "actions" not in self.active_blocks:
                 self.active_blocks.append("actions")
+            else:
+                self.logger.warning(
+                    "Network already has actions block, replacing the old one",
+                    loc=f"{__file__} : bngmodel.add_actions_block()",
+                )
         self.actions.add_action(action_type, action_args)
 
     def write_model(self, file_name):
@@ -412,7 +534,7 @@ class bngmodel:
             tmp_folder = None
             try:
                 tmp_folder = tempfile.mkdtemp()
-                sbml_name = f"{self.model_name}_sbml.xml"
+                sbml_name = os.path.join(tmp_folder, f"{self.model_name}_sbml.xml")
                 # write the sbml
                 with open(sbml_name, "w+") as f:
                     try:

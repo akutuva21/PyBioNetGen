@@ -356,8 +356,8 @@ def _write_bng_dat(path, time, data_2d, col_names):
     headers = ["time"] + list(col_names)
     with open(path, "w") as f:
         f.write("# " + "  ".join(f"{h:>18s}" for h in headers) + "\n")
-        for i in range(len(time)):
-            vals = [time[i]] + [data_2d[i, j] for j in range(data_2d.shape[1])]
+        for i, t in enumerate(time):
+            vals = [t] + data_2d[i].tolist()
             f.write("  ".join(f"{v:22.12e}" for v in vals) + "\n")
 
 
@@ -370,8 +370,8 @@ def _append_bng_dat_rows(path, time, data_2d, skip_first=True):
     """
     start = 1 if (skip_first and len(time) > 0) else 0
     with open(path, "a") as f:
-        for i in range(start, len(time)):
-            vals = [time[i]] + [data_2d[i, j] for j in range(data_2d.shape[1])]
+        for i, t in enumerate(time[start:], start=start):
+            vals = [t] + data_2d[i].tolist()
             f.write("  ".join(f"{v:22.12e}" for v in vals) + "\n")
 
 

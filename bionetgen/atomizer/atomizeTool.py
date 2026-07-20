@@ -18,6 +18,12 @@ class AtomizeTool:
         )
         # we generate our defaults first and override it with
         # the dictionary first and then the namespace
+
+        bng_path = d.bng_path
+        if self.app is not None and hasattr(self.app, "config"):
+            if "bionetgen" in self.app.config:
+                bng_path = self.app.config.get("bionetgen", "bngpath")
+
         config = {
             "input": None,  # we need this, check at the end and fail if we don't have it
             "annotation": False,
@@ -29,9 +35,7 @@ class AtomizeTool:
             "convert_units": False,  # currently not supported
             "atomize": False,  # default is flat translation
             "pathwaycommons": True,  # requires connection so default is false
-            "bionetgen_analysis": os.path.join(
-                d.bng_path, "BNG2.pl"
-            ),  # TODO: get it from app config
+            "bionetgen_analysis": os.path.join(bng_path, "BNG2.pl"),
             "isomorphism_check": False,  # wtf do we do here?
             "ignore": False,  # wtf do we do here?
             "memoized_resolver": False,
@@ -45,9 +49,7 @@ class AtomizeTool:
             config["input"] = input_file
         # dictionary override
         if options_dict is not None:
-            for key in config:
-                if key in options_dict:
-                    config[key] = options_dict[key]
+            config.update({k: v for k, v in options_dict.items() if k in config})
         # namespace override
         if parser_namespace is not None:
             for key in config:
@@ -77,7 +79,13 @@ class AtomizeTool:
             "Validating config options", loc=f"{__file__} : AtomizeTool.checkConfig()"
         )
         options = {}
-        options["inputFile"] = config["input"]  # TODO: ensure this is not None
+        options["inputFile"] = config["input"]
+        if options["inputFile"] is None:
+            self.logger.error(
+                "Input file is required but was not provided",
+                loc=f"{__file__} : AtomizeTool.checkConfig()",
+            )
+            raise ValueError("Input file is required but was not provided")
         conv, useID, naming = ls2b.selectReactionDefinitions(options["inputFile"])
         options["outputFile"] = (
             config["output"]
@@ -116,8 +124,12 @@ class AtomizeTool:
         return options
 
     def run(self):
-        # TODO: Make atomizer also use cement app logging
-        # this involves changing a lot of code in atomizer!
+        # Wire up the atomizer's global logger to the cement app
+        from bionetgen.atomizer.utils.util import logger as atomizer_logger
+
+        atomizer_logger.app = self.app
+        atomizer_logger.level = self.config["logLevel"]
+
         self.logger.debug("Analyzing SBML file", loc=f"{__file__} : AtomizeTool.run()")
         self.returnArray = ls2b.analyzeFile(
             self.config["inputFile"],

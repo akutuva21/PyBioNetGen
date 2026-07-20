@@ -29,84 +29,24 @@ from sympy.printing.str import StrPrinter
 from sympy.core.sympify import SympifyError
 
 
-# Define 2 and 3 argument functions
-# for sympy parsing
-class sympyPiece(Function):
-    nargs = (3, 4, 5)
-
-
-class sympyIF(Function):
-    nargs = 3
-
-
-class sympyGT(Function):
-    nargs = 2
-
-
-class sympyLT(Function):
-    nargs = 2
-
-
-class sympyGEQ(Function):
-    nargs = 2
-
-
-class sympyLEQ(Function):
-    nargs = 2
-
-
-class sympyAnd(Function):
-    nargs = (2, 3, 4, 5)
-
-
-class sympyOr(Function):
-    nargs = (2, 3, 4, 5)
-
-
-class sympyNot(Function):
-    nargs = 1
-
-
-def factorial(x):
-    temp = x
-    acc = 1
-    while temp > 0:
-        acc *= temp
-        temp -= 1
-    return acc
-
-
-def comb(x, y, exact=True):
-    return factorial(x) / (factorial(y) * factorial(x - y))
-
-
-bioqual = [
-    "BQB_IS",
-    "BQB_HAS_PART",
-    "BQB_IS_PART_OF",
-    "BQB_IS_VERSION_OF",
-    "BQB_HAS_VERSION",
-    "BQB_IS_HOMOLOG_TO",
-    "BQB_IS_DESCRIBED_BY",
-    "BQB_IS_ENCODED_BY",
-    "BQB_ENCODES",
-    "BQB_OCCURS_IN",
-    "BQB_HAS_PROPERTY",
-    "BQB_IS_PROPERTY_OF",
-    "BQB_HAS_TAXON",
-    "BQB_UNKNOWN",
-]
-
-modqual = [
-    "BQM_IS",
-    "BQM_IS_DESCRIBED_BY",
-    "BQM_IS_DERIVED_FROM",
-    "BQM_IS_INSTANCE_OF",
-    "BQM_HAS_INSTANCE",
-    "BQM_UNKNOWN",
-]
-
-annotationHeader = {"BQB": "bqbiol", "BQM": "bmbiol"}
+from bionetgen.atomizer.utils.sbml_math import (
+    sympyPiece,
+    sympyIF,
+    sympyGT,
+    sympyLT,
+    sympyGEQ,
+    sympyLEQ,
+    sympyAnd,
+    sympyOr,
+    sympyNot,
+)
+from bionetgen.atomizer.utils.math_utils import factorial, comb
+from bionetgen.atomizer.utils.bngl_utils import (
+    bioqual,
+    modqual,
+    annotationHeader,
+    standardizeName,
+)
 
 
 def unrollSBMLFunction(function, sbmlFunctions):
@@ -161,6 +101,7 @@ class SBML2BNGL:
         self.obs_names = []
         self.obs_map = {}
         self.param_repl = {}
+        self.functionFlag = None
 
         # ASS - I think there should be a check for compartments right here
         # to determine if a) any compartment is actually used and
@@ -311,13 +252,13 @@ class SBML2BNGL:
             initialValue = species.getInitialAmount()
         isConstant = species.getConstant()
         isBoundary = species.getBoundaryCondition()
-        # FIXME: this condition means that a variable/species can be changed
-        # by rules and/or events. this means that we effectively need a variable
-        # changed by a function that tracks this value, and all references
-        # to this observable have to be changed to the referrencing variable.
-        # http://sbml.org/Software/libSBML/docs/java-api/org/sbml/libsbml/Species.html
         if isBoundary and not isConstant:
-            # isConstant = True
+            # Code Reviewer: The substitution logic required by the FIXME
+            # ("all references to this observable have to be changed")
+            # is actually implemented downstream in getAssignmentRules
+            # and applied in libsbml2bngl.py via only_assignment_dict.
+            # We enforce isConstant = True here so BNG processes it with the $ prefix.
+            isConstant = True
             if (
                 not species.isSetInitialConcentration()
                 and not species.isSetInitialAmount()
@@ -462,10 +403,10 @@ class SBML2BNGL:
                 return True
 
             else:
-                if (math.getLeftChild().getCharacter()) in ["*", "/", "-"]:
+                if (math.getLeftChild().getCharacter()) in {"*", "/", "-"}:
                     if self.getIsTreeNegative(math.getLeftChild()):
                         return True
-                if (math.getRightChild().getCharacter()) in ["*", "/", "-"]:
+                if (math.getRightChild().getCharacter()) in {"*", "/", "-"}:
                     if self.getIsTreeNegative(math.getRightChild()):
                         return True
         elif math.getCharacter() == "-" and math.getNumChildren() == 1:
@@ -517,16 +458,15 @@ class SBML2BNGL:
         remainderPatterns = []
         highStoichoiMetryFactor = 1
         processedReactants = self.preProcessStoichiometry(reactants)
-        # ASS: I'm doing a hack, this is a flag to indicate
-        # that a species appears on both sides of a reaction
-        bothSides = False
+
+        # Flag to indicate that a species appears on both sides of a reaction
+        bothSides = any(r[0] in {p[0] for p in products} for r in processedReactants)
+
         for x in processedReactants:
             # this is the symmtery factor for the rate constant
             highStoichoiMetryFactor *= factorial(x[1])
-            y = [i[1] for i in products if i[0] == x[0]]
-            if len(y) > 0:
-                bothSides = True
-            y = y[0] if len(y) > 0 else 0
+            y = next((p[1] for p in products if p[0] == x[0]), 0)
+
             # TODO: check if this actually keeps the correct dynamics
             # this is basically there to address the case where theres more products
             # than reactants (synthesis)
@@ -607,16 +547,15 @@ class SBML2BNGL:
         remainderPatterns = []
         highStoichoiMetryFactor = 1
         processedReactants = self.preProcessStoichiometry(react)
-        # ASS: I'm doing a hack, this is a flag to indicate
-        # that a species appears on both sides of a reaction
-        bothSides = False
+
+        # Flag to indicate that a species appears on both sides of a reaction
+        bothSides = any(r[0] in {p[0] for p in prod} for r in processedReactants)
+
         for x in processedReactants:
             # this is the symmtery factor for the rate constant
             highStoichoiMetryFactor *= factorial(x[1])
-            y = [i[1] for i in prod if i[0] == x[0]]
-            if len(y) > 0:
-                bothSides = True
-            y = y[0] if len(y) > 0 else 0
+            y = next((p[1] for p in prod if p[0] == x[0]), 0)
+
             if x[1] > y:
                 highStoichoiMetryFactor /= comb(int(x[1]), int(y), exact=True)
             for counter in range(0, int(x[1])):
@@ -701,49 +640,52 @@ class SBML2BNGL:
         # let's parse the formula and get non-numerical symbols
         form = libsbml.formulaToString(math)
         # If we need to replace anything
-        # TODO: Replace all of these with regexp
-        for it in replace_dict.items():
-            form = form.replace(it[0], it[1])
+        for key, val in replace_dict.items():
+            form = re.sub(rf"\b{re.escape(key)}\b", val, form)
         # Let's also pool this in used_symbols
-        for sym in self.all_syms.keys():
+        for sym in self.all_syms:
             if sym not in self.used_symbols:
                 self.used_symbols.append(sym)
         # Sympy doesn't allow and/not/or to be used
         # outside what it deems to be acceptable
-        # TODO: Replace all of these with regexp
-        if "piecewise(" in form:
-            form = form.replace("piecewise(", "sympyPiece(")
-            replace_dict["piecewise"] = "sympyPiece"
-        if "gt(" in form:
-            form = form.replace("gt(", "sympyGT(")
-            replace_dict["gt"] = "sympyGT"
-        if "geq(" in form:
-            form = form.replace("geq(", "sympyGEQ(")
-            replace_dict["geq"] = "sympyGEQ"
-        if "lt(" in form:
-            form = form.replace("lt(", "sympyLT(")
-            replace_dict["lt"] = "sympyLT"
-        if "leq(" in form:
-            form = form.replace("leq(", "sympyLEQ(")
-            replace_dict["leq"] = "sympyLEQ"
-        if "if(" in form:
-            form = form.replace("if(", "sympyIF(")
-            replace_dict["if"] = "sympyIF"
-        if "and(" in form:
-            form = form.replace("and(", "sympyAnd(")
-            replace_dict["and"] = "sympyAnd"
-        # TODO: "or(" catches stuff like "floor(" and other
-        # potential functions. This needs to be extended
-        # to more potential or statements (e.g. *or(, +or( etc
-        # the same goes for other functions too but this is
-        # particularly a problem for this one
-        if " or(" in form:
-            form = form.replace("or(", "sympyOr(")
-            replace_dict["or"] = "sympyOr"
-        if "not(" in form:
-            form = form.replace("not(", "sympyNot(")
-            replace_dict["not"] = "sympyNot"
+        sympy_funcs = {
+            "piecewise": "sympyPiece",
+            "gt": "sympyGT",
+            "geq": "sympyGEQ",
+            "lt": "sympyLT",
+            "leq": "sympyLEQ",
+            "if": "sympyIF",
+            "and": "sympyAnd",
+            "or": "sympyOr",
+            "not": "sympyNot",
+        }
+        for func, sympy_func in sympy_funcs.items():
+            pattern = rf"\b{func}\("
+            if re.search(pattern, form):
+                form = re.sub(pattern, f"{sympy_func}(", form)
+                replace_dict[func] = sympy_func
         return form, replace_dict
+
+    def _return_split_rxn(self, sym, replace_dict):
+        rate = str(sym).replace("**", "^")
+        for it in replace_dict.items():
+            rate = rate.replace(it[1], it[0])
+        return rate, "", 1, 1, False, True
+
+    def _process_rate_expression(self, expr, elements, bols):
+        symbols = sympy.symbols(bols) if bols else ()
+        removed = []
+        for ibol, bol in enumerate(symbols):
+            stoi = int(elements[ibol][1])
+            expr = expr / (bol**stoi)
+            removed += [str(bol) for _ in range(stoi)]
+
+        n, d = expr.as_numer_denom()
+        for ibol, bol in enumerate(symbols):
+            if bol in d.atoms():
+                d = d.subs(bol, 0)
+
+        return expr, removed, d == 0
 
     def analyzeReactionRate(
         self,
@@ -792,9 +734,16 @@ class SBML2BNGL:
         # let's pull all names
         all_names = [i[0] for i in react] + [i[0] for i in prod]
         # SymPy is wonderful, _clash1 avoids built-ins like E, I etc
-        # FIXME:can we adjust the assignment rule stuff here?
         try:
             sym = sympy.sympify(form, locals=self.all_syms)
+
+            # Adjust assignment rules here to ensure that variables
+            # that have been turned into assignment rules are properly
+            # replaced in the sympy expression
+            for oname, nname in self.only_assignment_dict.items():
+                osym, ns = sympy.symbols(oname + "," + nname)
+                sym = sym.subs(osym, ns)
+
         except SympifyError as e:
             logMess(
                 "ERROR:SYMP001",
@@ -804,38 +753,39 @@ class SBML2BNGL:
         # Remove compartments if we use them.
         # if not self.noCompartment:
         compartments_to_remove = [sympy.symbols(comp) for comp in compartmentList]
-        # TODO: This is not fully correct, we need to know what
-        # compartment is on what side which is not currently
-        # being provided to this function
         for comp in compartments_to_remove:
             if comp in sym.atoms():
-                # Further issue, I know that this should be
-                # a multiplication but for BMD2 this is actually a
-                # problem? In fact, it looks like this is the case
-                # for regular mass action in SBML?
-                # This doesn't look right and it is a current
-                # hack?
-                n, d = sym.as_numer_denom()
-                if comp in n.atoms():
-                    sym = sym / comp
-                elif comp in d.atoms():
-                    sym = sym * comp
-                else:
-                    pass
+                # By substituting 1 for the compartment size, we simply
+                # remove it from the rate equation appropriately regardless of
+                # where it appears in the expression
+                sym = sym.subs(comp, 1)
 
         # If we are splitting, we don't need to do much
         if split_rxn:
-            rate = str(sym).replace("**", "^")
-            for it in replace_dict.items():
-                rate = rate.replace(it[1], it[0])
-            return rate, "", 1, 1, False, split_rxn
+            return self._return_split_rxn(sym, replace_dict)
 
         # expand and take the terms out as left and right
         exp = sympy.expand(sym)
         # This shows if we can get X - Y
         ###### SPLIT RXN #######
-        # TODO: Figure out if something CAN be mass action
+        # Figure out if something CAN be mass action
         # and if not, just skip the rest and use split_rxn
+        react_bols = [x[0] for x in react]
+        prod_bols = [x[0] for x in prod]
+        react_symbols = sympy.symbols(react_bols) if react_bols else ()
+        prod_symbols = sympy.symbols(prod_bols) if prod_bols else ()
+        all_syms = list(react_symbols) + list(prod_symbols)
+
+        # check if it can be mass action
+        is_mass_action = True
+        try:
+            if all_syms and not exp.is_polynomial(*all_syms):
+                is_mass_action = False
+        except Exception:
+            is_mass_action = False
+
+        if not is_mass_action:
+            return self._return_split_rxn(sym, replace_dict)
         ###### SPLIT RXN #######
         if exp.is_Add:
             react_expr, prod_expr = self.gather_terms(exp)
@@ -867,96 +817,38 @@ class SBML2BNGL:
                 # Also get and parse the symbols
                 react_bols = [x[0] for x in react]
                 prod_bols = [x[0] for x in prod]
-                react_symbols = sympy.symbols(react_bols)
-                prod_symbols = sympy.symbols(prod_bols)
-                # Now we can manipulate it
-                # react_expr = fwd_expr
-                removedL = []
-                for ibol, bol in enumerate(react_symbols):
-                    stoi = int(react[ibol][1])
-                    # Now we can remove it
-                    react_expr = react_expr / (bol**stoi)
-                    removedL += [str(bol) for i in range(stoi)]
 
-                # Check if we can get 0 in the denominator
-                add_eps_react = False
-                n, d = react_expr.as_numer_denom()
-                for ibol, bol in enumerate(react_symbols):
-                    if bol in d.atoms():
-                        d = d.subs(bol, 0)
-                if d == 0:
-                    # logMess('WARNING:RATE001', 'Denominator of rate constant in reaction {} can be 0. We are adding a small value epsilon to avoid discontinuities which can cause small errors in the model.'.format(reactionID))
-                    add_eps_react = True
-                    # let's instead split the rxn
-                    split_rxn = True
-                    rate = str(sym).replace("**", "^")
-                    for it in replace_dict.items():
-                        rate = rate.replace(it[1], it[0])
-                    return rate, "", 1, 1, False, split_rxn
+                # Process forward rate
+                react_expr, removedL, split_needed_L = self._process_rate_expression(
+                    react_expr, react, react_bols
+                )
+                if split_needed_L:
+                    return self._return_split_rxn(sym, replace_dict)
 
-                # prod_expr = back_expr
-                removedR = []
-                for ibol, bol in enumerate(prod_symbols):
-                    stoi = int(prod[ibol][1])
-                    # Now we can remove it
-                    prod_expr = prod_expr / (bol**stoi)
-                    removedR += [str(bol) for i in range(stoi)]
-
-                # Check if we can get 0 in the denominator
-                add_eps_prod = False
-                n, d = prod_expr.as_numer_denom()
-                for ibol, bol in enumerate(prod_symbols):
-                    if bol in d.atoms():
-                        d = d.subs(bol, 0)
-                if d == 0:
-                    # logMess('WARNING:RATE001', 'Denominator of rate constant in reaction {} can be 0. We are adding a small value epsilon to avoid discontinuities which can cause small errors in the model.'.format(reactionID))
-                    # let's instead split the rxn
-                    split_rxn = True
-                    rate = str(sym).replace("**", "^")
-                    add_eps_prod = True
-                    for it in replace_dict.items():
-                        rate = rate.replace(it[1], it[0])
-                    return rate, "", 1, 1, False, split_rxn
-
-                # prod_expr = prod_expr * -1
-                # TODO: We still need to figure out if we have
-                # our reactant/products in our expressions and
-                # if so set the nl/nr values accordingly
+                # Process backward rate
+                prod_expr, removedR, split_needed_R = self._process_rate_expression(
+                    prod_expr, prod, prod_bols
+                )
+                if split_needed_R:
+                    return self._return_split_rxn(sym, replace_dict)
 
                 # Reproducing current behavior + expansion
                 re_proc = react_expr.nsimplify().evalf().simplify()
                 pe_proc = prod_expr.nsimplify().evalf().simplify()
 
-                # Adding epsilon if we have to
-                if add_eps_react:
-                    # n,d = re_proc.as_numer_denom()
-                    # rateL = "(" + str(n) + ")/(" + str(d) + "+__epsilon__)"
-                    # self.write_epsilon = True
-                    # add_eps_prod = True
-                    # instead splitting the reaction
-                    split_rxn = True
-                    rate = str(sym).replace("**", "^")
-                    for it in replace_dict.items():
-                        rate = rate.replace(it[1], it[0])
-                    return rate, "", 1, 1, False, split_rxn
-                else:
-                    rateL = str(re_proc)
-                if add_eps_prod:
-                    # n,d = pe_proc.as_numer_denom()
-                    # rateR = "(" + str(n) + ")/(" + str(d) + "+__epsilon__)"
-                    # self.write_epsilon = True
-                    # add_eps_prod = True
-                    # instead splitting the reaction
-                    split_rxn = True
-                    rate = str(sym).replace("**", "^")
-                    for it in replace_dict.items():
-                        rate = rate.replace(it[1], it[0])
-                    return rate, "", 1, 1, False, split_rxn
-                else:
-                    rateR = str(pe_proc)
+                rateL = str(re_proc)
+                rateR = str(pe_proc)
+
                 nl = self.calculate_factor(react, prod, rateL, removedL)
                 nr = self.calculate_factor(prod, react, rateR, removedR)
-                # nl, nr = 2, 2
+
+                re_free = [str(x) for x in re_proc.free_symbols]
+                pe_free = [str(x) for x in pe_proc.free_symbols]
+                if any(x in re_free for x in react_bols + prod_bols):
+                    nl = max(nl, 1)
+                if any(x in pe_free for x in react_bols + prod_bols):
+                    nr = max(nr, 1)
+
                 # BNG power function is ^ and not **
                 rateL = rateL.replace("**", "^")
                 rateR = rateR.replace("**", "^")
@@ -972,45 +864,24 @@ class SBML2BNGL:
                 )
             # Also get and parse the symbols
             react_bols = [x[0] for x in react]
-            react_symbols = sympy.symbols(react_bols)
-            # Now we can manipulate it
-            react_expr = exp
-            removedL = []
-            for ibol, bol in enumerate(react_symbols):
-                stoi = int(react[ibol][1])
-                # Now we can remove it
-                react_expr = react_expr / (bol**stoi)
-                removedL += [str(bol) for i in range(stoi)]
 
-            # Check if we can get the denominator to be 0
-            add_eps_react = False
-            n, d = react_expr.as_numer_denom()
-            for ibol, bol in enumerate(react_symbols):
-                if bol in d.atoms():
-                    d = d.subs(bol, 0)
-            if d == 0:
-                # logMess('WARNING:RATE001', 'Denominator of rate constant in reaction {} can be 0. We are adding a small value epsilon to avoid discontinuities which can cause small errors in the model.'.format(reactionID))
-                # add_eps_react = True
-                # instead splitting the reaction
-                split_rxn = True
-                rate = str(sym).replace("**", "^")
-                for it in replace_dict.items():
-                    rate = rate.replace(it[1], it[0])
-                return rate, "", 1, 1, False, split_rxn
+            # Process forward rate
+            react_expr, removedL, split_needed_L = self._process_rate_expression(
+                exp, react, react_bols
+            )
+            if split_needed_L:
+                return self._return_split_rxn(sym, replace_dict)
+
             re_proc = react_expr.nsimplify().evalf().simplify()
-            if add_eps_react:
-                # n,d = re_proc.as_numer_denom()
-                # rateL = "(" + str(n) + ")/(" + str(d) + "+__epsilon__)"
-                # self.write_epsilon = True
-                # instead splitting the reaction
-                split_rxn = True
-                rate = str(sym).replace("**", "^")
-                for it in replace_dict.items():
-                    rate = rate.replace(it[1], it[0])
-                return rate, "", 1, 1, False, split_rxn
-            else:
-                rateL = str(re_proc)
+            rateL = str(re_proc)
+
             nl = self.calculate_factor(react, prod, rateL, removedL)
+
+            prod_bols = [x[0] for x in prod]
+            re_free = [str(x) for x in re_proc.free_symbols]
+            if any(x in re_free for x in react_bols + prod_bols):
+                nl = max(nl, 1)
+
             rateL = rateL.replace("**", "^")
             # Make unidirectional
             rateR = "0"
@@ -1050,13 +921,13 @@ class SBML2BNGL:
                 )
                 for reactant in reaction.getListOfReactants()
                 if reactant.getSpecies().lower() not in zerospecies
-                and reactant.getStoichiometry() not in [0, "0"]
+                and reactant.getStoichiometry() not in (0, "0")
             ]
             product = [
                 (product.getSpecies(), product.getStoichiometry(), product.getSpecies())
                 for product in reaction.getListOfProducts()
                 if product.getSpecies().lower() not in zerospecies
-                and product.getStoichiometry() not in [0, "0"]
+                and product.getStoichiometry() not in (0, "0")
             ]
         else:
             reactant = [
@@ -1068,7 +939,7 @@ class SBML2BNGL:
                 for rElement in reaction.getListOfReactants()
                 if self.speciesDictionary[rElement.getSpecies()].lower()
                 not in zerospecies
-                and rElement.getStoichiometry() not in [0, "0"]
+                and rElement.getStoichiometry() not in (0, "0")
             ]
             product = [
                 (
@@ -1079,7 +950,7 @@ class SBML2BNGL:
                 for rProduct in reaction.getListOfProducts()
                 if self.speciesDictionary[rProduct.getSpecies()].lower()
                 not in zerospecies
-                and rProduct.getStoichiometry() not in [0, "0"]
+                and rProduct.getStoichiometry() not in (0, "0")
             ]
         kineticLaw = reaction.getKineticLaw()
         reversible = reaction.getReversible()
@@ -1187,12 +1058,9 @@ class SBML2BNGL:
         ]
         rateL = rateR = nl = nr = None
         if True:
-            # TODO: For some reason creating a deepcopy of this screws everything up, even
-            # though its what we should be doing
-            # update: apparently the solution was to use copy instead of deepcopy. This is because
-            # the underlying swig code in c was causing conflicts when copied. make sure this actually works
-            math = copy(kineticLaw.getMath())
-            math = math.deepCopy()
+            math = kineticLaw.getMath()
+            if math is not None:
+                math = math.deepCopy()
             # get a list of compartments so that we can remove them
             compartmentList = []
             for compartment in self.model.getListOfCompartments():
@@ -1246,10 +1114,9 @@ class SBML2BNGL:
             if rateR == "0":
                 reversible = False
 
-            # FIXME: make sure this actually works
-            if symmetryFactors[0] > 1:
+            if symmetryFactors[0] > 1 and rateL != "0":
                 rateL = "({0})*({1})".format(rateL, symmetryFactors[0])
-            if symmetryFactors[1] > 1:
+            if symmetryFactors[1] > 1 and rateR != "0":
                 rateR = "({0})*({1})".format(rateR, symmetryFactors[1])
 
             # we need to resolve observables BEFORE we do this
@@ -1368,8 +1235,6 @@ class SBML2BNGL:
         create symmetry factors for reactions with components and species with
         identical names. This checks for symmetry in the components names then.
         """
-        # FIXME: This is entirely broken
-
         zerospecies = ["emptyset", "trash", "sink", "source"]
         if self.useID:
             reactant = [
@@ -1402,44 +1267,7 @@ class SBML2BNGL:
 
         if kineticLaw is None:
             return 1, 1
-        rReactant = rProduct = []
 
-        for x in reaction.getListOfReactants():
-            if (
-                x.getSpecies().lower() not in zerospecies
-                and x.getStoichiometry() not in [0, "0"]
-                and pymath.isnan(x.getStoichiometry())
-            ):
-                if not x.getConstant():
-                    logMess(
-                        "ERROR:SIM241",
-                        "BioNetGen does not support non constant stoichiometries. Reaction {0} is not correctly translated".format(
-                            reaction.getId()
-                        ),
-                    )
-                    return 1, 1
-                else:
-                    rReactant.append(x.getSpecies(), x.getStoichiometry())
-
-        for x in reaction.getListOfProducts():
-            if (
-                x.getSpecies().lower() not in zerospecies
-                and x.getStoichiometry() not in [0, "0"]
-                and pymath.isnan(x.getStoichiometry())
-            ):
-                if not x.getConstant():
-                    logMess(
-                        "ERROR:SIM241",
-                        "BioNetGen does not support non constant stoichiometries. Reaction {0} is not correctly translated".format(
-                            reaction.getId()
-                        ),
-                    )
-                    return 1, 1
-                else:
-                    rProduct.append(x.getSpecies(), x.getStoichiometry())
-
-        # TODO: For some reason creating a deepcopy of this screws everything up, even
-        # though its what we should be doing
         rcomponent = defaultdict(Counter)
         pcomponent = defaultdict(Counter)
 
@@ -1518,7 +1346,7 @@ class SBML2BNGL:
         for key in rcomponent:
             if key in pcomponent:
                 for element in rcomponent[key]:
-                    if rcomponent[key] == 1:
+                    if rcomponent[key][element] == 1:
                         continue
                     # if theres a component on one side of the equation that
                     # appears a different number of times on the other side of the equation
@@ -1559,7 +1387,7 @@ class SBML2BNGL:
             for key in pcomponent:
                 if key in rcomponent:
                     for element in pcomponent[key]:
-                        if pcomponent[key] == 1:
+                        if pcomponent[key][element] == 1:
                             continue
                         if element in rcomponent[key]:
                             if (
@@ -1617,7 +1445,7 @@ class SBML2BNGL:
         # volume messes up the reactions
         # size = 1.0
         dimensions = compartment.getSpatialDimensions()
-        if dimensions in [0, 1]:
+        if dimensions in {0, 1}:
             logMess(
                 "WARNING:SIM103",
                 "{1}-D compartments are not supported. Changing for 2-D compartments for {0}. Please verify this does not affect simulation".format(
@@ -1752,7 +1580,10 @@ class SBML2BNGL:
         if len(react_counts) == 0:
             lfact = 1
         else:
-            lfact = max(react_counts.values())
+            lfact = 1
+            for count in react_counts.values():
+                if count == int(count):
+                    lfact *= pymath.factorial(int(count))
 
         prod_counts = {}
         for prod in product:
@@ -1764,9 +1595,291 @@ class SBML2BNGL:
         if len(prod_counts) == 0:
             rfact = 1
         else:
-            rfact = max(prod_counts.values())
+            rfact = 1
+            for count in prod_counts.values():
+                if count == int(count):
+                    rfact *= pymath.factorial(int(count))
 
         return lfact, rfact
+
+    def _create_split_reaction_member(
+        self,
+        item,
+        is_reactant,
+        ctr,
+        rawRules,
+        finalRateStr,
+        isCompartments,
+        translator,
+        modifierComment,
+        reactions,
+        reactants,
+        products,
+    ):
+        i_item = item
+        stoi = i_item[1]
+
+        if is_reactant:
+            if int(stoi) != 1.0:
+                nRateStr = "-1*{}*({})".format(stoi, finalRateStr)
+            else:
+                nRateStr = "-1*({})".format(finalRateStr)
+        else:
+            if int(stoi) != 1.0:
+                nRateStr = "{}*{}".format(stoi, finalRateStr)
+            else:
+                nRateStr = "{}".format(finalRateStr)
+
+        n_item = (i_item[0], 1.0, i_item[2])
+
+        suffix = "reactants" if is_reactant else "products"
+        rxn_name = rawRules["reactionID"] + "_" + suffix + "_" + str(ctr)
+
+        rxn_str = writer.bnglReaction(
+            [],
+            [n_item],
+            nRateStr,
+            self.tags,
+            translator,
+            (
+                isCompartments
+                or ((len(reactants) == 0 or len(products) == 0) and self.functionFlag)
+            ),
+            rawRules["reversible"],
+            reactionName=rxn_name,
+            comment=modifierComment,
+        )
+        reactions.append(rxn_str)
+
+        nrule_obj = self.bngModel.make_rule()
+        nrule_obj.parse_raw(rawRules)
+        nrule_obj.reversible = False
+        nrule_obj.Id = rxn_name
+        nrule_obj.rate_cts = (nRateStr,)
+        nrule_obj.reactants = []
+        nrule_obj.products = [n_item]
+        self.bngModel.add_rule(nrule_obj)
+
+    def _handle_split_reactions(
+        self,
+        rule_obj,
+        reactants,
+        products,
+        finalRateStr,
+        rawRules,
+        isCompartments,
+        translator,
+        modifierComment,
+        reactions,
+        functionName,
+    ):
+        if "fRate" in rule_obj.rate_cts[0]:
+            if int(rule_obj.symm_factors[0]) != 1:
+                if rule_obj.rate_cts[0] not in self.bngModel.functions:
+                    logMess(
+                        "ERROR:SIM206",
+                        "Rate constant function needs adjusting but can't find function: {}"
+                        % functionName,
+                    )
+                defn = self.bngModel.functions[rule_obj.rate_cts[0]].definition
+                self.bngModel.functions[rule_obj.rate_cts[0]].definition = (
+                    f"({defn})/({rule_obj.symm_factors[0]})"
+                )
+        if rule_obj.reversible:
+            logMess(
+                "ERROR:SIM205",
+                "Splitting a reversible reaction, please check if correct, function: {}"
+                % functionName,
+            )
+        ctr = 0
+        for reactant in reactants:
+            self._create_split_reaction_member(
+                reactant,
+                True,
+                ctr,
+                rawRules,
+                finalRateStr,
+                isCompartments,
+                translator,
+                modifierComment,
+                reactions,
+                reactants,
+                products,
+            )
+            ctr += 1
+        ctr = 0
+        for product in products:
+            self._create_split_reaction_member(
+                product,
+                False,
+                ctr,
+                rawRules,
+                finalRateStr,
+                isCompartments,
+                translator,
+                modifierComment,
+                reactions,
+                reactants,
+                products,
+            )
+            ctr += 1
+
+    def _generate_rate_function(
+        self,
+        rule_obj,
+        index,
+        rawRules,
+        compartmentList,
+        parameterDict,
+        currParamConv,
+        translator,
+        functions,
+        functionTitle,
+    ):
+        threshold = 0
+        if rule_obj.raw_num[0] > threshold or rule_obj.raw_rates[0] in translator:
+            functionName = "%s%d()" % (functionTitle, index)
+        else:
+            finalString = str(rule_obj.raw_rates[0])
+            for parameter in parameterDict:
+                finalString = re.sub(
+                    r"(\W|^)({0})(\W|$)".format(parameter),
+                    r"\1{0}\3".format("r{0}_{1}".format(index + 1, parameter)),
+                    finalString,
+                )
+            functionName = finalString
+
+        if self.functionFlag and "delay" in rule_obj.raw_rates[0]:
+            logMess(
+                "ERROR:SIM202",
+                "BNG cannot handle delay functions in function %s" % functionName,
+            )
+
+        fobj = self.bngModel.make_function()
+        fobj.Id = functionName
+        fobj.rule_ptr = rule_obj
+        fobj.compartmentList = compartmentList
+
+        finalRateStr = ""
+
+        if rule_obj.reversible:
+            if rule_obj.raw_num[0] > threshold or rule_obj.raw_rates[0] in translator:
+                fobj.definition = rule_obj.raw_rates[0]
+                if self.functionFlag:
+                    if self.replaceLocParams:
+                        fstr = writer.bnglFunction(
+                            rule_obj.raw_rates[0],
+                            functionName,
+                            rawRules["reactants"],
+                            compartmentList,
+                            parameterDict,
+                            self.reactionDictionary,
+                        )
+                        functions.append(fstr)
+                        fobj.local_dict = parameterDict
+                        self.bngModel.add_function(fobj)
+                    else:
+                        fstr = writer.bnglFunction(
+                            rule_obj.raw_rates[0],
+                            functionName,
+                            rawRules["reactants"],
+                            compartmentList,
+                            currParamConv,
+                            self.reactionDictionary,
+                        )
+                        functions.append(fstr)
+                        fobj.local_dict = currParamConv
+                        self.bngModel.add_function(fobj)
+            if (
+                rawRules["numbers"][1] > threshold
+                or rule_obj.raw_rates[1] in translator
+            ):
+                functionName2 = "%s%dm()" % (functionTitle, index)
+                fobj_2 = self.bngModel.make_function()
+                fobj_2.Id = functionName2
+                fobj_2.rule_ptr = rule_obj
+                fobj_2.definition = rule_obj.raw_rates[1]
+                fobj_2.compartmentList = compartmentList
+                if self.functionFlag:
+                    if self.replaceLocParams:
+                        functions.append(
+                            writer.bnglFunction(
+                                rule_obj.raw_rates[1],
+                                functionName2,
+                                rule_obj.raw_prod,
+                                compartmentList,
+                                parameterDict,
+                                self.reactionDictionary,
+                            )
+                        )
+                        fobj_2.local_dict = parameterDict
+                        self.bngModel.add_function(fobj_2)
+                    else:
+                        functions.append(
+                            writer.bnglFunction(
+                                rule_obj.raw_rates[1],
+                                functionName2,
+                                rule_obj.raw_prod,
+                                compartmentList,
+                                currParamConv,
+                                self.reactionDictionary,
+                            )
+                        )
+                        fobj_2.local_dict = currParamConv
+                        self.bngModel.add_function(fobj_2)
+                self.reactionDictionary[rawRules["reactionID"]] = "({0} - {1})".format(
+                    functionName, functionName2
+                )
+                finalRateStr = "{0},{1}".format(functionName, functionName2)
+                rule_obj.rate_cts = (functionName, functionName2)
+            else:
+                finalString = str(rawRules["rates"][1])
+                for parameter in parameterDict:
+                    finalString = re.sub(
+                        r"(\W|^)({0})(\W|$)".format(parameter),
+                        r"\1{0}\3".format("r{0}_{1}".format(index + 1, parameter)),
+                        finalString,
+                    )
+                finalRateStr = "{0},{1}".format(functionName, finalString)
+                rule_obj.rate_cts = (functionName, finalString)
+
+        else:
+            if rawRules["numbers"][0] > threshold or rawRules["rates"][0] in translator:
+                fobj.definition = rule_obj.raw_rates[0]
+                if self.functionFlag:
+                    if self.replaceLocParams:
+                        functions.append(
+                            writer.bnglFunction(
+                                rawRules["rates"][0],
+                                functionName,
+                                rawRules["reactants"],
+                                compartmentList,
+                                parameterDict,
+                                self.reactionDictionary,
+                            )
+                        )
+                        fobj.local_dict = parameterDict
+                        self.bngModel.add_function(fobj)
+                    else:
+                        functions.append(
+                            writer.bnglFunction(
+                                rawRules["rates"][0],
+                                functionName,
+                                rawRules["reactants"],
+                                compartmentList,
+                                currParamConv,
+                                self.reactionDictionary,
+                            )
+                        )
+                        fobj.local_dict = currParamConv
+                        self.bngModel.add_function(fobj)
+                self.reactionDictionary[rawRules["reactionID"]] = "{0}".format(
+                    functionName
+                )
+            finalRateStr = functionName
+            rule_obj.rate_cts = (functionName,)
+
+        return finalRateStr, functionName
 
     def getReactions(
         self,
@@ -1785,8 +1898,8 @@ class SBML2BNGL:
         # iterations of this call. This is because we cannot create a clone of the 'math' object for this
         # reaction and it is being permanently changed every call. It's ugly but it works. Change for something
         # better when we figure out how to clone the math object
-        if not hasattr(self.getReactions, "functionFlag"):
-            self.getReactions.__func__.functionFlag = False or (not atomize)
+        if self.functionFlag is None:
+            self.functionFlag = False or (not atomize)
 
         reactions = []
         reactionStructure = []
@@ -1809,12 +1922,12 @@ class SBML2BNGL:
             parameterDict = {}
             currParamConv = {}
             # symmetry factors for components with the same name
-            # FIXME: This reduceComponentSymmetryFactors is completely broken
-            # and will only give 1,1 right now
-            # sl, sr = self.reduceComponentSymmetryFactors(
-            #     reaction, translator, functions
-            # )
-            sl, sr = self.getSymmetryFactors(reaction)
+            sl_comp, sr_comp = self.reduceComponentSymmetryFactors(
+                reaction, translator, functions
+            )
+            sl_spec, sr_spec = self.getSymmetryFactors(reaction)
+            sl = sl_comp * sl_spec
+            sr = sr_comp * sr_spec
             sbmlfunctions = self.getSBMLFunctions()
 
             try:
@@ -1873,154 +1986,17 @@ class SBML2BNGL:
                     for x in self.model.getListOfCompartments()
                 ]
             )
-            threshold = 0
-
-            if rule_obj.raw_num[0] > threshold or rule_obj.raw_rates[0] in translator:
-                functionName = "%s%d()" % (functionTitle, index)
-            else:
-                # append reactionNumbers to parameterNames
-                finalString = str(rule_obj.raw_rates[0])
-                for parameter in parameterDict:
-                    finalString = re.sub(
-                        r"(\W|^)({0})(\W|$)".format(parameter),
-                        r"\1{0}\3".format("r{0}_{1}".format(index + 1, parameter)),
-                        finalString,
-                    )
-                functionName = finalString
-            if self.getReactions.functionFlag and "delay" in rule_obj.raw_rates[0]:
-                logMess(
-                    "ERROR:SIM202",
-                    "BNG cannot handle delay functions in function %s" % functionName,
-                )
-            fobj = self.bngModel.make_function()
-            fobj.Id = functionName
-            fobj.rule_ptr = rule_obj
-            fobj.compartmentList = compartmentList
-            if rule_obj.reversible:
-                if (
-                    rule_obj.raw_num[0] > threshold
-                    or rule_obj.raw_rates[0] in translator
-                ):
-                    fobj.definition = rule_obj.raw_rates[0]
-                    if self.getReactions.functionFlag:
-                        # local parameter replacement flag
-                        if self.replaceLocParams:
-                            fstr = writer.bnglFunction(
-                                rule_obj.raw_rates[0],
-                                functionName,
-                                rawRules["reactants"],
-                                compartmentList,
-                                parameterDict,
-                                self.reactionDictionary,
-                            )
-                            functions.append(fstr)
-                            fobj.local_dict = parameterDict
-                            self.bngModel.add_function(fobj)
-                        else:
-                            fstr = writer.bnglFunction(
-                                rule_obj.raw_rates[0],
-                                functionName,
-                                rawRules["reactants"],
-                                compartmentList,
-                                currParamConv,
-                                self.reactionDictionary,
-                            )
-                            functions.append(fstr)
-                            fobj.local_dict = currParamConv
-                            self.bngModel.add_function(fobj)
-                if (
-                    rawRules["numbers"][1] > threshold
-                    or rule_obj.raw_rates[1] in translator
-                ):
-                    functionName2 = "%s%dm()" % (functionTitle, index)
-                    fobj_2 = self.bngModel.make_function()
-                    fobj_2.Id = functionName2
-                    fobj_2.rule_ptr = rule_obj
-                    fobj_2.definition = rule_obj.raw_rates[1]
-                    fobj_2.compartmentList = compartmentList
-                    if self.getReactions.functionFlag:
-                        # local parameter replacement flag
-                        if self.replaceLocParams:
-                            functions.append(
-                                writer.bnglFunction(
-                                    rule_obj.raw_rates[1],
-                                    functionName2,
-                                    rule_obj.raw_prod,
-                                    compartmentList,
-                                    parameterDict,
-                                    self.reactionDictionary,
-                                )
-                            )
-                            fobj_2.local_dict = parameterDict
-                            self.bngModel.add_function(fobj_2)
-                        else:
-                            functions.append(
-                                writer.bnglFunction(
-                                    rule_obj.raw_rates[1],
-                                    functionName2,
-                                    rule_obj.raw_prod,
-                                    compartmentList,
-                                    currParamConv,
-                                    self.reactionDictionary,
-                                )
-                            )
-                            fobj_2.local_dict = currParamConv
-                            self.bngModel.add_function(fobj_2)
-                    self.reactionDictionary[rawRules["reactionID"]] = (
-                        "({0} - {1})".format(functionName, functionName2)
-                    )
-                    finalRateStr = "{0},{1}".format(functionName, functionName2)
-                    rule_obj.rate_cts = (functionName, functionName2)
-                else:
-                    finalString = str(rawRules["rates"][1])
-                    for parameter in parameterDict:
-                        finalString = re.sub(
-                            r"(\W|^)({0})(\W|$)".format(parameter),
-                            r"\1{0}\3".format("r{0}_{1}".format(index + 1, parameter)),
-                            finalString,
-                        )
-                    finalRateStr = "{0},{1}".format(functionName, finalString)
-                    rule_obj.rate_cts = (functionName, finalString)
-
-            else:
-                if (
-                    rawRules["numbers"][0] > threshold
-                    or rawRules["rates"][0] in translator
-                ):
-                    fobj.definition = rule_obj.raw_rates[0]
-                    if self.getReactions.functionFlag:
-                        # local parameter replacement flag
-                        if self.replaceLocParams:
-                            functions.append(
-                                writer.bnglFunction(
-                                    rawRules["rates"][0],
-                                    functionName,
-                                    rawRules["reactants"],
-                                    compartmentList,
-                                    parameterDict,
-                                    self.reactionDictionary,
-                                )
-                            )
-                            fobj.local_dict = parameterDict
-                            self.bngModel.add_function(fobj)
-                        else:
-                            functions.append(
-                                writer.bnglFunction(
-                                    rawRules["rates"][0],
-                                    functionName,
-                                    rawRules["reactants"],
-                                    compartmentList,
-                                    currParamConv,
-                                    self.reactionDictionary,
-                                )
-                            )
-                            fobj.local_dict = currParamConv
-                            self.bngModel.add_function(fobj)
-                    self.reactionDictionary[rawRules["reactionID"]] = "{0}".format(
-                        functionName
-                    )
-                finalRateStr = functionName
-                rule_obj.rate_cts = (functionName,)
+            finalRateStr, functionName = self._generate_rate_function(
+                rule_obj,
+                index,
+                rawRules,
+                compartmentList,
+                parameterDict,
+                currParamConv,
+                translator,
+                functions,
+                functionTitle,
+            )
 
             reactants = [x for x in rawRules["reactants"]]
             products = [x for x in rawRules["products"]]
@@ -2032,113 +2008,18 @@ class SBML2BNGL:
 
             #### ADD RXN SEP HERE ####
             if rule_obj.raw_splt:
-                # if we are splitting, we want to remove symmetry factor
-                # from a fRate because it will spread over all reactants
-                # and products
-                if "fRate" in rule_obj.rate_cts[0]:
-                    # we have functional rate constant
-                    if int(rule_obj.symm_factors[0]) != 1:
-                        # we have a non-zero symmetry factor
-                        if rule_obj.rate_cts[0] not in self.bngModel.functions:
-                            logMess(
-                                "ERROR:SIM206",
-                                "Rate constant function needs adjusting but can't find function: {}"
-                                % functionName,
-                            )
-                        defn = self.bngModel.functions[rule_obj.rate_cts[0]].definition
-                        self.bngModel.functions[rule_obj.rate_cts[0]].definition = (
-                            f"({defn})/({rule_obj.symm_factors[0]})"
-                        )
-                if rule_obj.reversible:
-                    logMess(
-                        "ERROR:SIM205",
-                        "Splitting a reversible reaction, please check if correct, function: {}"
-                        % functionName,
-                    )
-                ctr = 0
-                # Now we write a single reaction for each
-                # member with modified reaction rate constants
-                # first RHS
-                for reactant in reactants:
-                    r = reactant
-                    stoi = r[1]
-                    if int(stoi) != 1.0:
-                        nRateStr = "-1*{}*({})".format(stoi, finalRateStr)
-                    else:
-                        nRateStr = "-1*({})".format(finalRateStr)
-                    nr = (r[0], 1.0, r[2])
-                    # adjust reaction name
-                    rxn_name = rawRules["reactionID"] + "_reactants_" + str(ctr)
-                    rxn_str = writer.bnglReaction(
-                        [],
-                        [nr],
-                        nRateStr,
-                        self.tags,
-                        translator,
-                        (
-                            isCompartments
-                            or (
-                                (len(reactants) == 0 or len(products) == 0)
-                                and self.getReactions.__func__.functionFlag
-                            )
-                        ),
-                        rawRules["reversible"],
-                        reactionName=rxn_name,
-                        comment=modifierComment,
-                    )
-                    reactions.append(rxn_str)
-                    # same thing for the model
-                    nrule_obj = self.bngModel.make_rule()
-                    nrule_obj.parse_raw(rawRules)
-                    nrule_obj.reversible = False
-                    nrule_obj.Id = rxn_name
-                    nrule_obj.rate_cts = (nRateStr,)
-                    nrule_obj.reactants = []
-                    nrule_obj.products = [nr]
-                    self.bngModel.add_rule(nrule_obj)
-                    # tick the ctr
-                    ctr += 1
-                # then LHS
-                ctr = 0
-                for product in products:
-                    p = product
-                    stoi = p[1]
-                    if int(stoi) != 1.0:
-                        nRateStr = "{}*{}".format(stoi, finalRateStr)
-                    else:
-                        nRateStr = "{}".format(finalRateStr)
-                    np = (p[0], 1.0, p[2])
-                    # adjust reaction name
-                    rxn_name = rawRules["reactionID"] + "_products_" + str(ctr)
-                    rxn_str = writer.bnglReaction(
-                        [],
-                        [np],
-                        nRateStr,
-                        self.tags,
-                        translator,
-                        (
-                            isCompartments
-                            or (
-                                (len(reactants) == 0 or len(products) == 0)
-                                and self.getReactions.__func__.functionFlag
-                            )
-                        ),
-                        rawRules["reversible"],
-                        reactionName=rxn_name,
-                        comment=modifierComment,
-                    )
-                    reactions.append(rxn_str)
-                    # same thing for the model
-                    nrule_obj = self.bngModel.make_rule()
-                    nrule_obj.parse_raw(rawRules)
-                    nrule_obj.reversible = False
-                    nrule_obj.Id = rxn_name
-                    nrule_obj.rate_cts = (nRateStr,)
-                    nrule_obj.reactants = []
-                    nrule_obj.products = [np]
-                    self.bngModel.add_rule(nrule_obj)
-                    # tick the ctr
-                    ctr += 1
+                self._handle_split_reactions(
+                    rule_obj,
+                    reactants,
+                    products,
+                    finalRateStr,
+                    rawRules,
+                    isCompartments,
+                    translator,
+                    modifierComment,
+                    reactions,
+                    functionName,
+                )
             #### END RXN SEP ####
             else:
                 # add the rule
@@ -2156,7 +2037,7 @@ class SBML2BNGL:
                         isCompartments
                         or (
                             (len(reactants) == 0 or len(products) == 0)
-                            and self.getReactions.__func__.functionFlag
+                            and self.functionFlag
                         )
                     ),
                     rawRules["reversible"],
@@ -2167,7 +2048,7 @@ class SBML2BNGL:
                 reactions.append(rxn_str)
 
         if atomize:
-            self.getReactions.__func__.functionFlag = True
+            self.functionFlag = True
         self.bngModel.tags = self.tags
         return parameters, reactions, functions
 
@@ -2181,23 +2062,12 @@ class SBML2BNGL:
                 l, r = elem.as_two_terms()
                 resolve += [l, r]
             else:
-                # TODO: Do we have a better check?
-                if str(elem).startswith("-"):
+                if elem.could_extract_minus_sign():
                     neg.append(elem)
                 else:
                     pos.append(elem)
-        # FIXME: Return None correctly
-        l, r = None, None
-        if len(pos) > 0:
-            l = pos.pop(0)
-        if len(pos) > 0:
-            for e in pos:
-                l += e
-        if len(neg) > 0:
-            r = -1 * neg.pop(0)
-        if len(neg) > 0:
-            for e in neg:
-                r += -1 * e
+        l = sum(pos) if pos else None
+        r = sum(-1 * e for e in neg) if neg else None
         return l, r
 
     def __getRawAssignmentRules(self, arule):
@@ -2233,8 +2103,12 @@ class SBML2BNGL:
             if exp.is_Add:
                 react_expr, prod_expr = self.gather_terms(exp)
                 if react_expr is None:
-                    # TODO: LogMess this
-                    print("no forward reaction rate?")
+                    logMess(
+                        "WARNING:ARUL003",
+                        "No forward reaction rate found for rule {}".format(
+                            arule.getId()
+                        ),
+                    )
                 # Let's also ensure that we have a + and - term
                 elif prod_expr is not None:
                     # Remove mass action
@@ -2339,13 +2213,7 @@ class SBML2BNGL:
         for initCond in initialConditions:
             splt = initCond.split()
             initCondSplit.append(splt)
-            # I'm a bit vary of this, not sure if this is
-            # the only way the $ might appear honestly
-            # keep an eye out for bugs here
-            if splt[0].startswith("$"):
-                check_name = splt[0][1:]
-            else:
-                check_name = splt[0]
+            check_name = splt[0].replace("$", "")
             # if the name is in the observable species defs
             if check_name in obs_map.keys():
                 # we slap that into our initial value map
@@ -2425,6 +2293,241 @@ class SBML2BNGL:
                 adjustedInitialConditions.append(" ".join(initCond))
         return adjustedInitialConditions
 
+    def _process_rate_rule(
+        self,
+        rawArule,
+        arule_obj,
+        compartmentList,
+        translator,
+        arules,
+        artificialReactions,
+        removeParameters,
+        zRules,
+        parameters,
+        zparams,
+    ):
+        # it is a rate rule
+        if rawArule[0] in self.boundaryConditionVariables:
+            logMess(
+                "WARNING:SIM105",
+                "rate rules ({0}) are not properly supported in BioNetGen simulator".format(
+                    rawArule[0]
+                ),
+            )
+
+        rateLaw1 = arule_obj.rates[0]
+        rateLaw2 = arule_obj.rates[1]
+        arate_name = "arRate{0}".format(rawArule[0])
+        func_str = writer.bnglFunction(
+            rateLaw1,
+            arate_name,
+            [],
+            compartments=compartmentList,
+            reactionDict=self.reactionDictionary,
+        )
+        arules.append(func_str)
+        self.bngModel.add_bngl_function(func_str, arate_name, compartmentList)
+
+        if rateLaw2 != "0":
+            armrate_name = "armRate{0}".format(rawArule[0])
+            func2_str = writer.bnglFunction(
+                rateLaw2,
+                armrate_name,
+                [],
+                compartments=compartmentList,
+                reactionDict=self.reactionDictionary,
+            )
+            arules.append(func2_str)
+            self.bngModel.add_bngl_function(func2_str, armrate_name, compartmentList)
+
+        # ASS2019 - I'm not sure if this is the right place to fix the tags. Basically, up until this point, the artificial reactions don't have tags. This results in the 0 <-> A type reactions to lack a compartment, leading to a non-functional BNGL file. I think the better solution might be during rule (SBML rule, not BNGL rule) parsing and update the parser/SBML2BNGL tags instead.
+        try:
+            comp = self.tags[rawArule[0]]
+        except KeyError:
+            # ASS - We need to default to an existing compartment if we are going
+            # to remove @cell as a default compartment
+            if not self.noCompartment:
+                self.tags[rawArule[0]] = "@" + compartmentList[0][0]
+        # ASS - If self.useID is set, use the ID value, not the name
+        molec_name = (
+            rawArule[0] if self.useID else self.convertToName(rawArule[0]).strip()
+        )
+        self.used_molecules.append(molec_name)
+
+        if rateLaw2 == "0":
+            rate_str = "arRate{0}".format(rawArule[0])
+            reversible = False
+        else:
+            rate_str = "arRate{0},armRate{0}".format(rawArule[0], rawArule[0])
+            reversible = True
+
+        rxn_str = writer.bnglReaction(
+            [],
+            [[molec_name, 1, rawArule[0]]],
+            rate_str,
+            self.tags,
+            translator,
+            isCompartments=True,
+            comment="#rateLaw",
+            reversible=reversible,
+        )
+        artificialReactions.append(rxn_str)
+        if rawArule[0] in zparams:
+            removeParameters.append("{0} 0".format(rawArule[0]))
+            zRules.remove(rawArule[0])
+        else:
+            for element in parameters:
+                # Note: if for whatever reason a rate rule
+                # was defined as a parameter that is not 0
+                # remove it. This might not be exact behavior
+                if re.search(r"^{0}\s".format(rawArule[0]), element):
+                    logMess(
+                        "WARNING:SIM106",
+                        "Parameter {0} corresponds both as a non zero parameter                     and a rate rule, verify behavior".format(
+                            element
+                        ),
+                    )
+                    removeParameters.append(element)
+
+    def _process_assignment_rule(
+        self,
+        rawArule,
+        arule_obj,
+        compartmentList,
+        translator,
+        molecules,
+        observablesDict,
+        artificialObservables,
+        zRules,
+        removeParameters,
+        param_map,
+    ):
+        # it is an assigment rule
+        """
+        normal species observables references in functions keep the format <speciesName>_<compartment> in function references,
+        and observables dict keeps track of that. however when a species is defined by an assignment function we wish to
+        keep track of reference <speciesName> that points to a standard BNGL function
+        """
+
+        def _track_assignment_rule(
+            target_name, create_observable=True, fn_suffix="_ar()"
+        ):
+            if create_observable:
+                artificialObservables[target_name + "_ar"] = writer.bnglFunction(
+                    rawArule[1][0],
+                    rawArule[0] + fn_suffix,
+                    [],
+                    compartments=compartmentList,
+                    reactionDict=self.reactionDictionary,
+                )
+            self.arule_map[rawArule[0]] = target_name + "_ar"
+            if target_name in observablesDict:
+                observablesDict[target_name] = target_name + "_ar"
+            for obs_k, obs_v in list(observablesDict.items()):
+                if obs_v == target_name:
+                    observablesDict[obs_k] = target_name + "_ar"
+
+        # it was originially defined as a zero parameter, so delete it from the parameter list definition
+        if rawArule[0] in zRules:
+            # dont show assignment rules as parameters
+            zRules.remove(rawArule[0])
+            matches = [
+                molecules[x] for x in molecules if molecules[x]["name"] == rawArule[0]
+            ]
+
+            if matches:
+                if matches[0]["isBoundary"]:
+                    _track_assignment_rule(rawArule[0])
+                    return True
+                else:
+                    logMess(
+                        "ERROR:SIM201",
+                        "Variables that are both changed by an assignment rule and reactions are not "
+                        "supported in BioNetGen simulator. The variable {0} will be split into two".format(
+                            rawArule[0]
+                        ),
+                    )
+                    _track_assignment_rule(rawArule[0])
+                    return True
+            elif rawArule[0] in [observablesDict[x] for x in observablesDict]:
+                _track_assignment_rule(rawArule[0])
+                return True
+
+        elif rawArule[0] in molecules:
+            name = molecules[rawArule[0]]["returnID"]
+            if not molecules[rawArule[0]]["isBoundary"]:
+                self.arule_map[rawArule[0]] = name + "_ar"
+                logMess(
+                    "WARNING:ARUL004",
+                    "Assuming {} has an assignment rule and therefore cannot be in a reaction. If this is incorrect, the model cannot be correctly translated.".format(
+                        name
+                    ),
+                )
+                self.only_assignment_dict[name] = name + "_ar"
+                self.bngModel.add_arule(arule_obj)
+                return True
+            else:
+                name = molecules[rawArule[0]]["returnID"]
+                _track_assignment_rule(name)
+                logMess(
+                    "WARNING:ARUL004",
+                    "Assuming {} has an assignment rule and therefore cannot be in a reaction. If this is incorrect, the model cannot be correctly translated.".format(
+                        name
+                    ),
+                )
+                self.only_assignment_dict[name] = name + "_ar"
+                self.bngModel.add_arule(arule_obj)
+                return True
+        else:
+            if rawArule[0] in param_map.keys():
+                removeParameters.append(param_map[rawArule[0]])
+            # check if it is defined as an observable
+            if rawArule[0] in observablesDict:
+                _track_assignment_rule(rawArule[0])
+                if rawArule[0] in param_map.keys():
+                    removeParameters.append(param_map[rawArule[0]])
+                return True
+        # if its not a param/species/observable
+        # TODO: now, if we replace this with the returnID do we
+        # overlap with it's other possible uses?
+        # name = molecules[rawArule[0]]['returnID']
+        # self.only_assignment_dict[name] = name+"_ar"
+        # artificialObservables[name+'_ar'] = writer.bnglFunction(rawArule[1][0],name+'()',[],compartments=compartmentList,reactionDict=self.reactionDictionary)
+        _track_assignment_rule(rawArule[0], fn_suffix="()")
+        return False
+
+    def _process_other_rule(
+        self,
+        rawArule,
+        arule_obj,
+        compartmentList,
+        translator,
+        arules,
+        aParameters,
+        zRules,
+        zparams,
+    ):
+        """
+        if for whatever reason you have a rule that is not assigment
+        or rate and it is initialized as a non zero parameter, give it
+        a new name
+        """
+        if rawArule[0] not in zparams:
+            ruleName = "ar" + rawArule[0]
+        else:
+            ruleName = rawArule[0]
+            zRules.remove(rawArule[0])
+        arules.append(
+            writer.bnglFunction(
+                rawArule[1][0],
+                ruleName,
+                [],
+                compartments=compartmentList,
+                reactionDict=self.reactionDictionary,
+            )
+        )
+        aParameters[rawArule[0]] = "ar" + rawArule[0]
+
     def getAssignmentRules(
         self, zparams, parameters, molecules, observablesDict, translator
     ):
@@ -2433,8 +2536,7 @@ class SBML2BNGL:
         require special handling since rules are often both defined as rules
         and parameters initialized as 0, so they need to be removed from the parameters list
         """
-        # FIXME: This function removes compartment info and this leads to mis-replacement of variables downstream. e.g. Calc@ER and Calc@MIT both gets written as Calc and downstream the replacement is wrong.
-        # FIXME: This function gets a list of observables which sometimes are turned into assignment rules but then are not updated in the observablesDict. E.g. X_comp1 gets in, X_ar is created and you can't have BOTH X_comp1 in a reaction AND X_ar adjusting X itself. You MUST pick one, if both are happening raise and error and exit out. For now I'll say if we have _ar then we replace the X_comp1 with X_ar and test.
+        # TODO: This function removes compartment info and this leads to mis-replacement of variables downstream. e.g. Calc@ER and Calc@MIT both gets written as Calc and downstream the replacement is wrong.
 
         # Going to use this to match names and remove params
         # if need be
@@ -2476,296 +2578,45 @@ class SBML2BNGL:
                 nonamecounter += 1
                 arule_obj.Id = new_arule_name
             if arule_obj.isRate == True:
-                # it is a rate rule
-                if rawArule[0] in self.boundaryConditionVariables:
-                    logMess(
-                        "WARNING:SIM105",
-                        "rate rules ({0}) are not properly supported in BioNetGen simulator".format(
-                            rawArule[0]
-                        ),
-                    )
-
-                rateLaw1 = arule_obj.rates[0]
-                rateLaw2 = arule_obj.rates[1]
-                # TODO: Add to bngModel functions
-                arate_name = "arRate{0}".format(rawArule[0])
-                func_str = writer.bnglFunction(
-                    rateLaw1,
-                    arate_name,
-                    [],
-                    compartments=compartmentList,
-                    reactionDict=self.reactionDictionary,
+                self._process_rate_rule(
+                    rawArule,
+                    arule_obj,
+                    compartmentList,
+                    translator,
+                    arules,
+                    artificialReactions,
+                    removeParameters,
+                    zRules,
+                    parameters,
+                    zparams,
                 )
-                arules.append(func_str)
-
-                if rateLaw2 != "0":
-                    # TODO: Add to bngModel functions
-                    armrate_name = "armRate{0}".format(rawArule[0])
-                    func2_str = writer.bnglFunction(
-                        rateLaw2,
-                        armrate_name,
-                        [],
-                        compartments=compartmentList,
-                        reactionDict=self.reactionDictionary,
-                    )
-                    arules.append(func2_str)
-
-                # ASS2019 - I'm not sure if this is the right place to fix the tags. Basically, up until this point, the artificial reactions don't have tags. This results in the 0 <-> A type reactions to lack a compartment, leading to a non-functional BNGL file. I think the better solution might be during rule (SBML rule, not BNGL rule) parsing and update the parser/SBML2BNGL tags instead.
-                try:
-                    comp = self.tags[rawArule[0]]
-                except KeyError:
-                    # ASS - We need to default to an existing compartment if we are going
-                    # to remove @cell as a default compartment
-                    if not self.noCompartment:
-                        self.tags[rawArule[0]] = "@" + compartmentList[0][0]
-                # ASS - If self.useID is set, use the ID value, not the name
-                if self.useID:
-                    self.used_molecules.append(rawArule[0])
-                    if rateLaw2 == "0":
-                        rxn_str = writer.bnglReaction(
-                            [],
-                            [[rawArule[0], 1, rawArule[0]]],
-                            "{0}".format("arRate{0}".format(rawArule[0])),
-                            self.tags,
-                            translator,
-                            isCompartments=True,
-                            comment="#rateLaw",
-                            reversible=False,
-                        )
-                    else:
-                        rxn_str = writer.bnglReaction(
-                            [],
-                            [[rawArule[0], 1, rawArule[0]]],
-                            "{0},{1}".format(
-                                "arRate{0}".format(rawArule[0]),
-                                "armRate{0}".format(rawArule[0]),
-                            ),
-                            self.tags,
-                            translator,
-                            isCompartments=True,
-                            comment="#rateLaw",
-                        )
-                    artificialReactions.append(rxn_str)
-                else:
-                    self.used_molecules.append(self.convertToName(rawArule[0]).strip())
-                    if rateLaw2 == "0":
-                        rxn_str = writer.bnglReaction(
-                            [],
-                            [[self.convertToName(rawArule[0]).strip(), 1, rawArule[0]]],
-                            "{0}".format("arRate{0}".format(rawArule[0])),
-                            self.tags,
-                            translator,
-                            isCompartments=True,
-                            comment="#rateLaw",
-                            reversible=False,
-                        )
-                    else:
-                        rxn_str = writer.bnglReaction(
-                            [],
-                            [[self.convertToName(rawArule[0]).strip(), 1, rawArule[0]]],
-                            "{0},{1}".format(
-                                "arRate{0}".format(rawArule[0]),
-                                "armRate{0}".format(rawArule[0]),
-                            ),
-                            self.tags,
-                            translator,
-                            isCompartments=True,
-                            comment="#rateLaw",
-                        )
-                    artificialReactions.append(rxn_str)
-                if rawArule[0] in zparams:
-                    removeParameters.append("{0} 0".format(rawArule[0]))
-                    zRules.remove(rawArule[0])
-                else:
-                    for element in parameters:
-                        # TODO: if for whatever reason a rate rule
-                        # was defined as a parameter that is not 0
-                        # remove it. This might not be exact behavior
-                        if re.search("^{0}\s".format(rawArule[0]), element):
-                            logMess(
-                                "WARNING:SIM106",
-                                "Parameter {0} corresponds both as a non zero parameter \
-                            and a rate rule, verify behavior".format(
-                                    element
-                                ),
-                            )
-                            removeParameters.append(element)
             # it is an assigment rule
             elif arule_obj.isAssignment:
-                """
-                normal species observables references in functions keep the format <speciesName>_<compartment> in function references,
-                and observables dict keeps track of that. however when a species is defined by an assignment function we wish to
-                keep track of reference <speciesName> that points to a standard BNGL function
-                """
-                # it was originially defined as a zero parameter, so delete it from the parameter list definition
-                if rawArule[0] in zRules:
-                    # dont show assignment rules as parameters
-                    zRules.remove(rawArule[0])
-                    matches = [
-                        molecules[x]
-                        for x in molecules
-                        if molecules[x]["name"] == rawArule[0]
-                    ]
-
-                    if matches:
-                        if matches[0]["isBoundary"]:
-                            artificialObservables[rawArule[0] + "_ar"] = (
-                                writer.bnglFunction(
-                                    rawArule[1][0],
-                                    rawArule[0] + "_ar()",
-                                    [],
-                                    compartments=compartmentList,
-                                    reactionDict=self.reactionDictionary,
-                                )
-                            )
-                            self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
-                            if rawArule[0] in observablesDict:
-                                observablesDict[rawArule[0]] = rawArule[0] + "_ar"
-                            continue
-                        else:
-                            logMess(
-                                "ERROR:SIM201",
-                                "Variables that are both changed by an assignment rule and reactions are not \
-                            supported in BioNetGen simulator. The variable will be split into two".format(
-                                    rawArule[0]
-                                ),
-                            )
-                            artificialObservables[rawArule[0] + "_ar"] = (
-                                writer.bnglFunction(
-                                    rawArule[1][0],
-                                    rawArule[0] + "_ar()",
-                                    [],
-                                    compartments=compartmentList,
-                                    reactionDict=self.reactionDictionary,
-                                )
-                            )
-                            self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
-                            if rawArule[0] in observablesDict:
-                                observablesDict[rawArule[0]] = rawArule[0] + "_ar"
-                            continue
-                    elif rawArule[0] in [observablesDict[x] for x in observablesDict]:
-                        artificialObservables[rawArule[0] + "_ar"] = (
-                            writer.bnglFunction(
-                                rawArule[1][0],
-                                rawArule[0] + "_ar()",
-                                [],
-                                compartments=compartmentList,
-                                reactionDict=self.reactionDictionary,
-                            )
-                        )
-                        self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
-                        if rawArule[0] in observablesDict:
-                            observablesDict[rawArule[0]] = rawArule[0] + "_ar"
-                        continue
-
-                elif rawArule[0] in molecules:
-                    if molecules[rawArule[0]]["isBoundary"]:
-                        # We should probably re-write this with the name since that's what's used other places
-                        name = molecules[rawArule[0]]["returnID"]
-                        artificialObservables[name + "_ar"] = writer.bnglFunction(
-                            rawArule[1][0],
-                            name + "_ar()",
-                            [],
-                            compartments=compartmentList,
-                            reactionDict=self.reactionDictionary,
-                        )
-                        self.arule_map[rawArule[0]] = name + "_ar"
-                        # TODO: Let's store what we know are assignment rules. We can maybe assume that, if something has an assignment rule, it can't in turn be in a reaction? If this is wrong, we can't model this anyway, so we should probably just make an assumption and let people know.
-                        self.only_assignment_dict[name] = name + "_ar"
-                        self.bngModel.add_arule(arule_obj)
-                        continue
-                    else:
-                        # if not boundary but is a species, Jose
-                        # is turning this into an assignment rule
-                        # with a different name (uses ID).
-                        # It looks as if the goal was to handle
-                        # both situations via renaming.
-                        # FIXME: This is very likely broken but
-                        # I'm not 100% sure how it breaks things.
-                        # TODO: Check, if we have this in observables we need to adjust the observablesDict because we are writing an assignment rule for this instead
-                        name = molecules[rawArule[0]]["returnID"]
-                        artificialObservables[name + "_ar"] = writer.bnglFunction(
-                            rawArule[1][0],
-                            name + "_ar()",
-                            [],
-                            compartments=compartmentList,
-                            reactionDict=self.reactionDictionary,
-                        )
-                        self.arule_map[rawArule[0]] = name + "_ar"
-                        self.only_assignment_dict[name] = name + "_ar"
-                        if name in observablesDict:
-                            observablesDict[name] = name + "_ar"
-                        self.bngModel.add_arule(arule_obj)
-                        continue
-                else:
-                    # check if it is defined as an observable
-                    # FIXME: This doesn't check for parameter namespace
-                    # TODO: What is going on here?
-                    candidates = [
-                        idx for idx, x in enumerate(observablesDict) if rawArule[0] == x
-                    ]
-                    assigObsFlag = False
-                    for idx in candidates:
-                        # if re.search('\s{0}\s'.format(rawArule[0]),observables[idx]):
-                        artificialObservables[rawArule[0] + "_ar"] = (
-                            writer.bnglFunction(
-                                rawArule[1][0],
-                                rawArule[0] + "_ar()",
-                                [],
-                                compartments=compartmentList,
-                                reactionDict=self.reactionDictionary,
-                            )
-                        )
-                        self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
-                        assigObsFlag = True
-                        break
-                    if assigObsFlag:
-                        continue
-                # if its not a param/species/observable
-                # TODO: now, if we replace this with the returnID do we
-                # overlap with it's other possible uses?
-                # name = molecules[rawArule[0]]['returnID']
-                # self.only_assignment_dict[name] = name+"_ar"
-                # artificialObservables[name+'_ar'] = writer.bnglFunction(rawArule[1][0],name+'()',[],compartments=compartmentList,reactionDict=self.reactionDictionary)
-                # This doesn't actually check for clashes with
-                # parameter namespace
-                if rawArule[0] in param_map.keys():
-                    removeParameters.append(param_map[rawArule[0]])
-                artificialObservables[rawArule[0] + "_ar"] = writer.bnglFunction(
-                    rawArule[1][0],
-                    rawArule[0] + "()",
-                    [],
-                    compartments=compartmentList,
-                    reactionDict=self.reactionDictionary,
+                should_continue = self._process_assignment_rule(
+                    rawArule,
+                    arule_obj,
+                    compartmentList,
+                    translator,
+                    molecules,
+                    observablesDict,
+                    artificialObservables,
+                    zRules,
+                    removeParameters,
+                    param_map,
                 )
-                self.arule_map[rawArule[0]] = rawArule[0] + "_ar"
+                if should_continue:
+                    continue
             else:
-                """
-                if for whatever reason you have a rule that is not assigment
-                or rate and it is initialized as a non zero parameter, give it
-                a new name
-                """
-                if rawArule[0] not in zparams:
-                    ruleName = "ar" + rawArule[0]
-                else:
-                    ruleName = rawArule[0]
-                    zRules.remove(rawArule[0])
-                arules.append(
-                    writer.bnglFunction(
-                        rawArule[1][0],
-                        ruleName,
-                        [],
-                        compartments=compartmentList,
-                        reactionDict=self.reactionDictionary,
-                    )
+                self._process_other_rule(
+                    rawArule,
+                    arule_obj,
+                    compartmentList,
+                    translator,
+                    arules,
+                    aParameters,
+                    zRules,
+                    zparams,
                 )
-                aParameters[rawArule[0]] = "ar" + rawArule[0]
-            """
-            elif rawArule[2] == True:
-                for parameter in parameters:
-                    if re.search('^{0}\s'.format(rawArule[0]),parameter):
-                        print '////',rawArule[0]
-            """
             # we can't decide any of this here, we need the
             # full model setup before deciding
             self.bngModel.add_arule(arule_obj)
@@ -2823,7 +2674,10 @@ class SBML2BNGL:
             # reserved keywords
             param_obj = self.bngModel.make_parameter()
             if parameterSpecs[0] == "e":
-                # TODO: raise a warning
+                logMess(
+                    "WARNING:PARAM001",
+                    "Parameter 'e' is a reserved keyword. Renaming to '__e__'.",
+                )
                 parameterSpecs = ("__e__", parameterSpecs[1])
                 self.param_repl["e"] = "__e__"
             if parameterSpecs[1] == 0:
@@ -2878,11 +2732,10 @@ class SBML2BNGL:
         # BNGL model instead of a cBNGL model. Especially true since
         # this is the case for most SBML models.
         if len(allUsedCompartments) == 1:
-            # We are using only 1 compartment, check volume
-            # FIXME: We will try removing the compartment
-            # if only one is used
-            # self.noCompartment = True
-            # self.bngModel.noCompartment = True
+            # We are using only 1 compartment, check volume.
+            # We only remove the compartment if its volume is 1,
+            # as removing a compartment with a different volume
+            # would alter reaction rates.
             if self.compartmentDict[allUsedCompartments.pop()] == 1:
                 # we have 1 compartment and it's volume is 1
                 # just don't use compartments.
@@ -2940,318 +2793,24 @@ class SBML2BNGL:
             compartmentDict[compartment.getId()] = get_size(compartment)
         unitFlag = True
         for species in self.model.getListOfSpecies():
-            # making molecule and seed species objs for
-            # the obj based model
-            molec_obj = self.bngModel.make_molecule()
-            spec_obj = self.bngModel.make_species()
-            #
-            rawSpecies = self.getRawSpecies(species, parameters)
-            # letting the objs parse the rawSpecies
-            molec_obj.parse_raw(rawSpecies)
-            spec_obj.parse_raw(rawSpecies)
-
-            if rawSpecies["compartment"] != "":
-                # ASS - First change for "noCompartments"
-                if self.noCompartment:
-                    rawSpecies["compartment"] = ""
-                    self.tags[rawSpecies["identifier"]] = ""
-                else:
-                    self.tags[rawSpecies["identifier"]] = "@%s" % (
-                        rawSpecies["compartment"]
-                    )
-            if rawSpecies["returnID"] in translator:
-                if rawSpecies["returnID"] in rawSpeciesName:
-                    rawSpeciesName.remove(rawSpecies["returnID"])
-                if (
-                    get_size(translator[rawSpecies["returnID"]]) == 1
-                    and translator[rawSpecies["returnID"]].molecules[0].name
-                    not in names
-                    and translator[rawSpecies["returnID"]].molecules[0].name
-                    not in rawSpeciesName
-                ):
-                    names.append(translator[rawSpecies["returnID"]].molecules[0].name)
-                    annotationTemp = []
-                    if rawSpecies["returnID"] in speciesAnnotationInfo:
-                        for annotation in speciesAnnotationInfo[rawSpecies["returnID"]]:
-                            parts = annotation.split("_")
-                            header = annotationHeader[parts[0]]
-                            qual = parts[1].lower() + "".join(
-                                [x.capitalize() for x in parts[2:]]
-                            )
-                            entry = ", ".join(
-                                [
-                                    ":".join(x.split("/")[-2:])
-                                    for x in speciesAnnotationInfo[
-                                        rawSpecies["returnID"]
-                                    ][annotation]
-                                ]
-                            )
-                            annotationTemp.append(
-                                "#^ {0}:{1} {2}".format(header, qual, entry)
-                            )
-
-                    # we'll add this to our model
-                    self.bngModel.add_molecule(molec_obj)
-                    mtext = translator[rawSpecies["returnID"]].str2()
-                    moleculesText.append(mtext)
-
-                    if rawSpecies["returnID"] in speciesAnnotationInfo:
-                        annotationInfo["moleculeTypes"][
-                            translator[rawSpecies["returnID"]].str2()
-                        ] = annotationTemp
-                        del speciesAnnotationInfo[rawSpecies["returnID"]]
-                # TODO: Not sure if there are more examples of this
-                # but glucose in 380 has both a normal species AND
-                # a boundary species separately
-                # elif rawSpecies['isBoundary']:
-                #     self.bngModel.add_molecule(molec_obj)
-            else:
-                # we'll add this to our model
-                self.bngModel.add_molecule(molec_obj)
-                mtext = rawSpecies["returnID"] + "()"
-                moleculesText.append(mtext)
-
-                if rawSpecies["returnID"] in speciesAnnotationInfo:
-                    annotationInfo["moleculeTypes"][rawSpecies["returnID"]] = (
-                        speciesAnnotationInfo[rawSpecies["returnID"]]
-                    )
-                    del speciesAnnotationInfo[rawSpecies["returnID"]]
-
-            # if rawSpecies['identifier'] == 'glx' and len(translator) > 0:
-            temp = "$" if rawSpecies["isConstant"] != 0 else ""
-            tmp = (
-                translator[str(rawSpecies["returnID"])]
-                if rawSpecies["returnID"] in translator
-                else rawSpecies["returnID"] + "()"
+            unitFlag = self._process_single_species(
+                species,
+                parameters,
+                translator,
+                rawSpeciesName,
+                names,
+                speciesAnnotationInfo,
+                moleculesText,
+                annotationInfo,
+                unitDefinitions,
+                unitFlag,
+                speciesText,
+                concentrationUnits,
+                observablesText,
+                observablesDict,
+                speciesTranslationDict,
             )
-            # this determines the name to be written
-            if (
-                rawSpecies["initialConcentration"] > 0
-                or rawSpecies["initialAmount"] > 0
-            ):
-                tmp2 = temp
-                if rawSpecies["identifier"] in self.tags:
-                    tmp2 = self.tags[rawSpecies["identifier"]]
-                if rawSpecies["initialAmount"] > 0.0:
-                    # Removing the compartment section if we are not using it
-                    if self.noCompartment:
-                        speciesText.append(
-                            "{1}{2} {3} #{4} #{5}".format(
-                                tmp2,
-                                temp,
-                                str(tmp),
-                                rawSpecies["initialAmount"],
-                                rawSpecies["returnID"],
-                                rawSpecies["identifier"],
-                            )
-                        )
-                    else:
-                        speciesText.append(
-                            "{0}:{1}{2} {3} #{4} #{5}".format(
-                                tmp2,
-                                temp,
-                                str(tmp),
-                                rawSpecies["initialAmount"],
-                                rawSpecies["returnID"],
-                                rawSpecies["identifier"],
-                            )
-                        )
-                elif rawSpecies["initialConcentration"] > 0.0:
-                    if self.isConversion:
-                        # convert to molecule counts
-                        if "substance" in unitDefinitions:
-                            newParameterStr = self.convertToStandardUnitString(
-                                rawSpecies["initialConcentration"],
-                                unitDefinitions["substance"],
-                            )
-                            newParameter = self.convertToStandardUnits(
-                                rawSpecies["initialConcentration"],
-                                unitDefinitions["substance"],
-                            )  # conversion to moles
-                        else:
-                            newParameter = rawSpecies["initialConcentration"]
-                            newParameterStr = str(rawSpecies["initialConcentration"])
-                        newParameter = (
-                            newParameter * 6.022e23
-                        )  # convertion to molecule counts
-                        # get compartment size
-                        if self.noCompartment:
-                            compartmentSize = 1.0
-                        else:
-                            compartmentSize = get_size(
-                                self.model.getCompartment(rawSpecies["compartment"])
-                            )
-                        newParameter = compartmentSize * newParameter
-                        # temp testing AS
-                        spec_obj.val = newParameter
-                        spec_obj.isConc = False
-                        # temp testing AS
-                        if unitFlag:
-                            if self.noCompartment:
-                                speciesText.append(
-                                    "{1}{2} {3} # {4}mol/L * 6.022e23/mol *{7}L #{5} #{6}".format(
-                                        tmp2,
-                                        temp,
-                                        str(tmp),
-                                        newParameter,
-                                        newParameterStr,
-                                        rawSpecies["returnID"],
-                                        rawSpecies["identifier"],
-                                        compartmentSize,
-                                        concentrationUnits,
-                                    )
-                                )
-                            else:
-                                speciesText.append(
-                                    "{0}:{1}{2} {3} # {4}mol/L * 6.022e23/mol *{7}L #{5} #{6}".format(
-                                        tmp2,
-                                        temp,
-                                        str(tmp),
-                                        newParameter,
-                                        newParameterStr,
-                                        rawSpecies["returnID"],
-                                        rawSpecies["identifier"],
-                                        compartmentSize,
-                                        concentrationUnits,
-                                    )
-                                )
-                            unitFlag = False
-                        else:
-                            if self.noCompartment:
-                                speciesText.append(
-                                    "{1}{2} {3} #original {4}{8}  #{5} #{6}".format(
-                                        tmp2,
-                                        temp,
-                                        str(tmp),
-                                        newParameter,
-                                        rawSpecies["initialConcentration"],
-                                        rawSpecies["returnID"],
-                                        rawSpecies["identifier"],
-                                        compartmentSize,
-                                        concentrationUnits,
-                                    )
-                                )
-                            else:
-                                speciesText.append(
-                                    "{0}:{1}{2} {3} #original {4}{8}  #{5} #{6}".format(
-                                        tmp2,
-                                        temp,
-                                        str(tmp),
-                                        newParameter,
-                                        rawSpecies["initialConcentration"],
-                                        rawSpecies["returnID"],
-                                        rawSpecies["identifier"],
-                                        compartmentSize,
-                                        concentrationUnits,
-                                    )
-                                )
-                    else:
-                        if self.noCompartment:
-                            speciesText.append(
-                                "{1}{2} {3} #{4} #{5}".format(
-                                    tmp2,
-                                    temp,
-                                    str(tmp),
-                                    rawSpecies["initialConcentration"],
-                                    rawSpecies["returnID"],
-                                    rawSpecies["identifier"],
-                                )
-                            )
-                        else:
-                            speciesText.append(
-                                "{0}:{1}{2} {3} #{4} #{5}".format(
-                                    tmp2,
-                                    temp,
-                                    str(tmp),
-                                    rawSpecies["initialConcentration"],
-                                    rawSpecies["returnID"],
-                                    rawSpecies["identifier"],
-                                )
-                            )
-                elif rawSpecies["isConstant"]:
-                    if self.noCompartment:
-                        speciesText.append(
-                            "{1}{2} {3} #{4} #{5}".format(
-                                tmp2,
-                                temp,
-                                str(tmp),
-                                0,
-                                rawSpecies["returnID"],
-                                rawSpecies["identifier"],
-                            )
-                        )
-                    else:
-                        speciesText.append(
-                            "{0}:{1}{2} {3} #{4} #{5}".format(
-                                tmp2,
-                                temp,
-                                str(tmp),
-                                0,
-                                rawSpecies["returnID"],
-                                rawSpecies["identifier"],
-                            )
-                        )
-            self.bngModel.add_species(spec_obj)
-            if rawSpecies["returnID"] == "e":
-                modifiedName = "__e__"
-            else:
-                modifiedName = rawSpecies["returnID"]
-
-            # user defined zero molecules are not included in the observable list
-            if str(tmp) != "0":
-                if (
-                    rawSpecies["compartment"] != ""
-                    and len(list(self.model.getListOfCompartments())) > 1
-                ):
-                    self.obs_names.append(modifiedName)
-                    # self.obs_map[rawSpecies["identifier"]] = "{0}_{1}".format(
-                    #     modifiedName, rawSpecies["compartment"]
-                    # )
-                    # observablesText.append(
-                    #     "Species {0}_{3} @{3}:{1} #{2}".format(
-                    #         modifiedName,
-                    #         tmp,
-                    #         rawSpecies["name"],
-                    #         rawSpecies["compartment"],
-                    #     )
-                    # )
-                    # observablesDict[modifiedName] = "{0}_{1}".format(
-                    #     modifiedName, rawSpecies["compartment"]
-                    # )
-                    self.obs_map[rawSpecies["identifier"]] = "{0}".format(
-                        modifiedName, rawSpecies["compartment"]
-                    )
-                    observablesText.append(
-                        "Species {0} @{3}:{1} #{2}".format(
-                            modifiedName,
-                            tmp,
-                            rawSpecies["name"],
-                            rawSpecies["compartment"],
-                        )
-                    )
-                    observablesDict[modifiedName] = "{0}".format(
-                        modifiedName, rawSpecies["compartment"]
-                    )
-                else:
-                    # ASS - Is this not supposed to be the version without compartments?
-                    self.obs_names.append(modifiedName)
-                    self.obs_map[rawSpecies["identifier"]] = modifiedName
-                    observablesText.append(
-                        "Species {0} {1} #{2}".format(
-                            modifiedName, tmp, rawSpecies["name"]
-                        )
-                    )
-                    observablesDict[modifiedName] = "{0}".format(modifiedName)
-                speciesTranslationDict[rawSpecies["identifier"]] = tmp
-            # add the observable in the model
-            obs_obj = self.bngModel.make_observable()
-            obs_obj.parse_raw(rawSpecies)
-            obs_obj.Id = modifiedName
-            self.bngModel.add_observable(obs_obj)
-
-        # TODO: make sure this is replicated in bngModel
-        sorted(rawSpeciesName, key=len)
-        for species in rawSpeciesName:
+        for species in sorted(rawSpeciesName, key=len):
             if (
                 get_size(translator[species]) == 1
                 and translator[species].molecules[0].name not in names
@@ -3281,6 +2840,331 @@ class SBML2BNGL:
             observablesDict,
             annotationInfo,
         )
+
+    def _process_single_species(
+        self,
+        species,
+        parameters,
+        translator,
+        rawSpeciesName,
+        names,
+        speciesAnnotationInfo,
+        moleculesText,
+        annotationInfo,
+        unitDefinitions,
+        unitFlag,
+        speciesText,
+        concentrationUnits,
+        observablesText,
+        observablesDict,
+        speciesTranslationDict,
+    ):
+        # making molecule and seed species objs for
+        # the obj based model
+        molec_obj = self.bngModel.make_molecule()
+        spec_obj = self.bngModel.make_species()
+        #
+        rawSpecies = self.getRawSpecies(species, parameters)
+        # letting the objs parse the rawSpecies
+        molec_obj.parse_raw(rawSpecies)
+        spec_obj.parse_raw(rawSpecies)
+
+        if rawSpecies["compartment"] != "":
+            # ASS - First change for "noCompartments"
+            if self.noCompartment:
+                rawSpecies["compartment"] = ""
+                self.tags[rawSpecies["identifier"]] = ""
+            else:
+                self.tags[rawSpecies["identifier"]] = "@%s" % (
+                    rawSpecies["compartment"]
+                )
+        if rawSpecies["returnID"] in translator:
+            if rawSpecies["returnID"] in rawSpeciesName:
+                rawSpeciesName.remove(rawSpecies["returnID"])
+            if (
+                get_size(translator[rawSpecies["returnID"]]) == 1
+                and translator[rawSpecies["returnID"]].molecules[0].name not in names
+                and translator[rawSpecies["returnID"]].molecules[0].name
+                not in rawSpeciesName
+            ):
+                names.append(translator[rawSpecies["returnID"]].molecules[0].name)
+                annotationTemp = []
+                if rawSpecies["returnID"] in speciesAnnotationInfo:
+                    for annotation in speciesAnnotationInfo[rawSpecies["returnID"]]:
+                        parts = annotation.split("_")
+                        header = annotationHeader[parts[0]]
+                        qual = parts[1].lower() + "".join(
+                            [x.capitalize() for x in parts[2:]]
+                        )
+                        entry = ", ".join(
+                            [
+                                ":".join(x.split("/")[-2:])
+                                for x in speciesAnnotationInfo[rawSpecies["returnID"]][
+                                    annotation
+                                ]
+                            ]
+                        )
+                        annotationTemp.append(
+                            "#^ {0}:{1} {2}".format(header, qual, entry)
+                        )
+
+                # we'll add this to our model
+                self.bngModel.add_molecule(molec_obj)
+                mtext = translator[rawSpecies["returnID"]].str2()
+                moleculesText.append(mtext)
+
+                if rawSpecies["returnID"] in speciesAnnotationInfo:
+                    annotationInfo["moleculeTypes"][
+                        translator[rawSpecies["returnID"]].str2()
+                    ] = annotationTemp
+                    del speciesAnnotationInfo[rawSpecies["returnID"]]
+            # TODO: Not sure if there are more examples of this
+            # but glucose in 380 has both a normal species AND
+            # a boundary species separately
+            # elif rawSpecies['isBoundary']:
+            #     self.bngModel.add_molecule(molec_obj)
+        else:
+            # we'll add this to our model
+            self.bngModel.add_molecule(molec_obj)
+            mtext = rawSpecies["returnID"] + "()"
+            moleculesText.append(mtext)
+
+            if rawSpecies["returnID"] in speciesAnnotationInfo:
+                annotationInfo["moleculeTypes"][rawSpecies["returnID"]] = (
+                    speciesAnnotationInfo[rawSpecies["returnID"]]
+                )
+                del speciesAnnotationInfo[rawSpecies["returnID"]]
+
+        # if rawSpecies['identifier'] == 'glx' and len(translator) > 0:
+        temp = "$" if rawSpecies["isConstant"] != 0 else ""
+        tmp = (
+            translator[str(rawSpecies["returnID"])]
+            if rawSpecies["returnID"] in translator
+            else rawSpecies["returnID"] + "()"
+        )
+        # this determines the name to be written
+        if rawSpecies["initialConcentration"] > 0 or rawSpecies["initialAmount"] > 0:
+            tmp2 = temp
+            if rawSpecies["identifier"] in self.tags:
+                tmp2 = self.tags[rawSpecies["identifier"]]
+            if rawSpecies["initialAmount"] > 0.0:
+                # Removing the compartment section if we are not using it
+                if self.noCompartment:
+                    speciesText.append(
+                        "{1}{2} {3} #{4} #{5}".format(
+                            tmp2,
+                            temp,
+                            str(tmp),
+                            rawSpecies["initialAmount"],
+                            rawSpecies["returnID"],
+                            rawSpecies["identifier"],
+                        )
+                    )
+                else:
+                    speciesText.append(
+                        "{0}:{1}{2} {3} #{4} #{5}".format(
+                            tmp2,
+                            temp,
+                            str(tmp),
+                            rawSpecies["initialAmount"],
+                            rawSpecies["returnID"],
+                            rawSpecies["identifier"],
+                        )
+                    )
+            elif rawSpecies["initialConcentration"] > 0.0:
+                if self.isConversion:
+                    # convert to molecule counts
+                    if "substance" in unitDefinitions:
+                        newParameterStr = self.convertToStandardUnitString(
+                            rawSpecies["initialConcentration"],
+                            unitDefinitions["substance"],
+                        )
+                        newParameter = self.convertToStandardUnits(
+                            rawSpecies["initialConcentration"],
+                            unitDefinitions["substance"],
+                        )  # conversion to moles
+                    else:
+                        newParameter = rawSpecies["initialConcentration"]
+                        newParameterStr = str(rawSpecies["initialConcentration"])
+                    newParameter = (
+                        newParameter * 6.022e23
+                    )  # convertion to molecule counts
+                    # get compartment size
+                    if self.noCompartment:
+                        compartmentSize = 1.0
+                    else:
+                        compartmentSize = get_size(
+                            self.model.getCompartment(rawSpecies["compartment"])
+                        )
+                    newParameter = compartmentSize * newParameter
+                    # temp testing AS
+                    spec_obj.val = newParameter
+                    spec_obj.isConc = False
+                    # temp testing AS
+                    if unitFlag:
+                        if self.noCompartment:
+                            speciesText.append(
+                                "{1}{2} {3} # {4}mol/L * 6.022e23/mol *{7}L #{5} #{6}".format(
+                                    tmp2,
+                                    temp,
+                                    str(tmp),
+                                    newParameter,
+                                    newParameterStr,
+                                    rawSpecies["returnID"],
+                                    rawSpecies["identifier"],
+                                    compartmentSize,
+                                    concentrationUnits,
+                                )
+                            )
+                        else:
+                            speciesText.append(
+                                "{0}:{1}{2} {3} # {4}mol/L * 6.022e23/mol *{7}L #{5} #{6}".format(
+                                    tmp2,
+                                    temp,
+                                    str(tmp),
+                                    newParameter,
+                                    newParameterStr,
+                                    rawSpecies["returnID"],
+                                    rawSpecies["identifier"],
+                                    compartmentSize,
+                                    concentrationUnits,
+                                )
+                            )
+                        unitFlag = False
+                    else:
+                        if self.noCompartment:
+                            speciesText.append(
+                                "{1}{2} {3} #original {4}{8}  #{5} #{6}".format(
+                                    tmp2,
+                                    temp,
+                                    str(tmp),
+                                    newParameter,
+                                    rawSpecies["initialConcentration"],
+                                    rawSpecies["returnID"],
+                                    rawSpecies["identifier"],
+                                    compartmentSize,
+                                    concentrationUnits,
+                                )
+                            )
+                        else:
+                            speciesText.append(
+                                "{0}:{1}{2} {3} #original {4}{8}  #{5} #{6}".format(
+                                    tmp2,
+                                    temp,
+                                    str(tmp),
+                                    newParameter,
+                                    rawSpecies["initialConcentration"],
+                                    rawSpecies["returnID"],
+                                    rawSpecies["identifier"],
+                                    compartmentSize,
+                                    concentrationUnits,
+                                )
+                            )
+                else:
+                    if self.noCompartment:
+                        speciesText.append(
+                            "{1}{2} {3} #{4} #{5}".format(
+                                tmp2,
+                                temp,
+                                str(tmp),
+                                rawSpecies["initialConcentration"],
+                                rawSpecies["returnID"],
+                                rawSpecies["identifier"],
+                            )
+                        )
+                    else:
+                        speciesText.append(
+                            "{0}:{1}{2} {3} #{4} #{5}".format(
+                                tmp2,
+                                temp,
+                                str(tmp),
+                                rawSpecies["initialConcentration"],
+                                rawSpecies["returnID"],
+                                rawSpecies["identifier"],
+                            )
+                        )
+            elif rawSpecies["isConstant"]:
+                if self.noCompartment:
+                    speciesText.append(
+                        "{1}{2} {3} #{4} #{5}".format(
+                            tmp2,
+                            temp,
+                            str(tmp),
+                            0,
+                            rawSpecies["returnID"],
+                            rawSpecies["identifier"],
+                        )
+                    )
+                else:
+                    speciesText.append(
+                        "{0}:{1}{2} {3} #{4} #{5}".format(
+                            tmp2,
+                            temp,
+                            str(tmp),
+                            0,
+                            rawSpecies["returnID"],
+                            rawSpecies["identifier"],
+                        )
+                    )
+        self.bngModel.add_species(spec_obj)
+        if rawSpecies["returnID"] == "e":
+            modifiedName = "__e__"
+        else:
+            modifiedName = rawSpecies["returnID"]
+
+        # user defined zero molecules are not included in the observable list
+        if str(tmp) != "0":
+            if (
+                rawSpecies["compartment"] != ""
+                and len(list(self.model.getListOfCompartments())) > 1
+            ):
+                self.obs_names.append(modifiedName)
+                # self.obs_map[rawSpecies["identifier"]] = "{0}_{1}".format(
+                #     modifiedName, rawSpecies["compartment"]
+                # )
+                # observablesText.append(
+                #     "Species {0}_{3} @{3}:{1} #{2}".format(
+                #         modifiedName,
+                #         tmp,
+                #         rawSpecies["name"],
+                #         rawSpecies["compartment"],
+                #     )
+                # )
+                # observablesDict[modifiedName] = "{0}_{1}".format(
+                #     modifiedName, rawSpecies["compartment"]
+                # )
+                self.obs_map[rawSpecies["identifier"]] = "{0}".format(
+                    modifiedName, rawSpecies["compartment"]
+                )
+                observablesText.append(
+                    "Species {0} @{3}:{1} #{2}".format(
+                        modifiedName,
+                        tmp,
+                        rawSpecies["name"],
+                        rawSpecies["compartment"],
+                    )
+                )
+                observablesDict[modifiedName] = "{0}".format(
+                    modifiedName, rawSpecies["compartment"]
+                )
+            else:
+                # ASS - Is this not supposed to be the version without compartments?
+                self.obs_names.append(modifiedName)
+                self.obs_map[rawSpecies["identifier"]] = modifiedName
+                observablesText.append(
+                    "Species {0} {1} #{2}".format(modifiedName, tmp, rawSpecies["name"])
+                )
+                observablesDict[modifiedName] = "{0}".format(modifiedName)
+            speciesTranslationDict[rawSpecies["identifier"]] = tmp
+        # add the observable in the model
+        obs_obj = self.bngModel.make_observable()
+        obs_obj.parse_raw(rawSpecies)
+        obs_obj.Id = modifiedName
+        self.bngModel.add_observable(obs_obj)
+
+        # Note: Since bngModel relies on the order in which molecules are added,
+        # we process rawSpeciesName by length here to ensure consistent and length-ordered addition.
+        return unitFlag
 
     def getInitialAssignments(
         self, translator, param, zparam, molecules, initialConditions
@@ -3517,45 +3401,3 @@ class SBML2BNGL:
         if name in self.speciesDictionary:
             return self.speciesDictionary[name]
         return name
-
-
-def standardizeName(name):
-    """
-    Remove stuff not used by bngl
-    """
-    name2 = name
-
-    sbml2BnglTranslationDict = {
-        "^": "",
-        "'": "",
-        "*": "m",
-        " ": "_",
-        "#": "sh",
-        ":": "_",
-        "α": "a",
-        "β": "b",
-        "γ": "g",
-        " ": "",
-        "+": "pl",
-        "/": "_",
-        ":": "_",
-        "-": "_",
-        ".": "_",
-        "?": "unkn",
-        ",": "_",
-        "(": "",
-        ")": "",
-        "[": "",
-        "]": "",
-        # "(": "__",
-        # ")": "__",
-        # "[": "__",
-        # "]": "__",
-        ">": "_",
-        "<": "_",
-    }
-
-    for element in sbml2BnglTranslationDict:
-        name = name.replace(element, sbml2BnglTranslationDict[element])
-    name = re.sub("[\W]", "", name)
-    return name

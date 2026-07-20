@@ -6,6 +6,7 @@ from bionetgen.core.utils.logging import BNGLogger
 from .structs import NetworkParameter, NetworkCompartment, NetworkGroup
 from .structs import NetworkSpecies, NetworkFunction, NetworkReaction
 from .structs import NetworkEnergyPattern, NetworkPopulationMap
+import keyword
 
 # this import fails on some python versions
 try:
@@ -81,7 +82,6 @@ class NetworkBlock:
     def __contains__(self, key) -> bool:
         return key in self.items
 
-    # TODO: Think extensively how this is going to work
     def __setattr__(self, name, value) -> None:
         changed = False
         if hasattr(self, "items"):
@@ -117,18 +117,30 @@ class NetworkBlock:
         return "\n".join(block_lines)
 
     def add_item(self, item_tpl) -> None:
-        # TODO: try adding evaluation of the parameter here
-        # for the future, in case we want people to be able
-        # to adjust the math
-        # TODO: Error handling, some names will definitely break this
         name, value = item_tpl
+
         # allow for empty addition, uses index
         if name is None:
             name = len(self.items)
         # set the line
         self.items[name] = value
         # if the name is a string, try adding as an attribute
-        if isinstance(name, str):
+        set_attr = False
+        if (
+            isinstance(name, str)
+            and name.isidentifier()
+            and not keyword.iskeyword(name)
+        ):
+            if not hasattr(self.__class__, name) and name not in [
+                "name",
+                "items",
+                "comment",
+                "_changes",
+                "_recompile",
+            ]:
+                set_attr = True
+
+        if set_attr:
             try:
                 setattr(self, name, value)
             except Exception as exc:
@@ -161,6 +173,21 @@ class NetworkParameterBlock(NetworkBlock):
     def __init__(self) -> None:
         super().__init__()
         self.name = "parameters"
+
+    def add_item(self, item_tpl) -> None:
+        name, value = item_tpl
+        try:
+            import sympy
+
+            if hasattr(value, "value") and isinstance(value.value, str):
+                sval = sympy.sympify(value.value)
+                if sval.is_Number:
+                    value.value = str(float(sval))
+                elif sval.is_constant():
+                    value.value = str(float(sval.evalf()))
+        except Exception:
+            pass
+        super().add_item((name, value))
 
     def __setattr__(self, name, value) -> None:
         changed = False

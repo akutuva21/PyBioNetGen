@@ -120,7 +120,15 @@ def addStateToComponent(species, moleculeName, componentName, state):
 def addComponentToMolecule(species, moleculeName, componentName):
     for molecule in species.molecules:
         if moleculeName == molecule.name:
-            if componentName not in [x.name for x in molecule.components]:
+            # Optimize by replacing list comprehension with an explicit loop
+            # This avoids memory allocation and enables early short-circuiting
+            component_exists = False
+            for x in molecule.components:
+                if x.name == componentName:
+                    component_exists = True
+                    break
+
+            if not component_exists:
                 component = st.Component(componentName)
                 molecule.addComponent(component)
                 return True
@@ -164,7 +172,7 @@ def solveComplexBinding(totalComplex, pathwaycommonsFlag, parser, compositionEnt
             array,
             key=lambda molecule: (
                 len(molecule.components),
-                len([x for x in molecule.components if x.activeState not in [0, "0"]]),
+                len([x for x in molecule.components if x.activeState not in (0, "0")]),
                 len(str(molecule)),
                 str(molecule),
             ),
@@ -335,7 +343,7 @@ def getComplexationComponents2(
             array,
             key=lambda molecule: (
                 len(molecule.components),
-                len([x for x in molecule.components if x.activeState not in [0, "0"]]),
+                len([x for x in molecule.components if x.activeState not in (0, "0")]),
                 len(str(molecule)),
                 str(molecule),
             ),
@@ -379,9 +387,10 @@ def getComplexationComponents2(
             y for y in x.components if y.name.lower() in list(speciesDict.keys())
         ]:
             if x.name.lower() in speciesDict:
-                if (x in speciesDict[component.name.lower()]) and component.name in [
-                    y.name.lower() for y in speciesDict[x.name.lower()]
-                ]:
+                if (x in speciesDict[component.name.lower()]) and any(
+                    y.name.lower() == component.name
+                    for y in speciesDict[x.name.lower()]
+                ):
                     for mol in speciesDict[x.name.lower()]:
                         if (
                             mol.name.lower() == component.name
@@ -394,8 +403,6 @@ def getComplexationComponents2(
                                 x not in orphanedMolecules
                                 and mol not in orphanedMolecules
                             ):
-                                # FIXME: is it necessary to remove double bonds
-                                # in complexes?
 
                                 lhs = set([])
                                 rhs = set([])
@@ -713,8 +720,6 @@ def createBindingRBM(
             species.addMolecule(mol)
     dependencyGraphCounter = Counter(dependencyGraph[element[0]][0])
 
-    # XXX: this wont work for species with more than one molecule with the
-    # same name
     changeFlag = False
     partialBonds = defaultdict(list)
     for partialUserEntry in database.partialUserLabelDictionary:
@@ -723,27 +728,23 @@ def createBindingRBM(
             [partialCounter[x] <= dependencyGraphCounter[x] for x in partialCounter]
         ):
             changeFlag = True
-            for molecule in database.partialUserLabelDictionary[
-                partialUserEntry
-            ].molecules:
-                for molecule2 in species.molecules:
-                    if molecule.name == molecule2.name:
-                        for component in molecule.components:
-                            for bond in component.bonds:
-                                if molecule2.name not in [
-                                    x.name for x in partialBonds[bond]
-                                ]:
-                                    partialBonds[bond].append(molecule2)
-                        """
-                        for component in molecule.components:
-                            component2 = [x for x in molecule2.components if x.name == component.name]
-                            # component already exists in species template
-                            if component2:
-                                if component.bonds:
-                                    component2[0].bonds = component.bonds
-                            else:
-                                molecule2.addComponent(deepcopy(component))
-                        """
+
+            user_mols_by_name = defaultdict(list)
+            for m in database.partialUserLabelDictionary[partialUserEntry].molecules:
+                user_mols_by_name[m.name].append(m)
+
+            species_mols_by_name = defaultdict(list)
+            for m in species.molecules:
+                species_mols_by_name[m.name].append(m)
+
+            for name in user_mols_by_name:
+                for molecule, molecule2 in zip(
+                    user_mols_by_name[name], species_mols_by_name[name]
+                ):
+                    for component in molecule.components:
+                        for bond in component.bonds:
+                            if molecule2 not in partialBonds[bond]:
+                                partialBonds[bond].append(molecule2)
 
     bondSeeding = [partialBonds[x] for x in partialBonds if x > 0]
     bondExclusion = [partialBonds[x] for x in partialBonds if x < 0]
@@ -763,10 +764,9 @@ def createBindingRBM(
     # print moleculeCount
     # moleculePairsList = [sorted(x) for x in moleculePairsList]
     # moleculePairsList.sort(key=lambda x: [-moleculeCount[x[0]],(str(x[0]), x[0],str(x[1]),x[1])])
-    # TODO: update basic molecules with new components
-    # translator[molecule[0].name].molecules[0].components.append(deepcopy(newComponent1))
-    # translator[molecule[1].name].molecules[0].components.append(deepcopy(newComponent2))
+    # Basic molecules (in the translator) are dynamically updated with new components in the loop below.
     moleculeCounter = defaultdict(list)
+    translator_components = {}
     for molecule in moleculePairsList:
         flag = False
 
@@ -797,12 +797,16 @@ def createBindingRBM(
             molecule[0].components.append(newComponent1)
 
             try:
-                if newComponent1.name not in [
-                    x.name for x in translator[molecule[0].name].molecules[0].components
-                ]:
-                    translator[molecule[0].name].molecules[0].components.append(
+                mol0_name = molecule[0].name
+                if mol0_name not in translator_components:
+                    translator_components[mol0_name] = set(
+                        x.name for x in translator[mol0_name].molecules[0].components
+                    )
+                if newComponent1.name not in translator_components[mol0_name]:
+                    translator[mol0_name].molecules[0].components.append(
                         deepcopy(newComponent1)
                     )
+                    translator_components[mol0_name].add(newComponent1.name)
             except KeyError as e:
                 print(
                     "The translator doesn't know the molecule: {}".format(
@@ -822,12 +826,16 @@ def createBindingRBM(
             newComponent2 = st.Component(molecule[0].name.lower())
             molecule[1].components.append(newComponent2)
             if molecule[0].name != molecule[1].name:
-                if newComponent2.name not in [
-                    x.name for x in translator[molecule[1].name].molecules[0].components
-                ]:
-                    translator[molecule[1].name].molecules[0].components.append(
+                mol1_name = molecule[1].name
+                if mol1_name not in translator_components:
+                    translator_components[mol1_name] = set(
+                        x.name for x in translator[mol1_name].molecules[0].components
+                    )
+                if newComponent2.name not in translator_components[mol1_name]:
+                    translator[mol1_name].molecules[0].components.append(
                         deepcopy(newComponent2)
                     )
+                    translator_components[mol1_name].add(newComponent2.name)
             molecule[1].components[-1].bonds.append(bondIdx)
 
     # update the translator
@@ -1065,9 +1073,6 @@ def updateSpecies(species, referenceMolecule):
                 count -= [x.name for x in moleculeStructure.components].count(
                     component.name
                 )
-                newComponent = st.Component(component.name)
-                # if len(component.states) > 0:
-                #    newComponent.addState('0')
                 if count > 0:
                     for _ in range(0, count):
                         # just make a copy of the reference component and set active state to 0
@@ -1076,8 +1081,9 @@ def updateSpecies(species, referenceMolecule):
                         moleculeStructure.addComponent(componentCopy)
                 elif count < 0:
                     for _ in range(0, -count):
-                        # FIXME: does not fully copy the states
-                        referenceMolecule.addComponent(deepcopy(newComponent))
+                        componentCopy = deepcopy(component)
+                        componentCopy.setActiveState("0")
+                        referenceMolecule.addComponent(componentCopy)
                         flag = True
                 elif count == 0:
                     localComponents = [
@@ -1109,16 +1115,16 @@ def updateSpecies(species, referenceMolecule):
                 count -= [x.name for x in moleculeStructure.components].count(
                     component.name
                 )
-                newComponent = st.Component(component.name)
-                if len(component.states) > 0:
-                    newComponent.addState(component.states[0])
-                    newComponent.addState("0")
                 if count > 0:
                     for idx in range(0, count):
-                        moleculeStructure.addComponent(deepcopy(newComponent))
+                        componentCopy = deepcopy(component)
+                        componentCopy.setActiveState("0")
+                        moleculeStructure.addComponent(componentCopy)
                 elif count < 0:
                     for idx in range(0, -count):
-                        referenceMolecule.addComponent(deepcopy(newComponent))
+                        componentCopy = deepcopy(component)
+                        componentCopy.setActiveState("0")
+                        referenceMolecule.addComponent(componentCopy)
                         flag = True
 
     return flag
@@ -1274,7 +1280,13 @@ def transformMolecules(
         parser,
     )
     onlySynDec = (
-        len([x for x in database.classifications if x not in ["Generation", "Decay"]])
+        len(
+            [
+                x
+                for x in database.classifications
+                if not all(c in ["Generation", "Decay"] for c in x)
+            ]
+        )
         == 0
     )
     propagateChanges(database.translator, database.prunnedDependencyGraph)

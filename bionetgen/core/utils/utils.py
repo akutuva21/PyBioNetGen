@@ -42,6 +42,12 @@ class ActionList:
     """
 
     def __init__(self):
+        self._init_action_types()
+        self._init_arg_dict()
+        self._init_irregular_args()
+        self._init_positional_arity()
+
+    def _init_action_types(self):
         # these are all the action types, categorized
         # by their argument syntax
         self.normal_types = [
@@ -52,6 +58,7 @@ class ActionList:
             "simulate_ssa",
             "simulate_pla",
             "simulate_nf",
+            "simulate_psa",
             "parameter_scan",
             "bifurcate",
             "readFile",
@@ -92,6 +99,8 @@ class ActionList:
         self.possible_types = (
             self.normal_types + self.no_setter_syntax + self.square_braces
         )
+
+    def _init_arg_dict(self):
         # Use dictionary to keep track of all possible args (and types?) for each action
         self.arg_dict = {}
         # arg_dict["action"] = ["arg1", "arg2", "etc."]
@@ -141,10 +150,6 @@ class ActionList:
             "print_functions",
             "netfile",
             "seed",
-            # TODO: arguments for a method called "psa" that is not documented in
-            # https://docs.google.com/spreadsheets/d/1Co0bPgMmOyAFxbYnGCmwKzoEsY2aUCMtJXQNpQCEUag/
-            "poplevel",
-            "check_product_scale",
         ]
         self.arg_dict["simulate_ode"] = [
             "prefix",
@@ -253,6 +258,34 @@ class ActionList:
             "utl",
             "param",
         ]
+        self.arg_dict["simulate_psa"] = [
+            "prefix",
+            "suffix",
+            "verbose",
+            "argfile",
+            "continue",
+            "t_start",
+            "t_end",
+            "n_steps",
+            "n_output_steps",
+            "sample_times",
+            "output_step_interval",
+            "max_sim_steps",
+            "stop_if",
+            "print_on_stop",
+            "print_end",
+            "print_net",
+            "save_progress",
+            "print_CDAT",
+            "print_functions",
+            "netfile",
+            "seed",
+            # Note: `poplevel` and `check_product_scale` are arguments for the `psa`
+            # method which is not documented in the Google Spreadsheet specification
+            # https://docs.google.com/spreadsheets/d/1Co0bPgMmOyAFxbYnGCmwKzoEsY2aUCMtJXQNpQCEUag/
+            "poplevel",
+            "check_product_scale",
+        ]
         self.arg_dict["simulate"] = list(
             set(
                 self.arg_dict["simulate"]
@@ -260,6 +293,7 @@ class ActionList:
                 + self.arg_dict["simulate_ssa"]
                 + self.arg_dict["simulate_pla"]
                 + self.arg_dict["simulate_nf"]
+                + self.arg_dict["simulate_psa"]
             )
         )
         self.arg_dict["parameter_scan"] = [
@@ -451,6 +485,7 @@ class ActionList:
         self.arg_dict["resetConcentrations"] = []
         self.arg_dict["resetParameters"] = []
 
+    def _init_irregular_args(self):
         # irregular arg types
         self.irregular_args = {}
         self.irregular_args["max_stoich"] = "dict"
@@ -460,6 +495,7 @@ class ActionList:
         self.irregular_args["blocks"] = "list"
         self.irregular_args["opts"] = "list"
 
+    def _init_positional_arity(self):
         # Expected positional arity (min, max) for actions whose arguments
         # are positional rather than `name=>value` keyword pairs. `max=None`
         # means unbounded. Actions absent from this table are treated as
@@ -567,8 +603,7 @@ class ActionList:
         squote_word = pp.sglQuotedString
         quote_word = dquote_word ^ squote_word
         # all action argument types
-        # TODO: deal w/ zero argument list
-        list_arg = "[" + pp.delimitedList(quote_word) + "]"
+        list_arg = "[" + pp.Optional(pp.delimitedList(quote_word)) + "]"
         #
         arg_type_bool = pp.Word("0") ^ pp.Word("1")
         arg_type_int = pp.Word(pp.nums)
@@ -593,8 +628,9 @@ class ActionList:
         # BNGL/Perl `=>` auto-quotes its left operand, so dict keys
         # may be either bareword (max_stoich=>{R=>6}) or quoted
         # (max_stoich=>{"R"=>6}). Accept both.
-        curly_arg_token = (base_name ^ quote_word) + "=>" + arg_type_int
-        # TODO: handle 0 case
+        curly_arg_token = (
+            (base_name ^ quote_word ^ pp.Literal("0")) + "=>" + arg_type_int
+        )
         arg_type_curly = "{" + pp.delimitedList(curly_arg_token) + "}"
         arg_types = (
             arg_type_bool
@@ -660,9 +696,6 @@ def find_BNG_path(BNGPATH=None):
     BNGPATH : str
         (optional) path to the folder that contains BNG2.pl
     """
-    # TODO: Figure out how to use the BNG2.pl if it's set
-    # in the PATH variable. Solution: set os.environ BNGPATH
-    # and make everything use that route
 
     def _try_path(candidate_path):
         if candidate_path is None:
@@ -700,6 +733,7 @@ def find_BNG_path(BNGPATH=None):
         tried.append(bng_on_path)
         hit = _try_path(bng_on_path)
         if hit is not None:
+            os.environ["BNGPATH"] = hit[0]
             return hit
 
     # If we get here, BNG2.pl is not available. Some users may only need

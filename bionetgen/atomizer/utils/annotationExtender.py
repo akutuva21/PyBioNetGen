@@ -157,16 +157,16 @@ def buildAnnotationDict(document):
 
 def updateFromParent(child, parent, annotationDict):
     for annotationLabel in annotationDict[parent]:
-        if annotationLabel in [
+        if annotationLabel in {
             "BQB_IS_VERSION_OF",
             "BQB_IS",
             "BQB_IS_HOMOLOG_TO",
             "BQB_HAS_VERSION",
-        ]:
+        }:
             annotationDict[child]["BQB_HAS_VERSION"] = annotationDict[parent][
                 annotationLabel
             ]
-        elif annotationLabel in ["BQB_HAS_PART"]:
+        elif annotationLabel in {"BQB_HAS_PART"}:
             annotationDict[child][annotationLabel] = annotationDict[parent][
                 annotationLabel
             ]
@@ -174,12 +174,12 @@ def updateFromParent(child, parent, annotationDict):
 
 def updateFromChild(parent, child, annotationDict):
     for annotationLabel in annotationDict[child]:
-        if annotationLabel in [
+        if annotationLabel in {
             "BQB_IS_VERSION_OF",
             "BQB_IS",
             "BQB_HAS_VERSION",
             "BQB_IS_HOMOLOG_TO",
-        ]:
+        }:
             annotationDict[parent]["BQB_HAS_VERSION"] = annotationDict[child][
                 annotationLabel
             ]
@@ -194,13 +194,13 @@ def updateFromComplex(complexMolecule, sct, annotationDict, annotationToSpeciesD
         flag = False
         if len(annotationDict[constituentElement]) > 0:
             for annotation in annotationDict[constituentElement]:
-                if annotation in [
+                if annotation in {
                     "BQB_IS_VERSION_OF",
                     "BQB_IS",
                     "BQB_HAS_VERSION",
                     "BQB_IS_HOMOLOG_TO",
                     "BQM_IS",
-                ]:
+                }:
                     flag = True
                     for individualAnnotation in annotationDict[constituentElement][
                         annotation
@@ -221,7 +221,7 @@ def updateFromComplex(complexMolecule, sct, annotationDict, annotationToSpeciesD
             unmatchedReactants.append(constituentElement)
 
     for annotationType in annotationDict[complexMolecule]:
-        if annotationType in ["BQB_HAS_VERSION", "BQB_HAS_PART"]:
+        if annotationType in {"BQB_HAS_VERSION", "BQB_HAS_PART"}:
             for constituentAnnotation in annotationDict[complexMolecule][
                 annotationType
             ]:
@@ -256,14 +256,14 @@ def updateFromComponents(complexMolecule, sct, annotationDict, annotationToSpeci
                 print(constituentElement, annotationDict[constituentElement])
 
             for annotation in annotationDict[constituentElement]:
-                if annotation in [
+                if annotation in {
                     "BQB_IS_VERSION_OF",
                     "BQB_IS",
                     "BQB_HAS_VERSION",
                     "BQB_HAS_PART",
                     "BQB_IS_HOMOLOG_TO",
                     "BQM_IS",
-                ]:
+                }:
                     for individualAnnotation in annotationDict[constituentElement][
                         annotation
                     ]:
@@ -436,15 +436,24 @@ def createDataStructures(bnglContent):
     bng information
     """
 
-    pointer = tempfile.mkstemp(suffix=".bngl", text=True)
-    with open(pointer[1], "w") as f:
+    with tempfile.NamedTemporaryFile(suffix=".bngl", mode="w", delete=False) as f:
         f.write(bnglContent)
+        bngl_filename = f.name
+
     retval = os.getcwd()
     os.chdir(tempfile.tempdir)
-    consoleCommands.bngl2xml(pointer[1])
-    xmlfilename = ".".join(pointer[1].split(".")[0:-1]) + "_bngxml.xml"
-    os.chdir(retval)
-    return readBNGXML.parseXML(xmlfilename)
+    try:
+        consoleCommands.bngl2xml(bngl_filename)
+        xmlfilename = ".".join(bngl_filename.split(".")[0:-1]) + "_bngxml.xml"
+        result = readBNGXML.parseXML(xmlfilename)
+    finally:
+        os.chdir(retval)
+        if os.path.exists(bngl_filename):
+            os.remove(bngl_filename)
+        if "xmlfilename" in locals() and os.path.exists(xmlfilename):
+            os.remove(xmlfilename)
+
+    return result
 
 
 def expandAnnotation(fileName, bnglFile):
@@ -477,7 +486,7 @@ def batchExtensionProcess(directory, outputDir):
     targetFiles = getFiles(outputDir, "xml")
     for fileIdx in progress(range(len(testFiles))):
         file = testFiles[fileIdx]
-        if file in [
+        if file in {
             "/home/proto/workspace/RuleWorld/atomizer/SBMLparser/annotationsRemoved2/BIOMD0000000223.xml",
             "/home/proto/workspace/RuleWorld/atomizer/SBMLparser/annotationsRemoved2/BIOMD0000000488.xml",
             "/home/proto/workspace/RuleWorld/atomizer/SBMLparser/annotationsRemoved2/BIOMD0000000293.xml",
@@ -489,7 +498,7 @@ def batchExtensionProcess(directory, outputDir):
             "/home/proto/workspace/RuleWorld/atomizer/SBMLparser/annotationsRemoved2/BIOMD0000000182.xml",
             "/home/proto/workspace/RuleWorld/atomizer/SBMLparser/annotationsRemoved2/BIOMD0000000161.xml",
             "/home/proto/workspace/RuleWorld/atomizer/SBMLparser/annotationsRemoved2/BIOMD0000000504.xml",
-        ]:
+        }:
             continue
         if (
             "/home/proto/workspace/RuleWorld/atomizer/SBMLparser/annotationsExpanded2/{0}".format(

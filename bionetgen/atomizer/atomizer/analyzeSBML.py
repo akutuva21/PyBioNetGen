@@ -101,10 +101,10 @@ class SBMLAnalyzer:
         self.conservationOfMass = conservationOfMass
 
     def distanceToModification(self, particle, modifiedElement, translationKeys):
-        posparticlePos = [
-            m.start() + len(particle) for m in re.finditer(particle, modifiedElement)
-        ]
-        preparticlePos = [m.start() for m in re.finditer(particle, modifiedElement)]
+        particle_starts = [m.start() for m in re.finditer(particle, modifiedElement)]
+        particle_len = len(particle)
+        posparticlePos = [s + particle_len for s in particle_starts]
+        preparticlePos = particle_starts
         keyPos = [m.start() for m in re.finditer(translationKeys, modifiedElement)]
         distance = [abs(y - x) for x in posparticlePos for y in keyPos]
         distance.extend([abs(y - x) for x in preparticlePos for y in keyPos])
@@ -258,7 +258,9 @@ class SBMLAnalyzer:
             return minimumToken[1], translationKeys, equivalenceTranslator
         return None, None, None
 
-    def analyzeSpeciesModification(self, baseElement, modifiedElement, partialAnalysis):
+    def analyzeSpeciesModification(
+        self, baseElement, modifiedElement, partialAnalysis, max_modification_distance=4
+    ):
         """
         a method for trying to read modifications within complexes
         This is only possible once we know their internal structure
@@ -283,31 +285,41 @@ class SBMLAnalyzer:
                 distance = self.distanceToModification(
                     particle, comparisonElement, translationKeys[0]
                 )
-                score = difflib.ndiff(particle, modifiedElement)
             else:
-                # FIXME: make sure we only do a search on those variables that are viable
-                # candidates. this is once again fuzzy string matchign. there should
-                # be a better way of doing this with difflib
-                permutations = set(
-                    [
-                        "_".join(x)
-                        for x in itertools.permutations(partialAnalysis, 2)
-                        if x[0] == particle
-                    ]
-                )
-                if all([x not in modifiedElement for x in permutations]):
+                permutations = {
+                    "_".join(x)
+                    for x in itertools.permutations(partialAnalysis, 2)
+                    if x[0] == particle
+                }
+
+                viable = True
+                for perm in permutations:
+                    sequenceMatcher = difflib.SequenceMatcher(
+                        None, perm, modifiedElement
+                    )
+                    match = "".join(
+                        modifiedElement[j : j + n]
+                        for i, j, n in sequenceMatcher.get_matching_blocks()
+                        if n
+                    )
+                    if len(match) / float(len(perm)) >= 0.8:
+                        tmp = [
+                            i
+                            for i, y in enumerate(difflib.ndiff(perm, modifiedElement))
+                            if not y.startswith("+")
+                        ]
+                        if len(tmp) > 0 and tmp[-1] - tmp[0] <= len(perm) + 5:
+                            viable = False
+                            break
+
+                if viable:
                     distance = self.distanceToModification(
                         particle, comparisonElement, translationKeys[0]
                     )
-                    score = difflib.ndiff(particle, modifiedElement)
-                # FIXME:tis is just an ad-hoc parameter in terms of how far a mod is from a species name
-                # use something better
-            if distance < 4:
+            if distance < max_modification_distance:
                 scores.append([particle, distance])
         if len(scores) > 0:
-            winner = scores[[x[1] for x in scores].index(min([x[1] for x in scores]))][
-                0
-            ]
+            winner = min(scores, key=lambda x: x[1])[0]
         else:
             winner = None
         if winner:
@@ -772,41 +784,59 @@ class SBMLAnalyzer:
                     # this is a list of pairs
                     for binding_pair in reactionDefinition_new["binding_interactions"]:
                         first, second = binding_pair[0], binding_pair[1]
-                        if isinstance(first, dict) or isinstance(second, dict):
-                            # TODO: Implement dictionaries for binding partners in the future
-                            raise NotImplementedError(
-                                "Dictionaries for binding pairs are not implemented yet"
-                            )
+
+                        first_name = first["name"] if isinstance(first, dict) else first
+                        second_name = (
+                            second["name"] if isinstance(second, dict) else second
+                        )
+
+                        first_site = (
+                            first.get("site", second_name.lower())
+                            if isinstance(first, dict)
+                            else second_name.lower()
+                        )
+                        first_state = (
+                            first.get("state", []) if isinstance(first, dict) else []
+                        )
+
+                        second_site = (
+                            second.get("site", first_name.lower())
+                            if isinstance(second, dict)
+                            else first_name.lower()
+                        )
+                        second_state = (
+                            second.get("state", []) if isinstance(second, dict) else []
+                        )
 
                         # let's deal with first
                         # first initalize the item or pull if it already exists
                         item = None
                         for ix, x in enumerate(reactionDefinition["complexDefinition"]):
-                            if x[0] == first:
+                            if x[0] == first_name:
                                 item = reactionDefinition["complexDefinition"].pop(ix)
                                 break
                         if item is None:
-                            item = [first, [[first]]]
-                        item[1][0].append(second.lower())
-                        item[1][0].append([])
+                            item = [first_name, [[first_name]]]
+                        item[1][0].append(first_site)
+                        item[1][0].append(first_state)
                         reactionDefinition["complexDefinition"].append(item)
 
-                        if first != second:
+                        if first_name != second_name or first_site != second_site:
                             # now deal with second partner
                             # first initalize the item or pull if it already exists
                             item = None
                             for ix, x in enumerate(
                                 reactionDefinition["complexDefinition"]
                             ):
-                                if x[0] == second:
+                                if x[0] == second_name:
                                     item = reactionDefinition["complexDefinition"].pop(
                                         ix
                                     )
                                     break
                             if item is None:
-                                item = [second, [[second]]]
-                            item[1][0].append(first.lower())
-                            item[1][0].append([])
+                                item = [second_name, [[second_name]]]
+                            item[1][0].append(second_site)
+                            item[1][0].append(second_state)
                             reactionDefinition["complexDefinition"].append(item)
                 else:
                     reactionDefinition["complexDefinition"] = []
@@ -871,8 +901,8 @@ class SBMLAnalyzer:
         """
         result = []
         for idx, element in enumerate(reactionDefinition["reactions"]):
-            tmp1 = rule[0] if rule[0] not in ["0", ["0"]] else []
-            tmp2 = rule[1] if rule[1] not in ["0", ["0"]] else []
+            tmp1 = rule[0] if rule[0] not in ("0", ["0"]) else []
+            tmp2 = rule[1] if rule[1] not in ("0", ["0"]) else []
             if len(tmp1) == len(element[0]) and len(tmp2) == len(element[1]):
                 result.append(1)
             #            for (el1,el2) in (element[0],rule[0]):
@@ -917,7 +947,9 @@ class SBMLAnalyzer:
                         break
         return ruleResult
 
-    def levenshtein(self, s1, s2):
+    @staticmethod
+    @memoize
+    def levenshtein(s1, s2):
         l1 = len(s1)
         l2 = len(s2)
 
@@ -975,17 +1007,6 @@ class SBMLAnalyzer:
         translationKeys = []
         conventionDict = {}
 
-        # FIXME: This line contains the single biggest execution bottleneck in the code
-        # we should be able to delete it
-        # user defined equivalence
-        if not onlyUser:
-            (
-                tmpTranslator,
-                translationKeys,
-                conventionDict,
-            ) = detectOntology.analyzeNamingConventions(
-                strippedMolecules, self.namingConventions, similarityThreshold=threshold
-            )
         # user defined naming convention
         if self.userEquivalencesDict is None and hasattr(self, "userEquivalences"):
             (
@@ -1040,15 +1061,13 @@ class SBMLAnalyzer:
         # print('+++',namePairs,differenceList)
         # print('---',detectOntology.defineEditDistanceMatrix2(molecules,similarityThreshold=similarityThreshold))
 
-        # FIXME:in here we need a smarter heuristic to detect actual modifications
-        # for now im just going with a simple heuristic that if the species name
-        # is long enough, and the changes from a to be are all about modification
-        longEnough = 3
+        match_ratio = 0.0
+        if len(differenceList) > 0 and reactant and product:
+            s = difflib.SequenceMatcher(None, reactant, product)
+            match_len = sum(b.size for b in s.get_matching_blocks())
+            match_ratio = match_len / min(len(reactant), len(product))
 
-        if len(differenceList) > 0 and (
-            (len(reactant) >= longEnough and len(reactant) >= len(differenceList[0]))
-            or reactant in moleculeSet
-        ):
+        if len(differenceList) > 0 and (match_ratio >= 0.75 or reactant in moleculeSet):
             # one is strictly a subset of the other a,a_b
             if len([x for x in differenceList[0] if "-" in x]) == 0:
                 return [
@@ -1116,20 +1135,6 @@ class SBMLAnalyzer:
                         [x in moleculeSet for x in validDifferences]
                     ):
                         return [[[[reactant], [product]], None, None]]
-                    # FIXME:here it'd be helpful to come up with a better heuristic
-                    # for infered component names
-                    # componentName =  ''.join([x[0:max(1,int(math.ceil(len(x)/2.0)))] for x in validDifferences])
-
-                    # for namePair,difference in zip(namePairs,differenceList):
-                    #    if len([x for x in difference if '-' in x]) == 0:
-                    #        tag = ''.join([x[-1] for x in difference])
-                    #        if [namePair[0],tag] not in localSpeciesDict[commonRoot][componentName]:
-                    #            localSpeciesDict[namePair[0]][componentName].append([namePair[0],tag,compartmentChangeFlag])
-                    #            localSpeciesDict[namePair[1]][componentName].append([namePair[0],tag,compartmentChangeFlag])
-
-                    # namePairs,differenceList,_ = detectOntology.defineEditDistanceMatrix([commonRoot,product],
-                    #
-                    #                                               similarityThreshold=similarityThreshold)
                     return [
                         [
                             [[namePairs[y][0]], [namePairs[y][1]]],
@@ -1454,20 +1459,45 @@ class SBMLAnalyzer:
                                 strippedMolecules,
                                 continuityFlag=False,
                             )
-                            # FIXME: this comparison is pretty nonsensical. treactant and tproduct are not
-                            # guaranteed to be in teh right order. why are we comparing them both at the same time
-                            if (
-                                len(treactant) > 1
-                                and "_".join(treactant) in strippedMolecules
-                            ) or (
-                                len(tproduct) > 1
-                                and "_".join(tproduct) in strippedMolecules
-                            ):
+
+                            def get_match(components):
+                                # Helper to match order-independent components to strippedMolecules
+                                joined = "_".join(components)
+                                if len(components) > 1 and joined in strippedMolecules:
+                                    return joined
+
+                                sorted_comps = sorted(c for c in components if c)
+                                for mol in strippedMolecules:
+                                    if (
+                                        sorted([y for y in mol.split("_") if y])
+                                        == sorted_comps
+                                    ):
+                                        return mol
+
+                                close_matches = get_close_matches(
+                                    joined, strippedMolecules
+                                )
+                                if close_matches:
+                                    close_splits = [
+                                        "_".join([y for y in x.split("_") if y])
+                                        for x in close_matches
+                                    ]
+                                    target = "_".join(c for c in components if c)
+                                    try:
+                                        return close_matches[close_splits.index(target)]
+                                    except ValueError:
+                                        pass
+                                return None
+
+                            trueReactant = get_match(treactant)
+                            trueProduct = get_match(tproduct)
+
+                            if trueReactant and trueProduct:
                                 pairedMolecules[stoch2].append(
-                                    ("_".join(treactant), "_".join(tproduct))
+                                    (trueReactant, trueProduct)
                                 )
                                 pairedMolecules2[stoch].append(
-                                    ("_".join(tproduct), "_".join(treactant))
+                                    (trueProduct, trueReactant)
                                 )
                                 for x in treactant:
                                     reactant.remove(x)
@@ -1475,45 +1505,6 @@ class SBMLAnalyzer:
                                     product.remove(x)
                                 idx = -1
                                 break
-                            else:
-                                rclose = get_close_matches(
-                                    "_".join(treactant), strippedMolecules
-                                )
-                                pclose = get_close_matches(
-                                    "_".join(tproduct), strippedMolecules
-                                )
-                                rclose2 = [x.split("_") for x in rclose]
-                                rclose2 = [
-                                    "_".join([y for y in x if y != ""]) for x in rclose2
-                                ]
-                                pclose2 = [x.split("_") for x in pclose]
-                                pclose2 = [
-                                    "_".join([y for y in x if y != ""]) for x in pclose2
-                                ]
-                                trueReactant = None
-                                trueProduct = None
-                                try:
-                                    trueReactant = rclose[
-                                        rclose2.index("_".join(treactant))
-                                    ]
-                                    trueProduct = pclose[
-                                        pclose2.index("_".join(tproduct))
-                                    ]
-                                except:
-                                    pass
-                                if trueReactant and trueProduct:
-                                    pairedMolecules[stoch2].append(
-                                        (trueReactant, trueProduct)
-                                    )
-                                    pairedMolecules2[stoch].append(
-                                        (trueProduct, trueReactant)
-                                    )
-                                    for x in treactant:
-                                        reactant.remove(x)
-                                    for x in tproduct:
-                                        product.remove(x)
-                                    idx = -1
-                                    break
 
         if (
             sum(len(x) for x in reactantString + productString) > 0
@@ -1619,17 +1610,24 @@ class SBMLAnalyzer:
 
                 # greedymatching
 
-                acc = 0
-                # FIXME:its not properly copying all the string
+                # Sort sym by length in descending order to match longer symbols first
+                sorted_sym = sorted(sym, key=len, reverse=True)
+
                 for idx in range(0, len(matches) - 1):
-                    while (
-                        matches[idx][2] + acc < len(tmpRuleList[1][0])
-                        and tmpRuleList[1][0][matches[idx][2] + acc] in sym
+                    acc = 0
+                    while matches[idx][1] + matches[idx][2] + acc < len(
+                        tmpRuleList[1][0]
                     ):
-                        productPartitions[idx] += tmpRuleList[1][0][
-                            matches[idx][2] + acc
-                        ]
-                        acc += 1
+                        current_idx = matches[idx][1] + matches[idx][2] + acc
+                        matched_sym = False
+                        for s in sorted_sym:
+                            if tmpRuleList[1][0].startswith(s, current_idx):
+                                productPartitions[idx] += s
+                                acc += len(s)
+                                matched_sym = True
+                                break
+                        if not matched_sym:
+                            break
 
                 # idx = 0
                 # while(tmpString[matches[0][2]+ idx]  in sym):
@@ -1666,7 +1664,10 @@ class SBMLAnalyzer:
                         differences.append(processedDifference)
 
         else:
-            # TODO: dea with reactions of the kindd a+b ->  c + d
+            logMess(
+                "WARNING:ATOMIZATION",
+                "Approximate matching for reactions with multiple products (a+b -> c+d) is not currently supported",
+            )
             return [[], []], [[], []]
         return bdifferences, zippedPartitions
 
@@ -1769,14 +1770,14 @@ class SBMLAnalyzer:
         for idx, element in enumerate(ruleDefinitionMatrix):
             nonZero = np.nonzero(element)[0]
             if len(nonZero) == 0:
-                results.append("None")
+                results.append(["None"])
             # todo: need to do something if it matches more than one reaction
             else:
                 classifications = [
                     reactionDefinition["reactionsNames"][x] for x in nonZero
                 ]
                 # FIXME: we should be able to support more than one transformation
-                results.append(classifications[0])
+                results.append(classifications)
         return results
 
     def setConfigurationFile(self, configurationFile):
@@ -1789,29 +1790,7 @@ class SBMLAnalyzer:
         reaction uses
         """
 
-        # TODO: once we transition completely to a naming convention delete
-        # this ----
         reactionTypeProperties = {}
-        reactionDefinition = self.loadConfigFiles(self.configurationFile)
-        if self.speciesEquivalences != None:
-            self.userEquivalences = self.loadConfigFiles(self.speciesEquivalences)[
-                "reactionDefinition"
-            ]
-        for reactionType, properties in zip(
-            reactionDefinition["reactionsNames"], reactionDefinition["definitions"]
-        ):
-            # if its a reaction defined by its naming convention
-            # xxxxxxxxxxxxxxxxxxx
-            for alternative in properties:
-                if "n" in list(alternative.keys()):
-                    try:
-                        site = reactionDefinition["reactionSite"][alternative["rsi"]]
-                        state = reactionDefinition["reactionState"][alternative["rst"]]
-                    except:
-                        site = reactionType
-                        state = reactionType[0]
-                    reactionTypeProperties[reactionType] = [site, state]
-        # TODO: end of delete
         reactionDefinition = self.namingConventions
         for idx, reactionType in enumerate(reactionDefinition["modificationList"]):
             site = reactionDefinition["reactionSite"][
@@ -2066,13 +2045,17 @@ class SBMLAnalyzer:
         def testAgainstExistingConventionsHelper(fuzzyKey, modificationList, threshold):
             if not fuzzyKey:
                 return None
+
+            fuzzy_upper = fuzzyKey.upper()
+            filtered_mods = tuple(
+                m for m in modificationList if m.upper() in fuzzy_upper
+            )
+
             for i in range(1, threshold):
-                combinations = itertools.permutations(modificationList, i)
+                combinations = itertools.permutations(filtered_mods, i)
 
                 validKeys = list(
-                    filter(
-                        lambda x: ("".join(x)).upper() == fuzzyKey.upper(), combinations
-                    )
+                    filter(lambda x: ("".join(x)).upper() == fuzzy_upper, combinations)
                 )
 
                 if validKeys:
@@ -2080,16 +2063,13 @@ class SBMLAnalyzer:
             return None
 
         return testAgainstExistingConventionsHelper(
-            fuzzyKey, modificationList, threshold
+            fuzzyKey, tuple(modificationList), threshold
         )
 
     def classifyReactions(self, reactions, molecules, externalDependencyGraph={}):
         """
         classifies a group of reaction according to the information in the json
         config file
-
-        FIXME:classifiyReactions function is currently the biggest bottleneck in atomizer, taking up
-        to 80% of the time without counting pathwaycommons querying.
         """
 
         def createArtificialNamingConvention(reaction, fuzzyKey, fuzzyDifference):
@@ -2258,13 +2238,35 @@ class SBMLAnalyzer:
             # FIXME: instead of doing a simple split by '_' we should be comparing against the molecules in stripped molecules and split by smallest actionable units.
             if externalDependencyGraph == {}:
                 # print('-----',reaction)
-                # reactantString, productString = self.breakByActionableUnit(reaction, strippedMolecules)
+                reactantString, productString = self.breakByActionableUnit(
+                    reaction, strippedMolecules
+                )
                 # print('...',reaction, reactantString, productString)
-                # if not reactantString or not productString:
-                reactantString = [x.split("_") for x in reaction[0]]
-                reactantString = [[y for y in x if y != ""] for x in reactantString]
-                productString = [x.split("_") for x in reaction[1]]
-                productString = [[y for y in x if y != ""] for x in productString]
+                if not reactantString or not productString:
+                    reactantString = []
+                    for x in reaction[0]:
+                        if x in strippedMolecules:
+                            reactantString.append([x])
+                        else:
+                            tmp = self.greedyModificationMatching(x, strippedMolecules)
+                            if isinstance(tmp, list) and len(tmp) > 0:
+                                reactantString.append(tmp)
+                            else:
+                                reactantString.append(
+                                    [y for y in x.split("_") if y != ""]
+                                )
+                    productString = []
+                    for x in reaction[1]:
+                        if x in strippedMolecules:
+                            productString.append([x])
+                        else:
+                            tmp = self.greedyModificationMatching(x, strippedMolecules)
+                            if isinstance(tmp, list) and len(tmp) > 0:
+                                productString.append(tmp)
+                            else:
+                                productString.append(
+                                    [y for y in x.split("_") if y != ""]
+                                )
 
             else:
                 reactantString = []
@@ -2377,7 +2379,7 @@ class SBMLAnalyzer:
             translationKeys,
         )
         for element in trueBindingReactions:
-            reactionClassification[element] = "Binding"
+            reactionClassification[element] = ["Binding"]
         listOfEquivalences = []
         for element in equivalenceTranslator:
             listOfEquivalences.extend(equivalenceTranslator[element])

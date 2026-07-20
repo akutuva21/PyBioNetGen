@@ -112,3 +112,11 @@ class BNGSimError(BNGError):
     def __init__(self, message="There was an issue running BNGsim simulation"):
         self.message = message
         super().__init__(self.message)
+
+
+class BNGSimulatorError(BNGError):
+    """Error related to BNG simulators."""
+
+    def __init__(self, message="There was an issue with the BNG simulator"):
+        self.message = message
+        super().__init__(self.message)

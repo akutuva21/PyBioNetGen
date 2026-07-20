@@ -185,8 +185,13 @@ class BNGParser:
         parse_actions=True,
         generate_network=False,
         suppress=True,
+        verbose=False,
     ) -> None:
+        from bionetgen.core.utils.logging import BNGLogger
+
+        self.logger = BNGLogger()
         self.to_parse_actions = parse_actions
+        self.verbose = verbose
         self.bngfile = BNGFile(
             path, BNGPATH=BNGPATH, generate_network=generate_network, suppress=suppress
         )
@@ -213,8 +218,8 @@ class BNGParser:
         # this route runs BNG2.pl on the bngl and parses
         # the XML instead
         if model_file.endswith(".bngl"):
-            # TODO: Add verbosity option to the library
-            # print("Attempting to generate XML")
+            if self.verbose:
+                self.logger.debug("Attempting to generate XML")
             with TemporaryFile("w+") as xml_file:
                 try:
                     self.bngfile.generate_xml(xml_file)
@@ -223,7 +228,8 @@ class BNGParser:
                         self.bngfile.path,
                         message=f"XML file couldn't be generated: {exc.message}",
                     ) from exc
-                # TODO: Add verbosity option to the library
+                if self.verbose:
+                    self.logger.debug("Parsing XML")
                 xmlstr = xml_file.read()
                 # < is not a valid XML character, we need to replace it
                 xmlstr = xmlstr.replace('relation="<', 'relation="&lt;')
@@ -384,7 +390,7 @@ class BNGParser:
         will use XML parser objects to generate each block to attach to the
         model object
         """
-        xml_dict = xmltodict.parse(xml_str)
+        xml_dict = xmltodict.parse(xml_str, disable_entities=True)
         # catch non-BNG XML files
         if "sbml" not in xml_dict:
             if "model" not in xml_dict["sbml"]:
@@ -454,5 +460,5 @@ class BNGParser:
                     xml_parser = PopulationMapBlockXML(pms)
                     model_obj.add_block(xml_parser.parsed_obj)
         # And that's the end of parsing
-        # TODO: Add verbosity option to the library
-        # print("Parsing complete")
+        if self.verbose:
+            self.logger.debug("Parsing complete")

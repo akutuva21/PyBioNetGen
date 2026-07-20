@@ -160,12 +160,11 @@ def getRestrictedChemicalStates(labelArray, products, contexts, doubleAction):
                     for molecule in result:
                         for pattern in result[molecule]:
                             pDict[molecule].append(pattern)
-            pDict2 = deepcopy(pDict)
             for molecule in pDict:
-                for componentState in pDict[molecule]:
-                    for componentState2 in [
-                        x for x in pDict2[molecule] if x[0] != componentState[0]
-                    ]:
+                for idx1, componentState in enumerate(pDict[molecule]):
+                    for idx2, componentState2 in enumerate(pDict[molecule]):
+                        if idx1 == idx2:
+                            continue
                         isActive1 = componentState[1] == 1 or componentState[2] not in [
                             "",
                             "0",
@@ -193,9 +192,8 @@ def getRestrictedChemicalStates(labelArray, products, contexts, doubleAction):
                         cDict[molecule].append(pattern)
             for molecule in pDict:
                 for componentState in pDict[molecule]:
-                    # FIXME: This is to account for dimers where or places where there is more than one components with the same name. Truly this should be enother kind of classification
                     for componentState2 in [
-                        x for x in cDict[molecule] if x[0] != componentState[0]
+                        x for x in cDict[molecule] if x != componentState
                     ]:
                         sortedChemicalStates[molecule][componentState][
                             componentState2[0]

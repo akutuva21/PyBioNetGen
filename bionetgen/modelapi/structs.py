@@ -1,3 +1,5 @@
+import re
+
 from bionetgen.modelapi.pattern import Molecule, Pattern
 from bionetgen.modelapi.rulemod import RuleMod
 from bionetgen.core.utils.utils import ActionList
@@ -53,9 +55,12 @@ class ModelObj:
 
     @comment.setter
     def comment(self, val) -> None:
-        # TODO: regex handling of # instead
-        if val.startswith("#"):
-            self._comment = val[1:]
+        if isinstance(val, str):
+            match = re.match(r"^\s*#(.*)", val)
+            if match:
+                self._comment = match.group(1)
+            else:
+                self._comment = val
         else:
             self._comment = val
 
@@ -65,7 +70,6 @@ class ModelObj:
 
     @line_label.setter
     def line_label(self, val) -> None:
-        # TODO: specific error handling
         try:
             ll = int(val)
             self._line_label = "{} ".format(ll)
@@ -450,12 +454,7 @@ class Rule(ModelObj):
             )
 
     def side_string(self, patterns):
-        side_str = ""
-        for ipat, pat in enumerate(patterns):
-            if ipat > 0:
-                side_str += " + "
-            side_str += str(pat)
-        return side_str
+        return " + ".join(str(pat) for pat in patterns)
 
 
 class EnergyPattern(ModelObj):

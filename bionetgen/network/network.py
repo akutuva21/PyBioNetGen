@@ -1,14 +1,14 @@
 from bionetgen.network.networkparser import BNGNetworkParser
+from bionetgen.core.exc import BNGModelError
+from bionetgen.core.utils.logging import BNGLogger
 from bionetgen.network.blocks import (
     NetworkGroupBlock,
     NetworkParameterBlock,
     NetworkReactionBlock,
     NetworkSpeciesBlock,
-    NetworkCompartmentBlock,
-    NetworkFunctionBlock,
-    NetworkEnergyPatternBlock,
-    NetworkPopulationMapBlock,
 )
+
+logger = BNGLogger()
 
 
 ###### CORE OBJECT AND PARSING FRONT-END ######
@@ -47,13 +47,6 @@ class Network:
             "species",
             "reactions",
             "groups",
-            # "compartments",
-            # "molecule_types",
-            # "species",
-            # "functions",
-            # "energy_patterns",
-            # "population_maps",
-            # "actions",
         ]
         self.network_name = ""
         self.bngnetworkparser = BNGNetworkParser(bngl_model)
@@ -64,8 +57,9 @@ class Network:
         # Check to see if there are no active blocks
         # If not, model is most likely not in BNGL format
         if not self.active_blocks:
-            print(
-                "WARNING: No active blocks. Please ensure model is in proper BNGL or BNG-XML format"
+            raise BNGModelError(
+                bngl_model,
+                message="No active blocks. Please ensure model is in proper BNGL or BNG-XML format",
             )
 
     def __str__(self):
@@ -133,27 +127,24 @@ class Network:
 
     def add_parameters_block(self, block=None):
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, NetworkParameterBlock)
+            if not isinstance(block, NetworkParameterBlock):
+                err_msg = "The given block is not a NetworkParameterBlock"
+                logger.error(
+                    err_msg, loc=f"{__file__} : Network.add_parameters_block()"
+                )
+                raise BNGModelError(self, message=err_msg)
             self.parameters = block
             if "parameters" not in self.active_blocks:
                 self.active_blocks.append("parameters")
         else:
             self.parameters = NetworkParameterBlock()
 
-    # def add_compartments_block(self, block=None):
-    #     if block is not None:
-    #         assert isinstance(block, NetworkCompartmentBlock)
-    #         self.compartments = block
-    #         if "compartments" not in self.active_blocks:
-    #             self.active_blocks.append("compartments")
-    #     else:
-    #         self.compartments = NetworkCompartmentBlock()
-
     def add_species_block(self, block=None):
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, NetworkSpeciesBlock)
+            if not isinstance(block, NetworkSpeciesBlock):
+                err_msg = "The given block is not a NetworkSpeciesBlock"
+                logger.error(err_msg, loc=f"{__file__} : Network.add_species_block()")
+                raise BNGModelError(self, message=err_msg)
             self.species = block
             if "species" not in self.active_blocks:
                 self.active_blocks.append("species")
@@ -162,8 +153,10 @@ class Network:
 
     def add_groups_block(self, block=None):
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, NetworkGroupBlock)
+            if not isinstance(block, NetworkGroupBlock):
+                err_msg = "The given block is not a NetworkGroupBlock"
+                logger.error(err_msg, loc=f"{__file__} : Network.add_groups_block()")
+                raise BNGModelError(self, message=err_msg)
             self.groups = block
             if "groups" not in self.active_blocks:
                 self.active_blocks.append("groups")
@@ -172,47 +165,19 @@ class Network:
 
     def add_reactions_block(self, block=None):
         if block is not None:
-            # TODO: Transition to BNGErrors and logging
-            assert isinstance(block, NetworkReactionBlock)
+            if not isinstance(block, NetworkReactionBlock):
+                err_msg = "The given block is not a NetworkReactionBlock"
+                logger.error(err_msg, loc=f"{__file__} : Network.add_reactions_block()")
+                raise BNGModelError(self, message=err_msg)
             self.reactions = block
             if "reactions" not in self.active_blocks:
                 self.active_blocks.append("reactions")
         else:
             self.reactions = NetworkReactionBlock()
 
-    # def add_functions_block(self, block=None):
-    #     if block is not None:
-    #         assert isinstance(block, NetworkFunctionBlock)
-    #         self.functions = block
-    #         if "functions" not in self.active_blocks:
-    #             self.active_blocks.append("functions")
-    #     else:
-    #         self.functions = NetworkFunctionBlock()
-
-    # def add_energy_patterns_block(self, block=None):
-    #     if block is not None:
-    #         assert isinstance(block, NetworkEnergyPatternBlock)
-    #         self.energy_patterns = block
-    #         if "energy_patterns" not in self.active_blocks:
-    #             self.active_blocks.append("energy_patterns")
-    #     else:
-    #         self.energy_patterns = NetworkEnergyPatternBlock()
-
-    # def add_population_maps_block(self, block=None):
-    #     if block is not None:
-    #         assert isinstance(block, NetworkPopulationMapBlock)
-    #         self.population_maps = block
-    #         if "population_maps" not in self.active_blocks:
-    #             self.active_blocks.append("population_maps")
-    #     else:
-    #         self.population_maps = NetworkPopulationMapBlock()
-
     def write_model(self, file_name):
         """
         write the model to file
         """
-        model_str = ""
-        for block in self.active_blocks:
-            model_str += str(getattr(self, block))
         with open(file_name, "w") as f:
-            f.write(model_str)
+            f.write("".join(str(getattr(self, block)) for block in self.active_blocks))

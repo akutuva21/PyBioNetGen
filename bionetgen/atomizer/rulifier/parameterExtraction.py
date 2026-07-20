@@ -174,7 +174,7 @@ def ExcelOutput(modelNameList, parameterSpace):
 
         try:
             with open(ymlName, "r") as f:
-                annotationDict = yaml.load(f)
+                annotationDict = yaml.safe_load(f)
         except IOError:
             continue
         ws.write(midx + 1, 0, modelName)

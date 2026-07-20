@@ -3,7 +3,12 @@ import numpy as np
 
 from .bngsimulator import BNGSimulator
 from bionetgen.main import get_conf
-from bionetgen.core.exc import BNGCompileError, BNGFormatError, BNGSimError
+from bionetgen.core.exc import (
+    BNGCompileError,
+    BNGFormatError,
+    BNGSimError,
+    BNGSimulatorError,
+)
 from bionetgen.core.utils.logging import BNGLogger
 
 
@@ -56,6 +61,7 @@ class CSimWrapper:
     """
 
     def __init__(self, lib_path, num_params=None, num_spec_init=None):
+        self.logger = BNGLogger()
         # we need the result struct to reconstruct the object
         self.return_struct = RESULT
         # load the shared library
@@ -72,16 +78,28 @@ class CSimWrapper:
         """
         Set the initial species values array
         """
-        # TODO: Transition to BNGErrors and logging
-        assert len(arr) == self.num_spec_init
+        if len(arr) != self.num_spec_init:
+            self.logger.error(
+                f"Length of species initialization array ({len(arr)}) does not match expected length ({self.num_spec_init})",
+                loc=f"{__file__} : CSimWrapper.set_species_init()",
+            )
+            raise BNGSimulatorError(
+                f"Expected {self.num_spec_init} initial species, but got {len(arr)}"
+            )
         self.species_init = np.array(arr, dtype=np.float64)
 
     def set_parameters(self, arr):
         """
         Set the parameter values array
         """
-        # TODO: Transition to BNGErrors and logging
-        assert len(arr) == self.num_params
+        if len(arr) != self.num_params:
+            self.logger.error(
+                f"Length of parameter array ({len(arr)}) does not match expected length ({self.num_params})",
+                loc=f"{__file__} : CSimWrapper.set_parameters()",
+            )
+            raise BNGSimulatorError(
+                f"Expected {self.num_params} parameters, but got {len(arr)}"
+            )
         self.parameters = np.array(arr, dtype=np.float64)
 
     def simulate(self, t_start=0, t_end=100, n_steps=100):
@@ -173,7 +191,10 @@ class CSimulator(BNGSimulator):
             # loaded model
             self.model = model_file
             cd = os.getcwd()
-            with tempfile.TemporaryDirectory() as tmpdirname:
+            import shutil
+
+            tmpdirname = tempfile.mkdtemp(prefix="bngsim_")
+            try:
                 os.chdir(tmpdirname)
                 self.model.actions.clear_actions()
                 self.model.write_model(f"{self.model.model_name}_cpy.bngl")
@@ -181,7 +202,12 @@ class CSimulator(BNGSimulator):
                     f"{self.model.model_name}_cpy.bngl",
                     generate_network=generate_network,
                 )
-            os.chdir(cd)
+            finally:
+                os.chdir(cd)
+                try:
+                    shutil.rmtree(tmpdirname)
+                except:
+                    pass
         else:
             msg = (
                 "CSimulator model input must be a BNGL path or bngmodel instance, "

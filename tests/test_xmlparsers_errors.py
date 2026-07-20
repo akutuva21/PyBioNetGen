@@ -126,3 +126,24 @@ def test_population_map_ratelaw_unknown_type_raises_parse_error():
     population_map = PopulationMapBlockXML(_make_population_map_xml())
     with pytest.raises(BNGParseError, match="Unrecognized rate law type"):
         population_map.resolve_ratelaw(OrderedDict([("@type", "mystery")]))
+
+
+def test_bond_quantity_invalid_returns_original():
+    from bionetgen.modelapi.xmlparsers import BondsXML
+
+    bonds_parser = BondsXML()
+
+    # Test TypeError/ValueError for num_bonds (e.g., "+/?")
+    comp = OrderedDict([("@numberOfBonds", "+/?"), ("@id", "O1_P1_M1_C2")])
+    assert bonds_parser.get_bond_id(comp) == "+/?"
+
+    comp2 = OrderedDict([("@numberOfBonds", "abc"), ("@id", "O1_P1_M1_C2")])
+    assert bonds_parser.get_bond_id(comp2) == "abc"
+
+
+def test_pattern_quantity_non_numeric_raises_parse_error():
+    pattern_xml = _simple_pattern_xml(
+        _simple_molecule_xml("A"), relation="==", quantity="abc"
+    )
+    with pytest.raises(BNGParseError, match="Pattern quantity must be an integer"):
+        PatternXML(pattern_xml)

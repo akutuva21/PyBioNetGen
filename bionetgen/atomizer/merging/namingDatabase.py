@@ -47,94 +47,95 @@ def getFiles(directory, extension):
 class NamingDatabase:
     def __init__(self, databaseName):
         self.databaseName = databaseName
+        self.connection = None
+        self.cursor = None
+
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        if self.connection:
+            self.connection.close()
+            self.connection = None
+            self.cursor = None
+
+    def _get_connection(self):
+        if self.connection is None:
+            self.connection = sqlite3.connect(self.databaseName)
+            self.cursor = self.connection.cursor()
+        return self.cursor
 
     def getAnnotationsFromSpecies(self, speciesName):
-        connection = sqlite3.connect(self.databaseName)
-        cursor = connection.cursor()
-        queryStatement = 'SELECT annotationURI,annotationName from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID join annotation as A on A.ROWID == I.annotationID and M.name == "{0}"'.format(
-            speciesName
-        )
-        queryResult = [x[0] for x in cursor.execute(queryStatement)]
-        connection.close()
+        cursor = self._get_connection()
+        queryStatement = "SELECT annotationURI,annotationName from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID join annotation as A on A.ROWID == I.annotationID and M.name == ?"
+        queryResult = [x[0] for x in cursor.execute(queryStatement, (speciesName,))]
         return queryResult
 
     def getFileNameFromSpecies(self, speciesName):
         """
         species name refers to a molecular species
         """
-        connection = sqlite3.connect(self.databaseName)
-        cursor = connection.cursor()
-        queryStatement = 'SELECT B.file,M.name from moleculeNames as M join biomodels as B on B.ROWID == M.fileID WHERE M.name == "{0}"'.format(
-            speciesName
-        )
-        queryResult = [x[0] for x in cursor.execute(queryStatement)]
-        connection.close()
+        cursor = self._get_connection()
+        queryStatement = "SELECT B.file,M.name from moleculeNames as M join biomodels as B on B.ROWID == M.fileID WHERE M.name == ?"
+        queryResult = [x[0] for x in cursor.execute(queryStatement, (speciesName,))]
         return queryResult
 
     def getFileNameFromOrganism(self, organismName):
         """
         pass
         """
-        connection = sqlite3.connect(self.databaseName)
-        cursor = connection.cursor()
-        queryStatement = 'SELECT B.file,A.annotationName from biomodels as B join annotation as A on B.organismID == A.ROWID WHERE A.annotationName == "{0}"'.format(
-            organismName
-        )
-        queryResult = [x[0] for x in cursor.execute(queryStatement)]
-        connection.close()
+        cursor = self._get_connection()
+        queryStatement = "SELECT B.file,A.annotationName from biomodels as B join annotation as A on B.organismID == A.ROWID WHERE A.annotationName == ?"
+        queryResult = [x[0] for x in cursor.execute(queryStatement, (organismName,))]
         return queryResult
 
     def getOrganismNames(self):
-        connection = sqlite3.connect(self.databaseName)
-        cursor = connection.cursor()
+        cursor = self._get_connection()
         queryStatement = "SELECT DISTINCT A.annotationName from biomodels as B join annotation as A on B.organismID == A.ROWID"
         queryResult = [x[0] for x in cursor.execute(queryStatement)]
-        connection.close()
         return queryResult
 
     def getSpeciesFromAnnotations(self, annotation):
-        connection = sqlite3.connect(self.databaseName)
-        cursor = connection.cursor()
-        queryStatement = 'SELECT name,A.annotationURI from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID join annotation as A on A.ROWID == I.annotationID and A.annotationURI == "{0}"'.format(
-            annotation
-        )
-        queryResult = [x[0] for x in cursor.execute(queryStatement)]
-        connection.close()
+        cursor = self._get_connection()
+        queryStatement = "SELECT name,A.annotationURI from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID join annotation as A on A.ROWID == I.annotationID and A.annotationURI == ?"
+        queryResult = [x[0] for x in cursor.execute(queryStatement, (annotation,))]
         return queryResult
 
     def getFilesInDatabase(self):
-        connection = sqlite3.connect(self.databaseName)
-        cursor = connection.cursor()
+        cursor = self._get_connection()
         queryStatement = "SELECT file from biomodels"
         queryResult = [x[0] for x in cursor.execute(queryStatement)]
-        connection.close()
         return queryResult
 
     def getSpeciesFromFileName(self, fileName):
-        connection = sqlite3.connect(self.databaseName)
-        cursor = connection.cursor()
-        queryStatement = 'SELECT B.file,name,A.annotationURI,A.annotationName,qualifier from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID \
-                            join annotation as A on A.ROWID == I.annotationID join biomodels as B on B.ROWID == M.fileID and B.file == "{0}"'.format(
-            fileName
-        )
+        cursor = self._get_connection()
+        queryStatement = "SELECT B.file,name,A.annotationURI,A.annotationName,qualifier from moleculeNames as M join identifier as I ON M.ROWID == I.speciesID \
+                            join annotation as A on A.ROWID == I.annotationID join biomodels as B on B.ROWID == M.fileID and B.file == ?"
 
         # I.qualifier != "BQB_HAS_PART" and \
         # I.qualifier != "BQB_HAS_VERSION" AND I.qualifier != "BQB_HAS_PROPERTY"'.format(fileName)
 
-        speciesList = [x[1:] for x in cursor.execute(queryStatement)]
+        speciesList = [x[1:] for x in cursor.execute(queryStatement, (fileName,))]
 
-        tmp = {x[0]: set([]) for x in speciesList}
-        tmp2 = {x[0]: set([]) for x in speciesList}
-        tmp3 = {x[0]: set([]) for x in speciesList}
-        tmp4 = {x[0]: set([]) for x in speciesList}
+        tmp = {}
+        tmp2 = {}
+        tmp3 = {}
+        tmp4 = {}
         for x in speciesList:
-            if x[3] in ["BQB_IS", "BQM_IS", "BQB_IS_VERSION_OF"]:
-                tmp[x[0]].add(x[1])
+            key = x[0]
+            if key not in tmp:
+                tmp[key] = set()
+                tmp2[key] = set()
+                tmp3[key] = set()
+                tmp4[key] = set()
+
+            if x[3] in ("BQB_IS", "BQM_IS", "BQB_IS_VERSION_OF"):
+                tmp[key].add(x[1])
                 if x[2] != "":
-                    tmp2[x[0]].add(x[2])
-                tmp3[x[0]].add(x[3])
+                    tmp2[key].add(x[2])
+                tmp3[key].add(x[3])
             else:
-                tmp4[x[0]].add((x[1], x[3]))
+                tmp4[key].add((x[1], x[3]))
 
         tmp = [
             {
@@ -149,6 +150,72 @@ class NamingDatabase:
         ]
         return tmp
 
+    def getSpeciesFromFileList(self, fileList):
+        if not fileList:
+            return []
+
+        cursor = self._get_connection()
+
+        all_results = []
+
+        chunk_size = 900
+        for i in range(0, len(fileList), chunk_size):
+            chunk = fileList[i : i + chunk_size]
+            placeholders = ",".join(["?"] * len(chunk))
+            queryStatement = "SELECT B.file, name, A.annotationURI, A.annotationName, qualifier FROM moleculeNames as M JOIN identifier as I ON M.ROWID == I.speciesID JOIN annotation as A on A.ROWID == I.annotationID JOIN biomodels as B on B.ROWID == M.fileID WHERE B.file IN ({0})".format(
+                placeholders
+            )
+
+            results = [x for x in cursor.execute(queryStatement, chunk)]
+            all_results.extend(results)
+
+        from collections import defaultdict
+
+        file_groups = defaultdict(list)
+        for row in all_results:
+            file_groups[row[0]].append(row[1:])
+
+        final_result = []
+        for fileName in fileList:
+            if fileName not in file_groups:
+                continue
+            speciesList = file_groups[fileName]
+
+            tmp = {}
+            tmp2 = {}
+            tmp3 = {}
+            tmp4 = {}
+            for x in speciesList:
+                key = x[0]
+                if key not in tmp:
+                    tmp[key] = set()
+                    tmp2[key] = set()
+                    tmp3[key] = set()
+                    tmp4[key] = set()
+
+                if x[3] in ("BQB_IS", "BQM_IS", "BQB_IS_VERSION_OF"):
+                    tmp[key].add(x[1])
+                    if x[2] != "":
+                        tmp2[key].add(x[2])
+                    tmp3[key].add(x[3])
+                else:
+                    tmp4[key].add((x[1], x[3]))
+
+            file_tmp = [
+                {
+                    "name": set([x]),
+                    "annotation": set(tmp[x]),
+                    "annotationName": set(tmp2[x]),
+                    "fileName": set([fileName]),
+                    "qualifier": tmp3[x],
+                    "otherAnnotation": [tmp4[x]] if tmp4[x] else [],
+                }
+                for x in tmp
+            ]
+            final_result.extend(file_tmp)
+
+        return final_result
+
     def findOverlappingNamespace(self, fileList):
         fileSpecies = []
         if len(fileList) == 0:
@@ -156,8 +223,8 @@ class NamingDatabase:
 
         progress = progressbar.ProgressBar(maxval=len(fileList)).start()
 
-        for idx in progress(range(len(fileList))):
-            fileSpecies.extend(self.getSpeciesFromFileName(fileList[idx]))
+        fileSpecies.extend(self.getSpeciesFromFileList(fileList))
+        progress.update(len(fileList))
 
         changeFlag = True
         fileSpeciesCopy = copy(fileSpecies)
@@ -218,8 +285,8 @@ class NamingDatabase:
 def isFileInDatabase(databaseName, fileName):
     connection = sqlite3.connect(databaseName)
     cursor = connection.cursor()
-    queryStatement = 'select file from biomodels WHERE file == "{0}"'.format(fileName)
-    matchingFileNames = [x[0] for x in cursor.execute(queryStatement)]
+    queryStatement = "select file from biomodels WHERE file == ?"
+    matchingFileNames = [x[0] for x in cursor.execute(queryStatement, (fileName,))]
     connection.close()
     return len(matchingFileNames) > 0
 
@@ -296,14 +363,11 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
     )
 
     connection.commit()
-    annotationID = [
-        x
-        for x in cursor.execute(
-            'select ROWID from annotation WHERE annotationURI == "{0}"'.format(
-                annotationNames[-1][0]
-            )
-        )
-    ][0][0]
+    cursor.execute(
+        "select ROWID from annotation WHERE annotationURI == ?",
+        (annotationNames[-1][0],),
+    )
+    annotationID = cursor.fetchone()[0]
     annotationNames = []
     cursor.executemany(
         "INSERT into biomodels(file,organismID) values (?,?)",
@@ -311,12 +375,8 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
     )
     connection.commit()
 
-    modelID = [
-        x
-        for x in cursor.execute(
-            'select ROWID from biomodels WHERE file == "{0}"'.format(fileName2)
-        )
-    ][0][0]
+    cursor.execute("select ROWID from biomodels WHERE file == ?", (fileName2,))
+    modelID = cursor.fetchone()[0]
 
     # insert moleculeNames
     for molecule in basicModelAnnotations:
@@ -340,6 +400,21 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
         "INSERT into annotation(annotationURI,annotationName) values (?, ?)",
         annotationNames,
     )
+    if annotationNames:
+        # Instead of parameterizing a single massive IN clause that could exceed
+        # SQLite variable limits, we query for the new rows sequentially.
+        # This is still significantly faster than fetching the entire table
+        # for a second time, especially as the database grows.
+        chunk_size = 900
+        uris_to_fetch = [row[0] for row in annotationNames]
+        for i in range(0, len(uris_to_fetch), chunk_size):
+            chunk = uris_to_fetch[i : i + chunk_size]
+            placeholders = ",".join(["?"] * len(chunk))
+            query = "SELECT annotationURI, ROWID FROM annotation WHERE annotationURI IN ({0})".format(
+                placeholders
+            )
+            for uri, rowid in cursor.execute(query, chunk):
+                annotationIDs[uri] = rowid
     connection.commit()
     cursor.executemany(
         "INSERT into moleculeNames(fileId,name) values (?, ?)", moleculeNames
@@ -349,13 +424,9 @@ def populateDatabaseFromFile(fileName, databaseName, userDefinitions=None):
     moleculeIDs = {
         x[1]: x[0]
         for x in cursor.execute(
-            "select ROWID,name from moleculeNames WHERE moleculeNames.fileId == '{0}'".format(
-                modelID
-            )
+            "select ROWID,name from moleculeNames WHERE moleculeNames.fileId == ?",
+            (modelID,),
         )
-    }
-    annotationIDs = {
-        x[1]: x[0] for x in cursor.execute("select ROWID,annotationURI from annotation")
     }
 
     for molecule in basicModelAnnotations:

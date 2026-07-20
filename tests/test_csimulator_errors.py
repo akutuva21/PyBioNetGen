@@ -3,6 +3,9 @@ from unittest import mock
 
 import pytest
 
+from bionetgen.core.exc import BNGSimError
+from bionetgen.simulator import csimulator as csim_module
+
 
 def test_csimulator_init_logs_missing_cvode_paths():
     from bionetgen.simulator import csimulator as csim_module
@@ -50,6 +53,42 @@ def test_csimulator_init_logs_missing_cvode_paths():
     )
 
 
+def test_csimulator_init_rmtree_exception(tmp_path):
+    import shutil
+
+    import bionetgen
+    from bionetgen.simulator import csimulator as csim_module
+
+    model_path = tmp_path / "test.bngl"
+    model_path.write_text("begin model\nend model\n")
+
+    try:
+        fake_model = bionetgen.bngmodel(str(model_path))
+    except bionetgen.core.exc.BNGModelError:
+        import pytest
+
+        pytest.skip("BNG2.pl is missing, skipping CSimulator test")
+
+    fake_compiler = mock.MagicMock()
+    mock_conf_get = mock.MagicMock(side_effect=lambda key: None)
+
+    def fake_compile(self):
+        self.lib_file = "/tmp/fake/libcsim.so"
+
+    with mock.patch.object(csim_module.conf, "get", mock_conf_get), mock.patch.object(
+        csim_module, "_new_ccompiler", return_value=fake_compiler
+    ), mock.patch.object(
+        csim_module.CSimulator, "compile_shared_lib", fake_compile
+    ), mock.patch.object(
+        csim_module, "CSimWrapper"
+    ), mock.patch(
+        "shutil.rmtree", side_effect=OSError("Permission denied")
+    ) as mock_rmtree:
+        csim_module.CSimulator(fake_model)
+
+        assert mock_rmtree.called
+
+
 def test_csimulator_init_invalid_model_type_raises_bng_format_error():
     from bionetgen.core.exc import BNGFormatError
     from bionetgen.simulator import csimulator as csim_module
@@ -83,7 +122,10 @@ def test_csimulator_init_invalid_model_type_raises_bng_format_error():
     ]
 
 
-def test_csimulator_simulator_setter_raises_bng_compile_error():
+@pytest.mark.parametrize(
+    "exc_type", [AttributeError, KeyError, OSError, TypeError, ValueError]
+)
+def test_csimulator_simulator_setter_raises_bng_compile_error(exc_type):
     from bionetgen.core.exc import BNGCompileError
     from bionetgen.simulator import csimulator as csim_module
 
@@ -93,14 +135,17 @@ def test_csimulator_simulator_setter_raises_bng_compile_error():
     sim.model.species = {"A": mock.MagicMock(count="1")}
 
     with mock.patch.object(
-        csim_module, "CSimWrapper", side_effect=OSError("boom")
+        csim_module, "CSimWrapper", side_effect=exc_type("boom")
     ), mock.patch.object(csim_module, "logger") as mock_logger:
-        with pytest.raises(BNGCompileError):
+        with pytest.raises(BNGCompileError) as exc_info:
             sim.simulator = "/fake/lib.so"
+
+        assert isinstance(exc_info.value.__cause__, exc_type)
 
     mock_logger.error.assert_called_once()
     error_args, error_kwargs = mock_logger.error.call_args
-    assert "Failed to initialize C simulator wrapper: boom" in error_args[0]
+    assert "Failed to initialize C simulator wrapper:" in error_args[0]
+    assert "boom" in error_args[0]
     assert "CSimulator.simulator.setter()" in error_kwargs["loc"]
 
 
@@ -130,24 +175,183 @@ def test_csimulator_simulate_resolves_species_parameter_counts():
     assert result == ("t", "obs", "spcs")
 
 
-def test_csimulator_simulate_invalid_species_reference_raises_bng_sim_error():
+@pytest.mark.parametrize(
+    "param_dict,expected_exception_cause",
+    [
+        # KeyError: count_value not in self.model.parameters
+        ({}, KeyError),
+        # AttributeError: count_value is in self.model.parameters but has no value
+        ({"missing_param": mock.MagicMock(spec=[])}, AttributeError),
+        # TypeError: count_value is in self.model.parameters but its value cannot be converted to float due to TypeError (e.g. None)
+        ({"missing_param": mock.MagicMock(value=None)}, TypeError),
+        # ValueError: count_value is in self.model.parameters but its value cannot be converted to float due to ValueError (e.g. string)
+        ({"missing_param": mock.MagicMock(value="not_a_float")}, ValueError),
+    ],
+)
+def test_csimulator_simulate_invalid_species_reference_raises_bng_sim_error(
+    param_dict, expected_exception_cause
+):
     from bionetgen.core.exc import BNGSimError
     from bionetgen.simulator import csimulator as csim_module
 
     sim = csim_module.CSimulator.__new__(csim_module.CSimulator)
     sim.model = mock.MagicMock()
     sim.model.species = {"A": mock.MagicMock(count="missing_param")}
-    sim.model.parameters = {}
+    sim.model.parameters = param_dict
     sim._simulator = mock.MagicMock()
 
     with mock.patch.object(csim_module, "logger") as mock_logger:
         with pytest.raises(
             BNGSimError, match="Could not resolve initial species value for 'A'"
-        ):
+        ) as exc_info:
             sim.simulate()
+
+        assert isinstance(exc_info.value.__cause__, expected_exception_cause)
 
     mock_logger.error.assert_called_once()
     error_args, error_kwargs = mock_logger.error.call_args
     assert "missing_param" in error_args[0]
     assert "CSimulator.simulate()" in error_kwargs["loc"]
     sim._simulator.set_species_init.assert_not_called()
+
+
+def test_csimulator_get_numeric_parameter_values_attribute_error():
+    from bionetgen.simulator import csimulator as csim_module
+
+    sim = csim_module.CSimulator.__new__(csim_module.CSimulator)
+    sim.model = mock.MagicMock()
+
+    val_mock = mock.MagicMock()
+    del val_mock.expr
+
+    sim.model.parameters = {"param1": val_mock}
+
+    valid_params = sim._get_numeric_parameter_values()
+    assert valid_params == []
+
+
+def test_csimulator_get_numeric_parameter_values_type_error():
+    from bionetgen.simulator import csimulator as csim_module
+
+    sim = csim_module.CSimulator.__new__(csim_module.CSimulator)
+    sim.model = mock.MagicMock()
+
+    val_mock = mock.MagicMock()
+    val_mock.expr = None
+
+    sim.model.parameters = {"param1": val_mock}
+
+    valid_params = sim._get_numeric_parameter_values()
+    assert valid_params == []
+
+
+def test_csimulator_get_numeric_parameter_values_value_error():
+    from bionetgen.simulator import csimulator as csim_module
+
+    sim = csim_module.CSimulator.__new__(csim_module.CSimulator)
+    sim.model = mock.MagicMock()
+
+    val_mock = mock.MagicMock()
+    val_mock.expr = "not_a_float"
+
+    sim.model.parameters = {"param1": val_mock}
+
+    valid_params = sim._get_numeric_parameter_values()
+    assert valid_params == []
+
+
+def test_csimulator_resolve_species_count_type_error():
+    sim = csim_module.CSimulator.__new__(csim_module.CSimulator)
+    sim.model = mock.MagicMock()
+
+    # raise TypeError on first float(count_value) -> count_value=None
+    sim.model.species = {"A": mock.MagicMock(count=None)}
+
+    # second float(self.model.parameters[count_value].value) should succeed
+    sim.model.parameters = {None: mock.MagicMock(value="5.5")}
+
+    val = sim._resolve_species_count("A")
+    assert val == 5.5
+
+
+def test_csimulator_resolve_species_count_value_error():
+    sim = csim_module.CSimulator.__new__(csim_module.CSimulator)
+    sim.model = mock.MagicMock()
+
+    # raise ValueError on first float(count_value) -> count_value="k1"
+    sim.model.species = {"A": mock.MagicMock(count="k1")}
+
+    # second float(self.model.parameters[count_value].value) should succeed
+    sim.model.parameters = {"k1": mock.MagicMock(value="10.5")}
+
+    val = sim._resolve_species_count("A")
+    assert val == 10.5
+
+
+def test_csimulator_resolve_species_count_inner_attribute_error():
+    sim = csim_module.CSimulator.__new__(csim_module.CSimulator)
+    sim.model = mock.MagicMock()
+
+    sim.model.species = {"A": mock.MagicMock(count="k1")}
+
+    # inner try block: float(self.model.parameters[count_value].value)
+    # let's trigger AttributeError
+    param_mock = mock.MagicMock()
+    del param_mock.value
+    sim.model.parameters = {"k1": param_mock}
+
+    with pytest.raises(
+        BNGSimError, match="Could not resolve initial species value for 'A'"
+    ):
+        sim._resolve_species_count("A")
+
+
+def test_csimulator_resolve_species_count_inner_key_error():
+    sim = csim_module.CSimulator.__new__(csim_module.CSimulator)
+    sim.model = mock.MagicMock()
+
+    sim.model.species = {"A": mock.MagicMock(count="k1")}
+
+    # let's trigger KeyError on self.model.parameters[count_value]
+    # MagicMock doesn't raise KeyError automatically for non-existent dict keys, so we must set a side_effect
+    sim.model.parameters = mock.MagicMock()
+    sim.model.parameters.__getitem__.side_effect = KeyError("k1")
+
+    with pytest.raises(
+        BNGSimError, match="Could not resolve initial species value for 'A'"
+    ):
+        sim._resolve_species_count("A")
+
+
+def test_csimulator_resolve_species_count_inner_type_error():
+    sim = csim_module.CSimulator.__new__(csim_module.CSimulator)
+    sim.model = mock.MagicMock()
+
+    sim.model.species = {"A": mock.MagicMock(count="k1")}
+
+    # inner try block: float(self.model.parameters[count_value].value)
+    # let's trigger TypeError
+    param_mock = mock.MagicMock(value=None)
+    sim.model.parameters = {"k1": param_mock}
+
+    with pytest.raises(
+        BNGSimError, match="Could not resolve initial species value for 'A'"
+    ):
+        sim._resolve_species_count("A")
+
+
+def test_csimulator_resolve_species_count_inner_value_error():
+    sim = csim_module.CSimulator.__new__(csim_module.CSimulator)
+    sim.model = mock.MagicMock()
+
+    sim.model.species = {"A": mock.MagicMock(count="k1")}
+
+    # inner try block: float(self.model.parameters[count_value].value)
+    # let's trigger ValueError
+    param_mock = mock.MagicMock(value="not_a_float")
+    sim.model.parameters = {"k1": param_mock}
+
+    with pytest.raises(
+        BNGSimError, match="Could not resolve initial species value for 'A'"
+    ):
+        sim._resolve_species_count("A")

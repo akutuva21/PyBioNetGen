@@ -62,6 +62,7 @@ class Species:
         for element in self.molecules:
             if element.name == moleculeName:
                 deadMolecule = element
+                break
         if deadMolecule == None:
             return
         bondNumbers = deadMolecule.getBondNumbers()
@@ -139,9 +140,11 @@ class Species:
                                 element.addStates(component.states, update)
 
         else:
+            self_molecule_names = {x.name for x in self.molecules}
             for element in species.molecules:
-                if element.name not in [x.name for x in self.molecules]:
+                if element.name not in self_molecule_names:
                     self.addMolecule(deepcopy(element), update)
+                    self_molecule_names.add(element.name)
                 else:
                     bond1 = sum([x.bonds for x in element.components], [])
                     bondList = []
@@ -156,9 +159,11 @@ class Species:
                     #    key=lambda y:difflib.SequenceMatcher(None,y[1],bond1),reverse=True)
                     # molecule = sortedArray[0][0]
 
+                    molecule_component_names = {x.name for x in molecule.components}
                     for component in element.components:
-                        if component.name not in [x.name for x in molecule.components]:
+                        if component.name not in molecule_component_names:
                             molecule.addComponent(deepcopy(component), update)
+                            molecule_component_names.add(component.name)
                         else:
                             comp = molecule.getComponent(component.name)
                             for state in component.states:
@@ -167,7 +172,8 @@ class Species:
     def updateBonds(self, bondNumbers):
         newBondNumbers = deepcopy(bondNumbers)
         correspondence = {}
-        intersection = [int(x) for x in newBondNumbers if x in self.getBondNumbers()]
+        self_bond_numbers = set(self.getBondNumbers())
+        intersection = [int(x) for x in newBondNumbers if x in self_bond_numbers]
         newBase = max(bondNumbers) + 1
         for element in self.molecules:
             for component in element.components:
@@ -218,7 +224,7 @@ class Species:
                     + [999]
                 ),
                 -len([x for x in molecule.components if len(x.bonds) > 0]),
-                -len([x for x in molecule.components if x.activeState not in [0, "0"]]),
+                -len([x for x in molecule.components if x.activeState not in (0, "0")]),
                 len(str(molecule)),
                 str(molecule),
             ),
@@ -415,9 +421,11 @@ class Molecule:
             element.reset()
 
     def update(self, molecule):
+        self_component_names = {x.name for x in self.components}
         for comp in molecule.components:
-            if comp.name not in [x.name for x in self.components]:
+            if comp.name not in self_component_names:
                 self.components.append(deepcopy(comp))
+                self_component_names.add(comp.name)
 
 
 class Component:

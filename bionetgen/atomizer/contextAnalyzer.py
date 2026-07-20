@@ -67,49 +67,56 @@ def getMetaElement(matchedArray):
         element[0][1].compare(element[1][1])
 
 
+def groupEquivalentItems(participantList, differences):
+    molList = {}
+    for participant in participantList:
+        for key in differences:
+            for molecule in participant.molecules:
+                if molecule.name + "(" in key:
+                    for component in molecule.components:
+                        if "(" + component.name + ")" in key:
+                            # print molecule.name, component.name, key
+                            if key not in molList:
+                                molList[key] = []
+                            molList[key].append([participant, molecule, component])
+    return molList
+
+
 def createMetaRule(ruleSet, differences):
     """
     Creates a metaRule from an array 'ruleSet' of rules. The differences parameter contains a dictionary
     elaborating on how the rules are different
     """
-    moleculeDict = []
-    for ruleDescription in ruleSet:
-        # todo:i have to find the way to group together equivalent
-        # molecules from different rules and find the metarule
-        molList = {}
-        for reactant in ruleDescription[0].reactants:
-            for key in differences:
-                for molecule in reactant.molecules:
-                    if molecule.name + "(" in key:
-                        for component in molecule.components:
-                            if "(" + component.name + ")" in key:
-                                # print molecule.name, component.name, key
-                                if key not in molList:
-                                    molList[key] = []
-                                molList[key].append([reactant, molecule, component])
-        moleculeDict.append(molList)
-        for reactant in ruleDescription[0].products:
-            for key in differences:
-                for molecule in reactant.molecules:
-                    if molecule.name + "(" in key:
-                        for component in molecule.components:
-                            if "(" + component.name + ")" in key:
-                                # print molecule.name, component.name, key
-                                if key not in molList:
-                                    molList[key] = []
-                                molList[key].append([reactant, molecule, component])
-        moleculeDict.append(molList)
+    reactantsDict = []
+    productsDict = []
 
-    metaRule = moleculeDict[0]
+    for ruleDescription in ruleSet:
+        molListR = groupEquivalentItems(ruleDescription[0].reactants, differences)
+        reactantsDict.append(molListR)
+
+        molListP = groupEquivalentItems(ruleDescription[0].products, differences)
+        productsDict.append(molListP)
+
+    metaRuleR = reactantsDict[0]
     matchedArray = {}
-    for idx in range(1, len(moleculeDict)):
-        for element in metaRule:
-            if element in moleculeDict[idx]:
+    for idx in range(1, len(reactantsDict)):
+        for element in metaRuleR:
+            if element in reactantsDict[idx]:
                 matchedArray = matchElements(
-                    metaRule[element], moleculeDict[idx][element]
+                    metaRuleR[element], reactantsDict[idx][element]
                 )
                 getMetaElement(matchedArray)
             # print metaRule[element], moleculeDict[idx][element]
+
+    metaRuleP = productsDict[0]
+    matchedArray = {}
+    for idx in range(1, len(productsDict)):
+        for element in metaRuleP:
+            if element in productsDict[idx]:
+                matchedArray = matchElements(
+                    metaRuleP[element], productsDict[idx][element]
+                )
+                getMetaElement(matchedArray)
 
 
 def groupByReactionCenter(transformationCenter):
@@ -228,18 +235,6 @@ def obtainDifferences(redundantDict, transformationContext):
     return redundantListDict
 
 
-# XXX: How was this supposed to work. pgv is never imported.
-#
-# def reactionCenterGraph(species, reactionCenter):
-#     total = sum(x[1] for x in reactionCenter)
-#     graph = pgv.AGraph(directed=False,concentrate=True)
-#     print reactionCenter,
-#     for element in species:
-#         graph.add_node(element.name, shape='diamond', style='filled')
-#         for component in element.components:
-#             pass
-
-
 def extractStatistics():
     number = 151
     console.bngl2xml("complex/output{0}.bngl".format(number))
@@ -281,7 +276,6 @@ def extractStatistics():
         len({x: centerDict[x] for x in centerDict if len(centerDict[x]) == 1}),
     )
     tmp = [[tuple(set(x)), len(centerDict[x])] for x in centerDict]
-    # reactionCenterGraph(species, tmp)
     # tmp.sort(key=lambda x:x[1], reverse=True)
     print("number of reaction centers", len(centerDict.keys()))
     print("number of rules", len(rules))
@@ -349,8 +343,8 @@ def extractRedundantContext(rules, transformationCenter, transformationContext):
     redundantDict = groupByReactionCenterAndRateAndActions2(rules, centerDict)
     # redundantDict['{0}.{1}'.format(element, element2)] = tmpDict[element2]
     redundantListDict = obtainDifferences(redundantDict, transformationContext)
-    # todo: remove redundancies from rules
-    # group together equivalent patterns
+
+    # remove redundancies from rules
     patternDictList = {}
     for center in redundantListDict:
         for rate in redundantListDict[center]:
@@ -405,10 +399,10 @@ def main():
     for center in redundantDict:
         for context in redundantDict[center]:
             for element in range(1, len(redundantDict[center][context])):
-                newRules.remove(redundantDict[center][context][element])
-
-    # for element in newRules:
-    #    print str(rules[element][0])
+                try:
+                    newRules.remove(redundantDict[center][context][element])
+                except ValueError:
+                    pass
 
     newRulesArray = []
     for element in newRules:

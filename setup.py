@@ -14,6 +14,24 @@ def get_folder(arch):
     return fname
 
 
+def is_within_directory(directory, target):
+    abs_directory = os.path.abspath(directory)
+    abs_target = os.path.abspath(target)
+    prefix = os.path.commonpath([abs_directory, abs_target])
+    return prefix == abs_directory
+
+
+def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+    for member in tar.getmembers():
+        member_path = os.path.join(path, member.name)
+        if not is_within_directory(path, member_path):
+            raise Exception("Attempted Path Traversal in Tar File")
+    if sys.version_info >= (3, 12):
+        tar.extractall(path, members, numeric_owner=numeric_owner, filter="data")
+    else:
+        tar.extractall(path, members, numeric_owner=numeric_owner)
+
+
 subprocess.check_call([sys.executable, "-m", "pip", "install", "numpy"])
 import urllib.request
 import itertools as itt
@@ -43,8 +61,10 @@ for asset in assets:
         linux_url = browser_url
     elif "mac" in browser_url:
         mac_url = browser_url
-    elif ("win" in browser_url and "tgz" in browser_url) or (
-        "win" in browser_url and "tar.gz" in browser_url
+    elif (
+        ("win" in browser_url and "tgz" in browser_url)
+        or ("win" in browser_url and "tar.gz" in browser_url)
+        or ("win" in browser_url and "zip" in browser_url)
     ):
         windows_url = browser_url
 
@@ -94,7 +114,7 @@ for iurl, bng_url in enumerate([linux_url, mac_url, windows_url]):
         # On macs may need to skip first item because
         # filesystem makes shadow files with `._` prepended.
         fold_name = get_folder(bng_arch)
-        bng_arch.extractall()
+        safe_extract(bng_arch)
         # make sure bionetgen/bng exists
         if iurl == 0:
             bng_path_to_move = "bionetgen/bng-linux"
@@ -123,14 +143,14 @@ for iurl, bng_url in enumerate([linux_url, mac_url, windows_url]):
         os.remove(fname)
         shutil.rmtree(fold_name)
     if iurl == 2:
-        # elif "zip" == etx:
-        # TODO: handle zip/windows case
-        # bng_arch = zipfile.Zipfile(fname)
-        # fold_name = bng_arch.namelist()[0]
-        # bng_arch.extractall()
-        bng_arch = tarfile.open(fname)
-        fold_name = get_folder(bng_arch)
-        bng_arch.extractall()
+        if fname.endswith(".zip"):
+            bng_arch = zipfile.ZipFile(fname)
+            fold_name = bng_arch.namelist()[0].split("/")[0]
+            bng_arch.extractall()
+        else:
+            bng_arch = tarfile.open(fname)
+            fold_name = get_folder(bng_arch)
+            safe_extract(bng_arch)
         # bng folder
         if iurl == 2:
             bng_path_to_move = "bionetgen/bng-win"
@@ -157,12 +177,22 @@ for iurl, bng_url in enumerate([linux_url, mac_url, windows_url]):
         os.remove(fname)
         shutil.rmtree(fold_name)
 
-# if bng_downloaded:
-#     # TODO: only add if not there
-#     with open("MANIFEST.in", "a") as f:
-#         f.write("recursive-include bionetgen/bng-linux *\n")
-#         f.write("recursive-include bionetgen/bng-mac *\n")
-#         f.write("recursive-include bionetgen/bng-win *\n")
+if bng_downloaded:
+    # only add if not there
+    manifest_path = "MANIFEST.in"
+    manifest_lines = []
+    if os.path.isfile(manifest_path):
+        with open(manifest_path, "r") as f:
+            manifest_lines = f.readlines()
+
+    with open(manifest_path, "a") as f:
+        for line in [
+            "recursive-include bionetgen/bng-linux *\n",
+            "recursive-include bionetgen/bng-mac *\n",
+            "recursive-include bionetgen/bng-win *\n",
+        ]:
+            if line not in manifest_lines:
+                f.write(line)
 #### BNG DOWNLOAD DONE ####
 
 with open("README.md", "r") as f:
@@ -202,6 +232,7 @@ setup(
         "pylru",
         "pyparsing",
         "packaging",
+        "defusedxml",
     ],
     # bngsim is an OPTIONAL in-process simulation engine. It is never a hard
     # dependency: absent it, the bridge transparently falls back to the

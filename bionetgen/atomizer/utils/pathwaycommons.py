@@ -4,6 +4,7 @@ import functools
 import marshal
 from .util import logMess
 import json
+import os
 
 
 def memoize(obj):
@@ -41,20 +42,29 @@ def name2uniprot(nameStr):
 
 @memoize
 def queryBioGridByName(name1, name2, organism, truename1, truename2):
+    api_key = os.environ.get("BIOGRID_API_KEY")
+    if not api_key:
+        logMess(
+            "WARNING:ATO006",
+            "BIOGRID_API_KEY environment variable not set. Skipping BioGrid query.",
+        )
+        return False
+
     url = "http://webservice.thebiogrid.org/interactions/?"
     response = None
-    if organism:
-        organismExtract = list(organism)[0].split("/")[-1]
+    valid_organisms = (
+        [x.split("/")[-1] for x in organism if x.split("/")[-1].isdigit()]
+        if organism
+        else []
+    )
+    if valid_organisms:
         d = {
             "geneList": "|".join([name1, name2]),
-            "taxId": "|".join(organism),
+            "taxId": "|".join(valid_organisms),
             "format": "json",
-            "accesskey": "f74b8d6f4c394fcc9d97b11c8c83d7f3",
+            "accesskey": api_key,
             "includeInteractors": "false",
         }
-        # FIXME: check if all "organism"s are the wrong thing,
-        # for model 48 this returns a process identifier https://www.ebi.ac.uk/QuickGO/term/GO:0007173
-        # and not an organism taxonomy identifier
         data = urllib.parse.urlencode(d).encode("utf-8")
         try:
             response = urllib.request.urlopen(url, data=data).read()
@@ -62,7 +72,7 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
             logMess(
                 "ERROR:MSC02",
                 "A connection could not be established to biogrid while testing with taxon {1} and genes {0}, trying without organism taxonomy limitation".format(
-                    "|".join([name1, name2]), "|".join(organism)
+                    "|".join([name1, name2]), "|".join(valid_organisms)
                 ),
             )
             # return False
@@ -71,7 +81,7 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
         d = {
             "geneList": "|".join([name1, name2]),
             "format": "json",
-            "accesskey": "f74b8d6f4c394fcc9d97b11c8c83d7f3",
+            "accesskey": api_key,
             "includeInteractors": "false",
         }
         data = urllib.parse.urlencode(d).encode("utf-8")
@@ -90,15 +100,17 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
         synonymName1 = [x.lower() for x in synonymName1]
         synonymName2 = results[result]["SYNONYMS_B"].split("|")
         synonymName2 = [x.lower() for x in synonymName2]
-        # FIXME: This should correctly warn the user where the interaction is coming
-        # from exactly
-        # FIXME: Let the user select individual interactions to include. Maybe an
-        # interactive mode
+
+        interaction_id = results[result].get("BIOGRID_INTERACTION_ID", "Unknown")
+        pubmed_id = results[result].get("PUBMED_ID", "Unknown")
+        source_info = f" (Interaction ID: {interaction_id}, PubMed ID: {pubmed_id})"
+
         if truename1 != None and truename2 != None and resultName1 != resultName2:
             logMess(
                 "WARNING:ATO005",
                 "BioGrid result only matched a synonym. "
-                + f"{resultName1} to {resultName2}",
+                + f"{resultName1} to {resultName2}"
+                + source_info,
             )
             return True
         elif (
@@ -111,7 +123,8 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
                 "WARNING:ATO005",
                 "BioGrid result only matched a synonym. "
                 + f"{truename1} to {truename2} or "
-                + f"{resultName1} to {resultName2}",
+                + f"{resultName1} to {resultName2}"
+                + source_info,
             )
             return True
         if (referenceName1 == resultName1 or referenceName1 in synonymName1) and (
@@ -123,7 +136,8 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
                 + f"{referenceName1} to {resultName1} or "
                 + f"{referenceName1} to {synonymName1} or "
                 + f"{referenceName2} to {resultName2} or "
-                + f"{referenceName2} to {synonymName2}",
+                + f"{referenceName2} to {synonymName2}"
+                + source_info,
             )
             return True
         if (referenceName2 == resultName1 or referenceName2 in synonymName1) and (
@@ -135,11 +149,29 @@ def queryBioGridByName(name1, name2, organism, truename1, truename2):
                 + f"{referenceName2} to {resultName1} or "
                 + f"{referenceName2} to {synonymName1} or "
                 + f"{referenceName1} to {resultName2} or "
-                + f"{referenceName1} to {synonymName2}",
+                + f"{referenceName1} to {synonymName2}"
+                + source_info,
             )
             return True
 
     return False
+
+
+def queryActiveSites(nameStrs, organism):
+    import concurrent.futures
+
+    results = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_name = {
+            executor.submit(queryActiveSite, name, organism): name for name in nameStrs
+        }
+        for future in concurrent.futures.as_completed(future_to_name):
+            name = future_to_name[future]
+            try:
+                results[name] = future.result()
+            except Exception:
+                results[name] = None
+    return results
 
 
 @memoize
@@ -150,8 +182,13 @@ def queryActiveSite(nameStr, organism):
     retry = 0
     while retry < 3:
         retry += 1
-        if organism:
-            organismExtract = list(organism)[0].split("/")[-1]
+        valid_organisms = (
+            [x.split("/")[-1] for x in organism if x.split("/")[-1].isdigit()]
+            if organism
+            else []
+        )
+        if valid_organisms:
+            organismExtract = valid_organisms[0]
             # ASS - Updating the query to conform with a regular RESTful API request and work in Python3
             xparams = {
                 "query": "{}+AND+organism:{}".format(nameStr, organismExtract),
@@ -162,7 +199,6 @@ def queryActiveSite(nameStr, organism):
             }
             xparams = urllib.parse.urlencode(xparams).encode("utf-8")
             try:
-                xparams = urllib.parse.urlencode(xparams).encode("utf-8")
                 req = urllib.request.Request(url)
                 with urllib.request.urlopen(req, data=xparams) as f:
                     response = f.read().decode("utf-8")
@@ -171,7 +207,7 @@ def queryActiveSite(nameStr, organism):
                     "ERROR:MSC03", "A connection could not be established to uniprot"
                 )
         response = str(response)
-        if response in ["", None]:
+        if response in ("", None):
             url = "http://www.uniprot.org/uniprot/?"
             # ASS - Updating the query to conform with a regular RESTful API request and work in Python3
             xparams = {
@@ -209,8 +245,13 @@ def name2uniprot(nameStr, organism):
     url = "http://www.uniprot.org/uniprot/?"
 
     response = None
-    if organism:
-        organismExtract = list(organism)[0].split("/")[-1]
+    valid_organisms = (
+        [x.split("/")[-1] for x in organism if x.split("/")[-1].isdigit()]
+        if organism
+        else []
+    )
+    if valid_organisms:
+        organismExtract = valid_organisms[0]
         d = {
             "query": f"{nameStr}+AND+organism:{organismExtract}",
             "format": "tab&limit=5",
@@ -224,7 +265,7 @@ def name2uniprot(nameStr, organism):
             logMess("ERROR:MSC03", "A connection could not be established to uniprot")
             return None
 
-    if response in ["", None]:
+    if response in ("", None):
         url = "http://www.uniprot.org/uniprot/?"
         d = {
             "query": f"{nameStr}",

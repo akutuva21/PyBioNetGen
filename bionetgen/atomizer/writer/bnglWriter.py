@@ -41,41 +41,36 @@ def bnglReaction(
     comment="",
     reactionName=None,
 ):
-    finalString = ""
-    # if translator != []:
-    #    translator = balanceTranslator(reactant,product,translator)
     if len(reactant) == 0 or (len(reactant) == 1 and reactant[0][1] == 0):
-        finalString += "0 "
-    for index in range(0, len(reactant)):
-        tag = ""
-        if reactant[index][2] in tags and isCompartments:
-            tag = tags[reactant[index][2]]
-        translated = printTranslate(reactant[index], tag, translator)
-        finalString += translated
-        if index < len(reactant) - 1:
-            finalString += " + "
-
-    if reversible:
-        finalString += " <-> "
+        reactant_str = "0 "
     else:
-        finalString += " -> "
+        reactant_strs = []
+        for r in reactant:
+            tag = ""
+            if r[2] in tags and isCompartments:
+                tag = tags[r[2]]
+            reactant_strs.append(printTranslate(r, tag, translator))
+        reactant_str = " + ".join(reactant_strs)
+
+    arrow = " <-> " if reversible else " -> "
+
     if len(product) == 0:
-        finalString += "0 "
-
-    for index in range(0, len(product)):
-        tag = ""
+        product_str = "0 "
+    else:
+        product_strs = []
         if isCompartments:
-            if len(product[index]) > 2 and product[index][2] in tags:
-                tag = tags[product[index][2]]
-        translated = printTranslate(product[index], tag, translator)
+            for p in product:
+                tag = tags[p[2]] if len(p) > 2 and p[2] in tags else ""
+                product_strs.append(printTranslate(p, tag, translator))
+        else:
+            for p in product:
+                product_strs.append(printTranslate(p, "", translator))
+        product_str = " + ".join(product_strs)
 
-        finalString += translated
-        if index < len(product) - 1:
-            finalString += " + "
-    finalString += " " + rate + " " + comment
+    finalString = f"{reactant_str}{arrow}{product_str} {rate} {comment}"
     finalString = re.sub(r"(\W|^)0\(\)", "0", finalString)
     if reactionName:
-        finalString = "{0}: {1}".format(reactionName, finalString)
+        finalString = f"{reactionName}: {finalString}"
     return finalString
 
 
@@ -113,19 +108,28 @@ def balanceTranslator(reactant, product, translator):
             newTranslator[species[0]] = deepcopy(translator[species[0]])
             pMolecules.extend(newTranslator[species[0]].molecules)
 
+    pMolecules_dict = {}
+    for pMolecule in pMolecules:
+        if pMolecule.name not in pMolecules_dict:
+            pMolecules_dict[pMolecule.name] = []
+        pMolecules_dict[pMolecule.name].append(pMolecule)
+
     for rMolecule in rMolecules:
-        for pMolecule in pMolecules:
-            if rMolecule.name == pMolecule.name:
+        if rMolecule.name in pMolecules_dict:
+            for pMolecule in pMolecules_dict[rMolecule.name]:
+                pMolecule_component_names = {y.name for y in pMolecule.components}
+                rMolecule_component_names = {y.name for y in rMolecule.components}
+
                 overFlowingComponents = [
                     x
                     for x in rMolecule.components
-                    if x.name not in [y.name for y in pMolecule.components]
+                    if x.name not in pMolecule_component_names
                 ]
                 overFlowingComponents.extend(
                     [
                         x
                         for x in pMolecule.components
-                        if x.name not in [y.name for y in rMolecule.components]
+                        if x.name not in rMolecule_component_names
                     ]
                 )
                 rMolecule.removeComponents(overFlowingComponents)
@@ -151,7 +155,7 @@ def bnglFunction(
             exponent = "(1/%s)" % match.group(3)
         else:
             exponent = match.group(3)
-        if match.group(1) in ["root", "pow"]:
+        if match.group(1) in {"root", "pow"}:
             operator = "^"
         return "({0}){1}({2})".format(match.group(2), operator, exponent)
 
@@ -208,7 +212,7 @@ def bnglFunction(
                         constructFromList(argList[idx + 1], optionList)
                     )
                     idx += 1
-                elif argList[idx] in ["pow"]:
+                elif argList[idx] == "pow":
                     index = rindex(argList[idx + 1], ",")
                     parsedString += (
                         "(("
@@ -222,7 +226,7 @@ def bnglFunction(
                         + "))"
                     )
                     idx += 1
-                elif argList[idx] in ["sqr", "sqrt"]:
+                elif argList[idx] in {"sqr", "sqrt"}:
                     tag = "1/" if argList[idx] == "sqrt" else ""
                     parsedString += (
                         "(("
@@ -279,7 +283,7 @@ def bnglFunction(
                             condition, result, result2
                         )
                     idx += 1
-                elif argList[idx] in ["and", "or"]:
+                elif argList[idx] in {"and", "or"}:
                     symbolDict = {"and": " && ", "or": " || "}
                     indexArray = [-1]
                     elementArray = []
@@ -311,23 +315,29 @@ def bnglFunction(
                         idx += 1
                         continue
                     parsedParams = []
+                    tmp_list = []
                     for x in argList[idx + 1][0:upperLimit]:
                         if x == ",":
-                            tmp += ", "
+                            tmp_list.append(", ")
                         else:
-                            tmp += "param_" + x
+                            tmp_list.append("param_" + x)
                             parsedParams.append(x)
+                    tmp += "".join(tmp_list)
 
                     # tmp = ''.join([x for x in constructFromList(argList[idx+1][0:upperLimit])])
                     tmp2 = ") = " + constructFromList(
                         argList[idx + 1][rindex(argList[idx + 1], ",") + 1 :],
                         optionList,
                     )
-                    for x in parsedParams:
-                        while re.search(r"(\W|^)({0})(\W|$)".format(x), tmp2) != None:
-                            tmp2 = re.sub(
-                                r"(\W|^)({0})(\W|$)".format(x), r"\1param_\2 \3", tmp2
-                            )
+                    if parsedParams:
+                        sortedParams = sorted(parsedParams, key=len, reverse=True)
+                        pattern_str = (
+                            r"(?<!\w)("
+                            + "|".join(re.escape(x) for x in sortedParams)
+                            + r")(?!\w)"
+                        )
+                        pattern = re.compile(pattern_str)
+                        tmp2 = pattern.sub(r"param_\1 ", tmp2)
                     idx += 1
                     parsedString += tmp + tmp2
             else:
@@ -346,7 +356,7 @@ def bnglFunction(
         ) and (oldrule != rule):
             oldrule = rule
             for x in functionList:
-                rule = re.sub("({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
+                rule = re.sub(r"({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
             if rule == oldrule:
                 logMess("ERROR:TRS001", "Malformed pow or root function %s" % rule)
                 print("meep")
@@ -378,12 +388,12 @@ def bnglFunction(
     if any(
         [
             re.search(r"(\W|^)({0})(\W|$)".format(x), rule) != None
-            for x in ["ceil", "floor", "pow", "sqrt", "sqr", "root", "and", "or"]
+            for x in {"ceil", "floor", "pow", "sqrt", "sqr", "root", "and", "or"}
         ]
     ):
         argList = parens.parseString("(" + rule + ")").asList()
         rule = constructFromList(
-            argList[0], ["floor", "ceil", "pow", "sqrt", "sqr", "root", "and", "or"]
+            argList[0], {"floor", "ceil", "pow", "sqrt", "sqr", "root", "and", "or"}
         )
 
     while "piecewise" in rule:
@@ -416,8 +426,8 @@ def bnglFunction(
     # change references to time for time()
     # tmp =re.sub(r'(\W|^)(time)(\W|$)',r'\1time()\3',tmp)
     # tmp =re.sub(r'(\W|^)(Time)(\W|$)',r'\1time()\3',tmp)
-    while re.search(r"(\W|^)inf(\W|$)", tmp) != None:
-        tmp = re.sub(r"(\W|^)(inf)(\W|$)", r"\1 1e20 \3", tmp)
+    pattern_inf = re.compile(r"(?<!\w)inf(?!\w)")
+    tmp = pattern_inf.sub(r" 1e20 ", tmp)
     # BNGL has ^ for power.
     if flag:
         finalString = "%s = %s" % (functionTitle, tmp)
@@ -472,10 +482,10 @@ def curateParameters(param):
     """
     The objective of this function is to remove elements extraneous to bionetgen
     """
+    pattern_inf = re.compile(r"(?<!\w)inf(?!\w)")
     for element in range(0, len(param)):
         tmp = param[element]
-        while re.search(r"(\W|^)inf(\W|$)", tmp) != None:
-            tmp = re.sub(r"(\W|^)(inf)(\W|$)", r"\g<1>1e20\g<3>", tmp)
+        tmp = pattern_inf.sub(r"1e20", tmp)
         param[element] = tmp
     return param
 
@@ -520,18 +530,18 @@ def finalText(
     return output.getvalue()
 
 
-def sectionTemplate(name, content, annotations={}):
-    section = "begin %s\n" % name
-    temp = []
+def sectionTemplate(name, content, annotations=None):
+    if annotations is None:
+        annotations = {}
+    temp = ["begin %s\n" % name]
     for line in content:
         if line in annotations:
             for ann in annotations[line]:
                 temp.append("\t%s\n" % ann)
         temp.append("\t%s\n" % line)
     # temp = ['\t%s\n' % line for line in content]
-    section += "".join(temp)
-    section += "end %s\n" % name
-    return section
+    temp.append("end %s\n" % name)
+    return "".join(temp)
 
 
 # 341,6,12

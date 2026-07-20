@@ -26,22 +26,17 @@ class BNGNotebook:
 
     def __init__(self, nb_template, **kwargs):
         self.template = nb_template
-        self.odict = {}
-        for key in kwargs:
-            self.odict[key] = kwargs[key]
+        self.odict = dict(kwargs)
 
     def write(self, outfile):
         """
         This method will overwrite the given arguments
         """
         with open(self.template, "r") as f:
-            temp_lines = f.readlines()
+            content = f.read()
 
-        new_lines = []
-        for line in temp_lines:
-            for key in self.odict:
-                line = re.sub(key, self.odict[key], line)
-            new_lines.append(line)
+        for key, val in self.odict.items():
+            content = content.replace(key, val)
 
         with open(outfile, "w") as f:
-            f.writelines(new_lines)
+            f.write(content)

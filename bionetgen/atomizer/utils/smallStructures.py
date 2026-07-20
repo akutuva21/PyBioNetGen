@@ -153,6 +153,7 @@ class Species:
         for element in self.molecules:
             if element.name == moleculeName:
                 deadMolecule = element
+                break
         if deadMolecule == None:
             return
         bondNumbers = deadMolecule.getBondNumbers()
@@ -213,26 +214,32 @@ class Species:
     def extend(self, species, update=True):
         if len(self.molecules) == len(species.molecules):
             for selement, oelement in zip(self.molecules, species.molecules):
+                selement_component_names = {x.name for x in selement.components}
                 for component in oelement.components:
-                    if component.name not in [x.name for x in selement.components]:
+                    if component.name not in selement_component_names:
                         selement.components.append(component)
+                        selement_component_names.add(component.name)
                     else:
                         for element in selement.components:
                             if element.name == component.name:
                                 element.addStates(component.states, update)
 
         else:
+            self_molecule_names = {x.name for x in self.molecules}
             for element in species.molecules:
-                if element.name not in [x.name for x in self.molecules]:
+                if element.name not in self_molecule_names:
                     self.addMolecule(deepcopy(element), update)
+                    self_molecule_names.add(element.name)
                 else:
                     for molecule in self.molecules:
                         if molecule.name == element.name:
+                            molecule_component_names = {
+                                x.name for x in molecule.components
+                            }
                             for component in element.components:
-                                if component.name not in [
-                                    x.name for x in molecule.components
-                                ]:
+                                if component.name not in molecule_component_names:
                                     molecule.addComponent(deepcopy(component), update)
+                                    molecule_component_names.add(component.name)
                                 else:
                                     comp = molecule.getComponent(component.name)
                                     for state in component.states:
@@ -241,7 +248,8 @@ class Species:
     def updateBonds(self, bondNumbers):
         newBondNumbers = deepcopy(bondNumbers)
         correspondence = {}
-        intersection = [int(x) for x in newBondNumbers if x in self.getBondNumbers()]
+        self_bond_numbers = set(self.getBondNumbers())
+        intersection = [int(x) for x in newBondNumbers if x in self_bond_numbers]
         for element in self.molecules:
             for component in element.components:
                 for index in range(0, len(component.bonds)):
@@ -281,7 +289,7 @@ class Species:
                     + [999]
                 ),
                 -len([x for x in molecule.components if len(x.bonds) > 0]),
-                -len([x for x in molecule.components if x.activeState not in [0, "0"]]),
+                -len([x for x in molecule.components if x.activeState not in (0, "0")]),
                 len(str(molecule)),
                 str(molecule),
             ),
@@ -543,7 +551,7 @@ class Molecule:
         return [x for x in self.components if x.bonds != []]
 
     def contains(self, componentName):
-        return componentName in [x.name for x in self.components]
+        return any(x.name == componentName for x in self.components)
 
     def __str__(self):
         self.components = sorted(self.components, key=lambda st: st.name)

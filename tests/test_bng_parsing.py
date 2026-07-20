@@ -76,6 +76,15 @@ def test_pattern_canonicalization():
     assert res is True
 
 
+def test_zero_molecule_parsing():
+    from bionetgen.modelapi.pattern_reader import BNGPatternReader
+
+    pat_obj = BNGPatternReader("0").pattern
+    assert len(pat_obj.molecules) == 1
+    assert len(pat_obj.molecules[0].components) == 0
+    assert str(pat_obj) == "0"
+
+
 def test_action_normalization_drops_stray_backslashes_outside_quotes():
     from bionetgen.modelapi.bngparser import _normalize_action_text
 
@@ -116,6 +125,27 @@ def _build_action_parser():
     al = ActionList()
     al.define_parser()
     return al.action_parser
+
+
+def test_action_parsing_exceptions():
+    import pytest
+    from bionetgen.modelapi.bngparser import BNGParser
+    from bionetgen.core.exc import BNGParseError
+    from bionetgen.modelapi.blocks import ActionBlock
+
+    parser = BNGParser("dummy.bngl")
+    ablock = ActionBlock()
+
+    malformed_actions = [
+        "invalid_action!",
+        "simulate(t_end=>10) extra_stuff",
+        'simulate({method=>"ode")',
+    ]
+
+    for action in malformed_actions:
+        with pytest.raises(BNGParseError) as exc_info:
+            parser._parse_action_line(action, ablock)
+        assert "Failed to parse action" in str(exc_info.value)
 
 
 # Issue #110: the list-valued action-argument grammar must accept the same

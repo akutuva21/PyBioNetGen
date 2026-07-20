@@ -1,8 +1,11 @@
 import os
+import logging
 from tempfile import TemporaryDirectory
 
 from bionetgen.core.tools import BNGCLI
 from bionetgen.main import get_conf
+
+logger = logging.getLogger(__name__)
 
 
 def run(
@@ -120,7 +123,14 @@ def run(
                     suppress=suppress,
                     timeout=timeout,
                 )
-                cli.run()
+                try:
+                    cli.run()
+                except Exception as e:
+                    if hasattr(e, "stdout") and hasattr(e, "stderr"):
+                        logger.error("Couldn't run the simulation, see error")
+                        logger.error("STDOUT:\n" + e.stdout)
+                        logger.error("STDERR:\n" + e.stderr)
+                    raise
                 result = cli.result
             else:
                 from bionetgen.core.exc import BNGSimError

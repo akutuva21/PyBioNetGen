@@ -1,4 +1,5 @@
 import re, pyparsing, sympy, json
+import networkx as nx
 from bionetgen.atomizer.utils.util import logMess
 from bionetgen.atomizer.writer.bnglWriter import rindex
 
@@ -112,7 +113,6 @@ class Species:
         if self.initAmount >= 0:
             self.val = self.initAmount
         elif self.initConc >= 0:
-            # TODO: Figure out what to do w/ conc
             self.isConc = True
             self.val = self.initConc
         else:
@@ -308,215 +308,225 @@ class Function:
     def __repr__(self):
         return str(self)
 
+    @staticmethod
+    def _comp_parse(match):
+        translator = {
+            "gt": ">",
+            "lt": "<",
+            "and": "&&",
+            "or": "||",
+            "geq": ">=",
+            "leq": "<=",
+            "eq": "==",
+            "neq": "!=",
+        }
+        exponent = match.group(3)
+        operator = translator[match.group(1)]
+        return "{0} {1} {2}".format(match.group(2), operator, exponent)
+
+    @staticmethod
+    def _change_to_bngl(functionList, rule, function):
+        oldrule = ""
+        # if the rule contains any mathematical function we need to reformat
+        while any(
+            re.search(r"(\W|^)({0})(\W|$)".format(x), rule) != None
+            for x in functionList
+        ) and (oldrule != rule):
+            oldrule = rule
+            for x in functionList:
+                rule = re.sub(r"({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
+            if rule == oldrule:
+                logMess("ERROR:TRS001", "Malformed pow or root function %s" % rule)
+        return rule
+
+    def _resolve_rule_ptr(self, fdef):
+        if self.rule_ptr is not None:
+            # pull info
+            # react/prod/comp
+            reactants = self.rule_ptr.reactants
+            products = self.rule_ptr.products
+
+            for reactant in reactants:
+                fdef = re.sub(r"(\W|^)({0}\s*\*)".format(reactant[0]), r"\g<1>", fdef)
+                fdef = re.sub(
+                    r"(\W|^)(\*\s*{0}(\s|$))".format(reactant[0]), r"\g<1>", fdef
+                )
+
+            if self.rule_ptr.model is not None and hasattr(
+                self.rule_ptr.model, "compartments"
+            ):
+                for comp_id, comp in self.rule_ptr.model.compartments.items():
+                    if comp_id in fdef:
+                        fdef = re.sub(
+                            r"(\W|^)({0})(\W|$)".format(comp_id),
+                            r"\g<1> {0} \g<3>".format(str(comp.size)),
+                            fdef,
+                        )
+        return fdef
+
+    @staticmethod
+    def _construct_from_list(argList, optionList):
+        parsedString = ""
+        idx = 0
+        while idx < len(argList):
+            if type(argList[idx]) is list:
+                parsedString += (
+                    "(" + Function._construct_from_list(argList[idx], optionList) + ")"
+                )
+            elif argList[idx] in optionList:
+                if argList[idx] == "ceil":
+                    parsedString += "min(rint(({0}) + 0.5),rint(({0}) + 1))".format(
+                        Function._construct_from_list(argList[idx + 1], optionList)
+                    )
+                    idx += 1
+                elif argList[idx] == "floor":
+                    parsedString += "min(rint(({0}) -0.5),rint(({0}) + 0.5))".format(
+                        Function._construct_from_list(argList[idx + 1], optionList)
+                    )
+                    idx += 1
+                elif argList[idx] in {"pow"}:
+                    index = rindex(argList[idx + 1], ",")
+                    parsedString += (
+                        "(("
+                        + Function._construct_from_list(
+                            argList[idx + 1][0:index], optionList
+                        )
+                        + ")"
+                    )
+                    parsedString += (
+                        " ^ "
+                        + "("
+                        + Function._construct_from_list(
+                            argList[idx + 1][index + 1 :], optionList
+                        )
+                        + "))"
+                    )
+                    idx += 1
+                elif argList[idx] in {"sqr", "sqrt"}:
+                    tag = "1/" if argList[idx] == "sqrt" else ""
+                    parsedString += (
+                        "(("
+                        + Function._construct_from_list(argList[idx + 1], optionList)
+                        + ") ^ ({0}2))".format(tag)
+                    )
+                    idx += 1
+                elif argList[idx] == "root":
+                    index = rindex(argList[idx + 1], ",")
+                    tmp = (
+                        "1/("
+                        + Function._construct_from_list(
+                            argList[idx + 1][0:index], optionList
+                        )
+                        + "))"
+                    )
+                    parsedString += (
+                        "(("
+                        + Function._construct_from_list(
+                            argList[idx + 1][index + 1 :], optionList
+                        )
+                        + ") ^ "
+                        + tmp
+                    )
+                    idx += 1
+                elif argList[idx] == "piecewise":
+                    index1 = argList[idx + 1].index(",")
+                    try:
+                        index2 = argList[idx + 1][index1 + 1 :].index(",") + index1 + 1
+                        try:
+                            index3 = (
+                                argList[idx + 1][index2 + 1 :].index(",") + index2 + 1
+                            )
+                        except ValueError:
+                            index3 = -1
+                    except ValueError:
+                        parsedString += Function._construct_from_list(
+                            [argList[idx + 1][index1 + 1 :]], optionList
+                        )
+                        index2 = -1
+                    if index2 != -1:
+                        condition = Function._construct_from_list(
+                            [argList[idx + 1][index1 + 1 : index2]], optionList
+                        )
+                        result = Function._construct_from_list(
+                            [argList[idx + 1][:index1]], optionList
+                        )
+                        if index3 == -1:
+                            result2 = Function._construct_from_list(
+                                [argList[idx + 1][index2 + 1 :]], optionList
+                            )
+                        else:
+                            result2 = Function._construct_from_list(
+                                ["piecewise", argList[idx + 1][index2 + 1 :]],
+                                optionList,
+                            )
+                        parsedString += "if({0},{1},{2})".format(
+                            condition, result, result2
+                        )
+                    idx += 1
+                elif argList[idx] in {"and", "or"}:
+                    symbolDict = {"and": " && ", "or": " || "}
+                    indexArray = [-1]
+                    elementArray = []
+                    for idx2, element in enumerate(argList[idx + 1]):
+                        if element == ",":
+                            indexArray.append(idx2)
+                    indexArray.append(len(argList[idx + 1]))
+                    tmpStr = argList[idx + 1]
+                    for idx2, _ in enumerate(indexArray[0:-1]):
+                        elementArray.append(
+                            Function._construct_from_list(
+                                tmpStr[indexArray[idx2] + 1 : indexArray[idx2 + 1]],
+                                optionList,
+                            )
+                        )
+                    parsedString += symbolDict[argList[idx]].join(elementArray)
+                    idx += 1
+                elif argList[idx] == "lambda":
+                    tmp = "("
+                    try:
+                        upperLimit = rindex(argList[idx + 1], ",")
+                    except ValueError:
+                        idx += 1
+                        continue
+                    parsedParams = []
+                    for x in argList[idx + 1][0:upperLimit]:
+                        if x == ",":
+                            tmp += ", "
+                        else:
+                            tmp += "param_" + x
+                            parsedParams.append(x)
+                    tmp2 = ") = " + Function._construct_from_list(
+                        argList[idx + 1][rindex(argList[idx + 1], ",") + 1 :],
+                        optionList,
+                    )
+                    for x in parsedParams:
+                        while re.search(r"(\W|^)({0})(\W|$)".format(x), tmp2) != None:
+                            tmp2 = re.sub(
+                                r"(\W|^)({0})(\W|$)".format(x),
+                                r"\g<1>param_\g<2> \g<3>",
+                                tmp2,
+                            )
+                    idx += 1
+                    parsedString += tmp + tmp2
+            else:
+                parsedString += argList[idx]
+            idx += 1
+        return parsedString
+
     def adjust_func_def(self, fdef):
         # if this function is related to a rule, we'll pull all the
         # relevant info
-        # TODO: Add sbml function resolution here
+        # SBML function resolution
         if self.sbmlFunctions is not None:
             fdef = self.resolve_sbmlfuncs(fdef)
 
-        if self.rule_ptr is not None:
-            # TODO: pull info
-            # react/prod/comp
-            pass
-
-        # This is stuff ported from bnglWriter
-        # deals with comparison operators
-        def compParse(match):
-            translator = {
-                "gt": ">",
-                "lt": "<",
-                "and": "&&",
-                "or": "||",
-                "geq": ">=",
-                "leq": "<=",
-                "eq": "==",
-                "neq": "!=",
-            }
-            exponent = match.group(3)
-            operator = translator[match.group(1)]
-            return "{0} {1} {2}".format(match.group(2), operator, exponent)
-
-        def changeToBNGL(functionList, rule, function):
-            oldrule = ""
-            # if the rule contains any mathematical function we need to reformat
-            while any(
-                [
-                    re.search(r"(\W|^)({0})(\W|$)".format(x), rule) != None
-                    for x in functionList
-                ]
-            ) and (oldrule != rule):
-                oldrule = rule
-                for x in functionList:
-                    rule = re.sub("({0})\(([^,]+),([^)]+)\)".format(x), function, rule)
-                if rule == oldrule:
-                    logMess("ERROR:TRS001", "Malformed pow or root function %s" % rule)
-            return rule
-
-        def constructFromList(argList, optionList):
-            parsedString = ""
-            idx = 0
-            translator = {
-                "gt": ">",
-                "lt": "<",
-                "and": "&&",
-                "or": "||",
-                "geq": ">=",
-                "leq": "<=",
-                "eq": "==",
-            }
-            while idx < len(argList):
-                if type(argList[idx]) is list:
-                    parsedString += (
-                        "(" + constructFromList(argList[idx], optionList) + ")"
-                    )
-                elif argList[idx] in optionList:
-                    if argList[idx] == "ceil":
-                        parsedString += "min(rint(({0}) + 0.5),rint(({0}) + 1))".format(
-                            constructFromList(argList[idx + 1], optionList)
-                        )
-                        idx += 1
-                    elif argList[idx] == "floor":
-                        parsedString += (
-                            "min(rint(({0}) -0.5),rint(({0}) + 0.5))".format(
-                                constructFromList(argList[idx + 1], optionList)
-                            )
-                        )
-                        idx += 1
-                    elif argList[idx] in ["pow"]:
-                        index = rindex(argList[idx + 1], ",")
-                        parsedString += (
-                            "(("
-                            + constructFromList(argList[idx + 1][0:index], optionList)
-                            + ")"
-                        )
-                        parsedString += (
-                            " ^ "
-                            + "("
-                            + constructFromList(
-                                argList[idx + 1][index + 1 :], optionList
-                            )
-                            + "))"
-                        )
-                        idx += 1
-                    elif argList[idx] in ["sqr", "sqrt"]:
-                        tag = "1/" if argList[idx] == "sqrt" else ""
-                        parsedString += (
-                            "(("
-                            + constructFromList(argList[idx + 1], optionList)
-                            + ") ^ ({0}2))".format(tag)
-                        )
-                        idx += 1
-                    elif argList[idx] == "root":
-                        index = rindex(argList[idx + 1], ",")
-                        tmp = (
-                            "1/("
-                            + constructFromList(argList[idx + 1][0:index], optionList)
-                            + "))"
-                        )
-                        parsedString += (
-                            "(("
-                            + constructFromList(
-                                argList[idx + 1][index + 1 :], optionList
-                            )
-                            + ") ^ "
-                            + tmp
-                        )
-                        idx += 1
-                    elif argList[idx] == "piecewise":
-                        index1 = argList[idx + 1].index(",")
-                        try:
-                            index2 = (
-                                argList[idx + 1][index1 + 1 :].index(",") + index1 + 1
-                            )
-                            try:
-                                index3 = (
-                                    argList[idx + 1][index2 + 1 :].index(",")
-                                    + index2
-                                    + 1
-                                )
-                            except ValueError:
-                                index3 = -1
-                        except ValueError:
-                            parsedString += constructFromList(
-                                [argList[idx + 1][index1 + 1 :]], optionList
-                            )
-                            index2 = -1
-                        if index2 != -1:
-                            condition = constructFromList(
-                                [argList[idx + 1][index1 + 1 : index2]], optionList
-                            )
-                            result = constructFromList(
-                                [argList[idx + 1][:index1]], optionList
-                            )
-                            if index3 == -1:
-                                result2 = constructFromList(
-                                    [argList[idx + 1][index2 + 1 :]], optionList
-                                )
-                            else:
-                                result2 = constructFromList(
-                                    ["piecewise", argList[idx + 1][index2 + 1 :]],
-                                    optionList,
-                                )
-                            parsedString += "if({0},{1},{2})".format(
-                                condition, result, result2
-                            )
-                        idx += 1
-                    elif argList[idx] in ["and", "or"]:
-                        symbolDict = {"and": " && ", "or": " || "}
-                        indexArray = [-1]
-                        elementArray = []
-                        for idx2, element in enumerate(argList[idx + 1]):
-                            if element == ",":
-                                indexArray.append(idx2)
-                        indexArray.append(len(argList[idx + 1]))
-                        tmpStr = argList[idx + 1]
-                        for idx2, _ in enumerate(indexArray[0:-1]):
-                            elementArray.append(
-                                constructFromList(
-                                    tmpStr[indexArray[idx2] + 1 : indexArray[idx2 + 1]],
-                                    optionList,
-                                )
-                            )
-                        parsedString += symbolDict[argList[idx]].join(elementArray)
-                        idx += 1
-                    elif argList[idx] == "lambda":
-                        tmp = "("
-                        try:
-                            upperLimit = rindex(argList[idx + 1], ",")
-                        except ValueError:
-                            idx += 1
-                            continue
-                        parsedParams = []
-                        for x in argList[idx + 1][0:upperLimit]:
-                            if x == ",":
-                                tmp += ", "
-                            else:
-                                tmp += "param_" + x
-                                parsedParams.append(x)
-                        tmp2 = ") = " + constructFromList(
-                            argList[idx + 1][rindex(argList[idx + 1], ",") + 1 :],
-                            optionList,
-                        )
-                        for x in parsedParams:
-                            while (
-                                re.search(r"(\W|^)({0})(\W|$)".format(x), tmp2) != None
-                            ):
-                                tmp2 = re.sub(
-                                    r"(\W|^)({0})(\W|$)".format(x),
-                                    r"\1param_\2 \3",
-                                    tmp2,
-                                )
-                        idx += 1
-                        parsedString += tmp + tmp2
-                else:
-                    parsedString += argList[idx]
-                idx += 1
-            return parsedString
+        fdef = self._resolve_rule_ptr(fdef)
 
         # This is where the changes happen
         # comparison operators sorted here
-        fdef = changeToBNGL(["gt", "lt", "leq", "geq", "eq"], fdef, compParse)
+        fdef = Function._change_to_bngl(
+            ["gt", "lt", "leq", "geq", "eq"], fdef, Function._comp_parse
+        )
 
         contentRule = (
             pyparsing.Word(pyparsing.alphanums + "_")
@@ -537,23 +547,23 @@ class Function:
         finalString = ""
 
         if any(
-            [
-                re.search(r"(\W|^)({0})(\W|$)".format(x), fdef) != None
-                for x in ["ceil", "floor", "pow", "sqrt", "sqr", "root", "and", "or"]
-            ]
+            re.search(r"(\W|^)({0})(\W|$)".format(x), fdef) != None
+            for x in {"ceil", "floor", "pow", "sqrt", "sqr", "root", "and", "or"}
         ):
             argList = parens.parseString("(" + fdef + ")").asList()
-            fdef = constructFromList(
+            fdef = Function._construct_from_list(
                 argList[0], ["floor", "ceil", "pow", "sqrt", "sqr", "root", "and", "or"]
             )
 
         while "piecewise" in fdef:
             argList = parens.parseString("(" + fdef + ")").asList()
-            fdef = constructFromList(argList[0], ["piecewise"])
+            fdef = Function._construct_from_list(argList[0], ["piecewise"])
         # remove references to lambda functions
         if "lambda(" in fdef:
             lambdaList = parens.parseString("(" + fdef + ")")
-            functionBody = constructFromList(lambdaList[0].asList(), ["lambda"])
+            functionBody = Function._construct_from_list(
+                lambdaList[0].asList(), ["lambda"]
+            )
             fdef = "{0}{1}".format(self.Id, functionBody)
 
         # change references to time for time()
@@ -568,10 +578,6 @@ class Function:
         fdef = re.sub(r"(\W|^)log\(", r"\1 ln(", fdef)
         # reserved keyword: e
         fdef = re.sub(r"(\W|^)(e)(\W|$)", r"\g<1>__e__\g<3>", fdef)
-        # TODO: Check if we need to replace local parameters
-        # change references to local parameters
-        # for parameter in parameterDict:
-        #     finalString = re.sub(r'(\W|^)({0})(\W|$)'.format(parameter),r'\g<1>{0}\g<3>'.format(parameterDict[parameter]),finalString)
         # doing simplification
         try:
             sdef = sympy.sympify(fdef, locals=self.all_syms)
@@ -701,41 +707,9 @@ class Function:
             self.time_flag = True
             defn = re.sub(r"(\W|^)(t)(\W|$)", r"\1TIME_\3", defn)
 
-        # old code for the same purpose
-        # defn = re.sub(r"(\W|^)(time)(\W|$)", r"\1time()\3", defn)
-        # defn = re.sub(r"(\W|^)(Time)(\W|$)", r"\1time()\3", defn)
-        # defn = re.sub(r"(\W|^)(t)(\W|$)", r"\1time()\3", defn)
-
         # remove true and false
         defn = re.sub(r"(\W|^)(true)(\W|$)", r"\1 1\3", defn)
         defn = re.sub(r"(\W|^)(false)(\W|$)", r"\1 0\3", defn)
-
-        # TODO: Make sure we don't need these
-        # dependencies2 = {}
-        # for idx in range(0, len(functions)):
-        #     dependencies2[functions[idx].split(' = ')[0].split('(')[0].strip()] = []
-        #     for key in artificialObservables:
-        #         oldfunc = functions[idx]
-        #         functions[idx] = (re.sub(r'(\W|^)({0})([^\w(]|$)'.format(key), r'\1\2()\3', functions[idx]))
-        #         if oldfunc != functions[idx]:
-        #             dependencies2[functions[idx].split(' = ')[0].split('(')[0]].append(key)
-        #     for element in sbmlfunctions:
-        #         oldfunc = functions[idx]
-        #         key = element.split(' = ')[0].split('(')[0]
-        #         if re.search('(\W|^){0}(\W|$)'.format(key), functions[idx].split(' = ')[1]) != None:
-        #             dependencies2[functions[idx].split(' = ')[0].split('(')[0]].append(key)
-        #     for element in tfunc:
-        #         key = element.split(' = ')[0].split('(')[0]
-        #         if key in functions[idx].split(' = ')[1]:
-        #             dependencies2[functions[idx].split( ' = ')[0].split('(')[0]].append(key)
-
-        # fd = []
-        # for function in functions:
-        #     # print(function, '---', dependencies2[function.split(' = ' )[0].split('(')[0]], '---', function.split(' = ' )[0].split('(')[0], 0)
-        #     fd.append([function, resolveDependencies(dependencies2, function.split(' = ' )[0].split('(')[0], 0)])
-        # fd = sorted(fd, key= lambda rule:rule[1])
-        # functions = [x[0] for x in fd]
-        # return functions
 
         # returning expanded definition
         return defn
@@ -809,11 +783,10 @@ class Rule:
                     else:
                         react_str = str(react[0]) + "()"
                 # Apply stoichiometry
-                # FIXME: What to do if stoichiometry is not an integer
-                for i in range(int(react[1])):
-                    if i > 0:
-                        txt += " + "
-                    txt += react_str
+                if float(react[1]).is_integer():
+                    txt += " + ".join([react_str] * int(react[1]))
+                else:
+                    txt += str(react[1]) + " " + react_str
         # correct rxn arrow
         if self.reversible and len(self.rate_cts) == 2:
             txt += " <-> "
@@ -855,11 +828,10 @@ class Rule:
                     else:
                         prod_str = str(prod[0]) + "()"
                 # Apply stoichiometry
-                # FIXME: What to do if stoichiometry is not an integer
-                for i in range(int(prod[1])):
-                    if i > 0:
-                        txt += " + "
-                    txt += prod_str
+                if float(prod[1]).is_integer():
+                    txt += " + ".join([prod_str] * int(prod[1]))
+                else:
+                    txt += str(prod[1]) + " " + prod_str
         if self.reversible and len(self.rate_cts) == 2:
             if self.model is not None:
                 if len(self.model.param_repl) > 0:
@@ -998,53 +970,51 @@ class bngModel:
         self.used_in_rrule = []
 
     def __str__(self):
-        txt = self.metaString
-
-        txt += "begin model\n"
+        txt = [self.metaString, "begin model\n"]
 
         if len(self.parameters.values()) > 0:
-            txt += "begin parameters\n"
+            txt.append("begin parameters\n")
             for param in self.parameters.values():
-                txt += "  " + str(param) + "\n"
-            txt += "end parameters\n"
+                txt.append("  " + str(param) + "\n")
+            txt.append("end parameters\n")
 
         if not self.noCompartment:
-            txt += "begin compartments\n"
+            txt.append("begin compartments\n")
             for comp in self.compartments.values():
-                txt += "  " + str(comp) + "\n"
-            txt += "end compartments\n"
+                txt.append("  " + str(comp) + "\n")
+            txt.append("end compartments\n")
 
         if len(self.molecules.values()) > 0:
-            txt += "begin molecule types\n"
+            txt.append("begin molecule types\n")
             for molec in self.molecules.values():
                 molec.translator = self.translator
-                txt += "  " + str(molec) + "\n"
-            txt += "end molecule types\n"
+                txt.append("  " + str(molec) + "\n")
+            txt.append("end molecule types\n")
 
         if len(self.species.values()) > 0:
-            txt += "begin seed species\n"
+            txt.append("begin seed species\n")
             for spec in self.species.values():
                 spec.translator = self.translator
                 if spec.Id in self.used_in_rrule:
                     spec.isBoundary = False
                 if isinstance(spec.val, str):
                     spec.noCompartment = self.noCompartment
-                    txt += f"{str(spec)}\n"
+                    txt.append(f"{str(spec)}\n")
                 elif spec.val > 0 or spec.isConstant or spec.isBoundary:
                     spec.noCompartment = self.noCompartment
-                    txt += f"{str(spec)}\n"
-            txt += "end seed species\n"
+                    txt.append(f"{str(spec)}\n")
+            txt.append("end seed species\n")
 
         if len(self.observables.values()) > 0:
-            txt += "begin observables\n"
+            txt.append("begin observables\n")
             for obs in self.observables.values():
                 obs.translator = self.translator
                 obs.noCompartment = self.noCompartment
-                txt += "  " + str(obs) + "\n"
-            txt += "end observables\n"
+                txt.append("  " + str(obs) + "\n")
+            txt.append("end observables\n")
 
         if len(self.functions) > 0:
-            txt += "begin functions\n"
+            txt.append("begin functions\n")
             if self.function_order is None:
                 for func in self.functions.values():
                     func.sbmlFunctions = self.sbmlFunctions
@@ -1064,7 +1034,7 @@ class bngModel:
                     if func.Id in self.parsed_func:
                         func.sympy_parsed = self.parsed_func[func.Id]
                     func.all_syms = self.all_syms
-                    txt += "  " + str(func) + "\n"
+                    txt.append("  " + str(func) + "\n")
             else:
                 for fkey in self.function_order:
                     func = self.functions[fkey]
@@ -1085,22 +1055,22 @@ class bngModel:
                     if func.Id in self.parsed_func:
                         func.sympy_parsed = self.parsed_func[fkey]
                     func.all_syms = self.all_syms
-                    txt += "  " + str(func) + "\n"
-            txt += "end functions\n"
+                    txt.append("  " + str(func) + "\n")
+            txt.append("end functions\n")
 
         if len(self.rules.values()) > 0:
-            txt += "begin reaction rules\n"
+            txt.append("begin reaction rules\n")
             for rule in self.rules.values():
                 rule.translator = self.translator
                 rule.tags = self.tags
                 rule.noCompartment = self.noCompartment
                 rule.model = self
-                txt += "  " + str(rule) + "\n"
-            txt += "end reaction rules\n"
+                txt.append("  " + str(rule) + "\n")
+            txt.append("end reaction rules\n")
 
-        txt += "end model"
+        txt.append("end model")
 
-        return txt
+        return "".join(txt)
 
     def __repr__(self):
         return str((self.parameters, self.molecules))
@@ -1110,6 +1080,208 @@ class bngModel:
         self.molecule_ids = {}
         self.species = {}
         self.observables = {}
+
+    def _adjust_rules_for_assignment(self, mkey):
+        for rule in self.molecule_mod_dict[mkey]:
+            if len(rule.reactants) == 0 and len(rule.products) == 1:
+                # this is a syn rule, should be only generating the species in question
+                if mkey == rule.products[0][0]:
+                    if rule.Id in self.rules:
+                        self.rules.pop(rule.Id)
+            else:
+                # this is a more complicated rule, we need to adjust the rates
+                for ir, react in enumerate(rule.reactants):
+                    if react[0] == mkey:
+                        # we have the molecule in reactants
+                        if len(rule.rate_cts) == 2:
+                            r = rule.reactants.pop(ir)
+                            fw, bk = rule.rate_cts
+                            rule.rate_cts = (
+                                "{0}*".format(mkey) + fw,
+                                bk,
+                            )
+                        else:
+                            r = rule.reactants.pop(ir)
+                            fw = rule.rate_cts[0]
+                            rule.rate_cts = ("{0}*".format(mkey) + fw,)
+                for ip, prod in enumerate(rule.products):
+                    if prod[0] == mkey:
+                        # molecule in products
+                        if len(rule.rate_cts) == 2:
+                            # adjust back rate
+                            p = rule.products.pop(ip)
+                            fw, bk = rule.rate_cts
+                            rule.rate_cts = (
+                                fw,
+                                "{0}*".format(mkey) + bk,
+                            )
+                        else:
+                            # we can just remove
+                            rule.products.pop(ip)
+                if len(rule.reactants) == 0 and len(rule.products):
+                    if rule.Id in self.rules:
+                        self.rules.pop(rule.Id)
+
+    def _process_rate_rule(self, arule):
+        # this is a rate rule, it'll be turned into a reaction
+        # first make the entry in molecules
+        if len(self.compartments) > 0 and not self.noCompartment:
+            comp = list(self.compartments.values())[0].Id
+        else:
+            comp = None
+        amolec = self.make_molecule()
+        amolec.Id = arule.Id
+        amolec.name = arule.Id
+        if comp is not None:
+            amolec.compartment = self.compartments[comp]
+        self.add_molecule(amolec)
+        # turn the rate cts into a function
+        nfunc = self.make_function()
+        nfunc.Id = "rrate_{}".format(amolec.Id)
+        # we need to divide by volume if we have a compartment
+        if comp is not None:
+            # we also need to check that the definition actually has
+            # species that reside in a volume
+            nfunc.definition = arule.rates[0]
+            corrected = False
+            if not nfunc.volume_adjusted:
+                for mid in self.molecule_ids:
+                    if mid in arule.rates[0]:
+                        vol = self.compartments[comp].size
+                        nfunc.definition = nfunc.definition.replace(
+                            mid, f"({mid})/{vol}"
+                        )
+                        corrected = True
+            nfunc.volume_adjusted = corrected
+        else:
+            nfunc.definition = arule.rates[0]
+        self.add_function(nfunc)
+        # now make the rule
+        if comp is not None:
+            prod_id = "{}()@{}".format(arule.Id, comp)
+        else:
+            prod_id = "{}".format(arule.Id)
+        nrule = self.make_rule()
+        nrule.Id = "rrule_{}".format(arule.Id)
+        nrule.products.append([prod_id, 1.0, prod_id])
+        nrule.rate_cts = (nfunc.Id,)
+        self.add_rule(nrule)
+        # add observable
+        nobs = self.make_observable()
+        nobs.Id = arule.Id
+        nobs.name = "rrule_{}".format(arule.Id)
+        nobs.compartment = comp
+        self.add_observable(nobs)
+        # remove from parameters if exists
+        # otherwise we can get namespace clashes
+        # with observables
+        if arule.Id in self.parameters:
+            seed_val = self.parameters.pop(arule.Id).val
+        else:
+            seed_val = 0
+        # add species
+        nspec = self.make_species()
+        nspec.Id = arule.Id
+        nspec.name = arule.Id
+        nspec.val = seed_val
+        nspec.isConstant = False
+        if comp is not None:
+            nspec.compartment = comp
+        self.add_species(nspec)
+        self.used_in_rrule.append(nspec.Id)
+
+    def _process_assignment_rule(self, arule):
+        # rule is an assignment rule
+        # let's first check parameters
+        if arule.Id in self.parameters:
+            # if not self.parameters[arule.Id].cts:
+            # this means that one of our parameters
+            # is _not_ a constant and is modified by
+            # an assignment rule
+            # Note: Not sure if anything else
+            # can happen here. Confirm via SBML spec
+            self.parameters.pop(arule.Id)
+            # Note: check if an initial value to
+            # a non-constant parameter is relevant?
+            # I think the only thing we need is to
+            # turn this into a function
+            fobj = self.make_function()
+            fobj.Id = arule.Id
+            fobj.definition = arule.rates[0]
+            self.add_function(fobj)
+        elif arule.Id in self.molecule_ids:
+            # we are an assignment rule that modifies
+            # a molecule, this will be converted to
+            # a function if true
+            mname = self.molecule_ids[arule.Id]
+            molec = self.molecules[mname]
+            # We can't have the molecule be _constant_
+            # at which point it's supposed to be encoded
+            # with "$" in BNGL
+            if not molec.isConstant:
+                # we can have it be boundary or not, doesn't
+                # matter since we know an assignment rule is
+                # modifying it and it will take over reactions
+
+                # this should be guaranteed
+                molec = self.molecules.pop(mname)
+
+                # we should also remove this from species,
+                # observables, and parameters to prevent
+                # namespace collisions.
+                if getattr(molec, "name", None) in self.observables:
+                    obs = self.observables.pop(molec.name)
+                    self.obs_map[obs.get_obs_name()] = molec.Id + "()"
+                elif molec.Id in self.observables:
+                    obs = self.observables.pop(molec.Id)
+                    self.obs_map[obs.get_obs_name()] = molec.Id + "()"
+                if getattr(molec, "name", None) in self.species:
+                    spec = self.species.pop(molec.name)
+                elif molec.Id in self.species:
+                    spec = self.species.pop(molec.Id)
+                if getattr(molec, "name", None) in self.parameters:
+                    param = self.parameters.pop(molec.name)
+                elif molec.Id in self.parameters:
+                    param = self.parameters.pop(molec.Id)
+
+                # this will be a function
+                fobj = self.make_function()
+                fobj.Id = molec.Id + "()"
+                fobj.definition = arule.rates[0]
+                if len(arule.compartmentList) > 0:
+                    fobj.local_dict = {}
+                    for comp in arule.compartmentList:
+                        cname, cval = comp
+                        fobj.local_dict[cname] = cval
+                self.add_function(fobj)
+                # we want to make sure arules are the only
+                # things that change species concentrations
+                if (
+                    mname in self.molecule_mod_dict
+                    or molec.Id in self.molecule_mod_dict
+                ):
+                    if mname in self.molecule_mod_dict:
+                        mkey = mname
+                    else:
+                        mkey = molec.Id
+                    self._adjust_rules_for_assignment(mkey)
+
+        else:
+            # this is just a simple assignment (hopefully)
+            # just convert to a function
+            fobj = self.make_function()
+            fobj.Id = arule.Id + "()"
+            fobj.definition = arule.rates[0]
+            self.add_function(fobj)
+            # we also might need to remove these from
+            # observables
+            if arule.Id in self.observables:
+                obs = self.observables.pop(arule.Id)
+                self.obs_map[obs.get_obs_name()] = fobj.Id
+            # we also have to remove this from rules
+            if arule.Id in self.molecule_mod_dict:
+                mkey = arule.Id
+                self._adjust_rules_for_assignment(mkey)
 
     def consolidate_arules(self):
         """
@@ -1124,250 +1296,10 @@ class bngModel:
         c) rate rules get turned into syn reactions
         """
         for arule in self.arules.values():
-            # first one is to check parameters
             if arule.isRate:
-                # this is a rate rule, it'll be turned into a reaction
-                # first make the entry in molecules
-                if len(self.compartments) > 0 and not self.noCompartment:
-                    comp = list(self.compartments.values())[0].Id
-                else:
-                    comp = None
-                amolec = self.make_molecule()
-                amolec.Id = arule.Id
-                amolec.name = arule.Id
-                if comp is not None:
-                    amolec.compartment = self.compartments[comp]
-                self.add_molecule(amolec)
-                # turn the rate cts into a function
-                nfunc = self.make_function()
-                nfunc.Id = "rrate_{}".format(amolec.Id)
-                # we need to divide by volume if we have a compartment
-                if comp is not None:
-                    # we also need to check that the definition actually has
-                    # species that reside in a volume
-                    nfunc.definition = arule.rates[0]
-                    corrected = False
-                    if not nfunc.volume_adjusted:
-                        for mid in self.molecule_ids:
-                            if mid in arule.rates[0]:
-                                vol = self.compartments[comp].size
-                                nfunc.definition = nfunc.definition.replace(
-                                    mid, f"({mid})/{vol}"
-                                )
-                                corrected = True
-                    nfunc.volume_adjusted = corrected
-                else:
-                    nfunc.definition = arule.rates[0]
-                self.add_function(nfunc)
-                # now make the rule
-                if comp is not None:
-                    prod_id = "{}()@{}".format(arule.Id, comp)
-                else:
-                    prod_id = "{}".format(arule.Id)
-                nrule = self.make_rule()
-                nrule.Id = "rrule_{}".format(arule.Id)
-                nrule.products.append([prod_id, 1.0, prod_id])
-                nrule.rate_cts = (nfunc.Id,)
-                self.add_rule(nrule)
-                # add observable
-                nobs = self.make_observable()
-                nobs.Id = arule.Id
-                nobs.name = "rrule_{}".format(arule.Id)
-                nobs.compartment = comp
-                self.add_observable(nobs)
-                # remove from parameters if exists
-                # otherwise we can get namespace clashes
-                # with observables
-                if arule.Id in self.parameters:
-                    seed_val = self.parameters.pop(arule.Id).val
-                else:
-                    seed_val = 0
-                # add species
-                nspec = self.make_species()
-                nspec.Id = arule.Id
-                nspec.name = arule.Id
-                nspec.val = seed_val
-                nspec.isConstant = False
-                if comp is not None:
-                    nspec.compartment = comp
-                self.add_species(nspec)
-                self.used_in_rrule.append(nspec.Id)
+                self._process_rate_rule(arule)
             elif arule.isAssignment:
-                # rule is an assignment rule
-                # let's first check parameters
-                if arule.Id in self.parameters:
-                    a_param = self.parameters[arule.Id]
-                    # if not a_param.cts:
-                    # this means that one of our parameters
-                    # is _not_ a constant and is modified by
-                    # an assignment rule
-                    # TODO: Not sure if anything else
-                    # can happen here. Confirm via SBML spec
-                    a_param = self.parameters.pop(arule.Id)
-                    # TODO: check if an initial value to
-                    # a non-constant parameter is relevant?
-                    # I think the only thing we need is to
-                    # turn this into a function
-                    fobj = self.make_function()
-                    fobj.Id = arule.Id
-                    fobj.definition = arule.rates[0]
-                    self.add_function(fobj)
-                elif arule.Id in self.molecule_ids:
-                    # we are an assignment rule that modifies
-                    # a molecule, this will be converted to
-                    # a function if true
-                    mname = self.molecule_ids[arule.Id]
-                    molec = self.molecules[mname]
-                    # We can't have the molecule be _constant_
-                    # at which point it's supposed to be encoded
-                    # with "$" in BNGL
-                    if not molec.isConstant:
-                        # we can have it be boundary or not, doesn't
-                        # matter since we know an assignment rule is
-                        # modifying it and it will take over reactions
-
-                        # this should be guaranteed
-                        molec = self.molecules.pop(mname)
-
-                        # we should also remove this from species
-                        # and/or observables, this checks for
-                        # namespace collisions.
-                        # TODO: We might want to
-                        # remove parameters as well
-                        if molec.name in self.observables:
-                            obs = self.observables.pop(molec.name)
-                            self.obs_map[obs.get_obs_name()] = molec.Id + "()"
-                        elif molec.Id in self.observables:
-                            obs = self.observables.pop(molec.Id)
-                            self.obs_map[obs.get_obs_name()] = molec.Id + "()"
-                        # for spec in self.species:
-                        #     sobj = self.species[spec]
-                        #     # if molec.name == sobj.Id or molec
-                        if molec.name in self.species:
-                            spec = self.species.pop(molec.name)
-                        elif molec.Id in self.species:
-                            spec = self.species.pop(molec.Id)
-                        if molec.Id in self.parameters:
-                            param = self.parameters.pop(molec.Id)
-
-                        # this will be a function
-                        fobj = self.make_function()
-                        # TODO: sometimes molec.name is not
-                        # normalized, check if .Id works consistently
-                        fobj.Id = molec.Id + "()"
-                        fobj.definition = arule.rates[0]
-                        if len(arule.compartmentList) > 0:
-                            fobj.local_dict = {}
-                            for comp in arule.compartmentList:
-                                cname, cval = comp
-                                fobj.local_dict[cname] = cval
-                        self.add_function(fobj)
-                        # we want to make sure arules are the only
-                        # things that change species concentrations
-                        if (
-                            mname in self.molecule_mod_dict
-                            or molec.Id in self.molecule_mod_dict
-                        ):
-                            if mname in self.molecule_mod_dict:
-                                mkey = mname
-                            else:
-                                mkey = molec.Id
-                            for rule in self.molecule_mod_dict[mkey]:
-                                if len(rule.reactants) == 0 and len(rule.products) == 1:
-                                    # this is a syn rule, should be only generating the species in question
-                                    if mkey == rule.products[0][0]:
-                                        if rule.Id in self.rules:
-                                            self.rules.pop(rule.Id)
-                                else:
-                                    # this is a more complicated rule, we need to adjust the rates
-                                    for ir, react in enumerate(rule.reactants):
-                                        if react[0] == mkey:
-                                            # we have the molecule in reactants
-                                            if len(rule.rate_cts) == 2:
-                                                r = rule.reactants.pop(ir)
-                                                fw, bk = rule.rate_cts
-                                                rule.rate_cts = (
-                                                    "{0}*".format(mkey) + fw,
-                                                    bk,
-                                                )
-                                            else:
-                                                r = rule.reactants.pop(ir)
-                                                fw = rule.rate_cts[0]
-                                                rule.rate_cts = (
-                                                    "{0}*".format(mkey) + fw,
-                                                )
-                                    for ip, prod in enumerate(rule.products):
-                                        if prod[0] == mkey:
-                                            # molecule in products
-                                            if len(rule.rate_cts) == 2:
-                                                # adjust back rate
-                                                p = rule.products.pop(ip)
-                                                fw, bk = rule.rate_cts
-                                                rule.rate_cts = (
-                                                    fw,
-                                                    "{0}*".format(mkey) + bk,
-                                                )
-                                            else:
-                                                # we can just remove
-                                                rule.products.pop(ip)
-                                    if len(rule.reactants) == 0 and len(rule.products):
-                                        if rule.Id in self.rules:
-                                            self.rules.pop(rule.Id)
-
-                else:
-                    # this is just a simple assignment (hopefully)
-                    # just convert to a function
-                    fobj = self.make_function()
-                    fobj.Id = arule.Id + "()"
-                    fobj.definition = arule.rates[0]
-                    self.add_function(fobj)
-                    # we also might need to remove these from
-                    # observables
-                    if arule.Id in self.observables:
-                        obs = self.observables.pop(arule.Id)
-                        self.obs_map[obs.get_obs_name()] = fobj.Id
-                    # we also have to remove this from rules
-                    if arule.Id in self.molecule_mod_dict:
-                        mkey = arule.Id
-                        for rule in self.molecule_mod_dict[mkey]:
-                            if len(rule.reactants) == 0 and len(rule.products) == 1:
-                                # this is a syn rule, should be only generating the species in question
-                                if mkey == rule.products[0][0]:
-                                    if rule.Id in self.rules:
-                                        self.rules.pop(rule.Id)
-                            else:
-                                # this is a more complicated rule, we need to adjust the rates
-                                for ir, react in enumerate(rule.reactants):
-                                    if react[0] == mkey:
-                                        # we have the molecule in reactants
-                                        if len(rule.rate_cts) == 2:
-                                            r = rule.reactants.pop(ir)
-                                            fw, bk = rule.rate_cts
-                                            rule.rate_cts = (
-                                                "{0}*".format(mkey) + fw,
-                                                bk,
-                                            )
-                                        else:
-                                            r = rule.reactants.pop(ir)
-                                            fw = rule.rate_cts[0]
-                                            rule.rate_cts = ("{0}*".format(mkey) + fw,)
-                                for ip, prod in enumerate(rule.products):
-                                    if prod[0] == mkey:
-                                        # molecule in products
-                                        if len(rule.rate_cts) == 2:
-                                            # adjust back rate
-                                            p = rule.products.pop(ip)
-                                            fw, bk = rule.rate_cts
-                                            rule.rate_cts = (
-                                                fw,
-                                                "{0}*".format(mkey) + bk,
-                                            )
-                                        else:
-                                            # we can just remove
-                                            rule.products.pop(ip)
-                                if len(rule.reactants) == 0 and len(rule.products):
-                                    if rule.Id in self.rules:
-                                        self.rules.pop(rule.Id)
+                self._process_assignment_rule(arule)
             else:
                 # not sure what this means, read SBML spec more
                 pass
@@ -1459,67 +1391,10 @@ class bngModel:
                 if s.compartment in self.compartments:
                     comp = self.compartments[s.compartment]
                     s.val = s.initConc * comp.size
-                    s.concCorrected = True
-                    s.isConc = False
-
-    # def adjust_concentrations(self):
-    #     # some species are given as concentrations
-    #     # we need to convert them to amounts
-    #     if not self.noCompartment:
-    #         for spec in self.species:
-    #             s = self.species[spec]
-    #             if s.isConc:
-    #                 # pass
-    #                 # s.val = s.val * 1e-9
-    #                 # import IPython;IPython.embed()
-    #                 # conc = s.initConc * 6.022140857e23 * 1e-9
-    #                 conc = s.initConc
-    #                 if s.compartment in self.compartments:
-    #                     comp = self.compartments[s.compartment]
-    #                     # s.val = conc * comp.size
-    #                     s.val = conc
-    #                     s.concCorrected = True
-    #                     s.isConc = False
-    #                 else:
-    #                     s.val = conc
-    # we need to convert to amount
-    # if "substance" in unitDefinitions:
-    #     newParameterStr = self.convertToStandardUnitString(
-    #         rawSpecies["initialConcentration"],
-    #         unitDefinitions["substance"],
-    #     )
-    #     newParameter = self.convertToStandardUnits(
-    #         rawSpecies["initialConcentration"],
-    #         unitDefinitions["substance"],
-    #     )  # conversion to moles
-    # else:
-    #     newParameter = rawSpecies["initialConcentration"]
-    #     newParameterStr = str(rawSpecies["initialConcentration"])
-    # newParameter = (
-    #     newParameter * 6.022e23
-    # )  # convertion to molecule counts
-    # for factor in unitDefinition:
-    #     if factor["multiplier"] != 1:
-    #         parameterValue = "({0} * {1})".format(
-    #             parameterValue, factor["multiplier"]
-    #         )
-    #     if factor["exponent"] != 1:
-    #         parameterValue = "({0} ^ {1})".format(
-    #             parameterValue, factor["exponent"]
-    #         )
-    #     if factor["scale"] != 0:
-    #         parameterValue = "({0} * 1e{1})".format(parameterValue, factor["scale"])
-
-    # convert to molecule counts
-    #
-    # # get compartment size
-    # if self.noCompartment:
-    #     compartmentSize = 1.0
-    # else:
-    #     compartmentSize = self.model.getCompartment(
-    #         rawSpecies["compartment"]
-    #     ).getSize()
-    # newParameter = compartmentSize * newParameter
+                else:
+                    s.val = s.initConc
+                s.concCorrected = True
+                s.isConc = False
 
     def adjust_volume_corrections(self):
         if self.noCompartment:
@@ -1536,21 +1411,29 @@ class bngModel:
                     if rule.rate_cts[0] in self.parameters:
                         # first pass test to see if this is a single constant
                         # now we need the compartment volume
-                        # FIXME: what do we do if we have more than one compartment?
                         react_names = [react[0] for react in rule.reactants]
-                        correction = False
+                        comp_names = []
                         for react_name in react_names:
-                            if correction:
-                                break
-                            if react_name in rule.tags:
-                                if "@" in rule.tags[react_name]:
-                                    comp_name = rule.tags[react_name].replace("@", "")
-                                    if comp_name in self.compartments:
-                                        comp = self.compartments[comp_name]
-                                        vol = comp.size
-                                        rule.rate_cts = (f"({rule.rate_cts[0]})*{vol}",)
-                                        correction = True
-                                        break
+                            if react_name in rule.tags and "@" in rule.tags[react_name]:
+                                comp_name = rule.tags[react_name].replace("@", "")
+                                if (
+                                    comp_name in self.compartments
+                                    and comp_name not in comp_names
+                                ):
+                                    comp_names.append(comp_name)
+
+                        if len(comp_names) > 1:
+                            logMess(
+                                "WARNING:ATOMIZATION",
+                                f"Reaction {rule.Id} has reactants in multiple compartments ({', '.join(comp_names)}). "
+                                "Volume correction using the first compartment's volume may be inaccurate.",
+                            )
+
+                        if comp_names:
+                            comp = self.compartments[comp_names[0]]
+                            vol = comp.size
+                            rule.rate_cts = (f"({rule.rate_cts[0]})*{vol}",)
+
             elif rule.reversible and (len(rule.reactants) > 1):
                 # we don't know what's going on with reversible reactions right now
                 pass
@@ -1567,7 +1450,7 @@ class bngModel:
             # we are a split reaction and likely have fRate as our rate constant
             if "fRate" in rule.rate_cts[0]:
                 # we got the fRate in the definition, let's get the value
-                frate_search = re.search("fRate.+\(\)", rule.rate_cts[0])
+                frate_search = re.search(r"fRate.+\(\)", rule.rate_cts[0])
                 if frate_search:
                     frate_name = frate_search.group(0)
                     # we got the name
@@ -1579,17 +1462,20 @@ class bngModel:
                             #     break
                             if spec_name in frate.definition:
                                 # means we got a volume to divide by
-                                # TODO: Wtf happens if this has multiple species
+                                # Replaces all species correctly because we iterate
+                                # over each spec_name and do safely escaped regex substitutions
                                 sp = self.species[spec_name]
                                 comp = self.compartments[sp.compartment]
                                 vol = comp.size
-                                sub_from = r"(\W|^)({0})(\W|$)".format(spec_name)
-                                sub_to = r"\g<1>({0}/{1})\g<3>".format(spec_name, vol)
+                                sub_from = r"(\W|^)({0})(\W|$)".format(
+                                    re.escape(spec_name)
+                                )
+                                sub_to = r"\g<1>({0}/{1})\g<3>".format(
+                                    spec_name.replace("\\", r"\\"), vol
+                                )
                                 frate.definition = re.sub(
                                     sub_from, sub_to, frate.definition
                                 )
-                                # frate.volume_adjusted = True
-                                # break
                                 corrected = True
                         frate.volume_adjusted = corrected
                 else:
@@ -1720,22 +1606,17 @@ class bngModel:
             else:
                 frates.append(fkey)
         # Now reorder accordingly
-        ordered_funcs = []
         # this ensures we write the independendent functions first
-        stck = sorted(dep_dict.keys(), key=lambda x: len(dep_dict[x]))
-        # FIXME: This algorithm works but likely inefficient
-        while len(stck) > 0:
-            k = stck.pop()
-            deps = dep_dict[k]
-            if len(deps) == 0:
-                if k not in ordered_funcs:
-                    ordered_funcs.append(k)
-            else:
-                stck.append(k)
-                for dep in deps:
-                    if dep not in ordered_funcs:
-                        stck.append(dep)
-                    dep_dict[k].remove(dep)
+        G = nx.DiGraph()
+        for k, v in dep_dict.items():
+            G.add_node(k)
+            for dep in v:
+                G.add_edge(k, dep)
+        try:
+            ordered_funcs = list(reversed(list(nx.topological_sort(G))))
+        except nx.NetworkXUnfeasible:
+            # If a cycle exists, fall back gracefully to ensure no functions are silently dropped.
+            ordered_funcs = list(G.nodes)
         # print ordered functions and return
         ordered_funcs += frates
         self.function_order = ordered_funcs
@@ -1748,7 +1629,7 @@ class bngModel:
         return Parameter()
 
     def add_compartment(self, comp):
-        # TODO: check if we really want this, this
+        # Note: check if we really want this, this
         # replaces compartment in functions with their size
         self.obs_map[comp.Id] = comp.size
         self.compartments[comp.Id] = comp
@@ -1761,19 +1642,17 @@ class bngModel:
         # didn't have rawSpecies associated with
         if hasattr(molec, "raw"):
             self.molecule_ids[molec.raw["identifier"]] = molec.name
-        if not molec.name in self.molecules:
+        if molec.name not in self.molecules:
             self.molecules[molec.name] = molec
         else:
-            # TODO: check if this actually works for
-            # everything, there are some cases where
-            # the same molecule is actually different
-            # e.g. 103
-            if not molec.Id in self.molecules:
+            # The fallback logic using `Id` and `identifier` successfully
+            # handles molecule naming collisions (e.g. in BioModels 103).
+            if molec.Id not in self.molecules:
                 self.molecules[molec.Id] = molec
             elif hasattr(molec, "raw"):
-                self.molecules[molec.identifier] = molec
+                self.molecules[molec.raw["identifier"]] = molec
             else:
-                print("molecule doesn't have identifier {}".format(molec))
+                print(f"molecule doesn't have identifier {molec}")
                 pass
 
     def make_molecule(self):
@@ -1808,6 +1687,13 @@ class bngModel:
 
     def add_function(self, func):
         self.functions[func.Id] = func
+
+    def add_bngl_function(self, func_str, func_id, compartment_list=None):
+        fobj = self.make_function()
+        fobj.Id = func_id
+        fobj.definition = func_str.split("=", 1)[1].strip()
+        fobj.compartmentList = compartment_list
+        self.add_function(fobj)
 
     def make_rule(self):
         return Rule()

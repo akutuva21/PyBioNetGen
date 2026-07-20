@@ -70,14 +70,17 @@ class BNGLogger:
             self.level = log_level
         # cli is second most important
         elif self.app is not None:
-            if self.app.pargs.debug:
-                self.level = "DEBUG"
-                if self.level != self.app.log.get_level():
-                    self.app.log.set_level(self.level)
-            elif self.app.pargs.log_level is not None:
-                self.level = app.pargs.log_level
-                if self.level != self.app.log.get_level():
-                    self.app.log.set_level(self.level)
+            if hasattr(self.app, "pargs") and self.app.pargs is not None:
+                if getattr(self.app.pargs, "debug", False):
+                    self.level = "DEBUG"
+                    if self.level != self.app.log.get_level():
+                        self.app.log.set_level(self.level)
+                elif getattr(self.app.pargs, "log_level", None) is not None:
+                    self.level = self.app.pargs.log_level
+                    if self.level != self.app.log.get_level():
+                        self.app.log.set_level(self.level)
+            else:
+                self.level = level
         # what this is instantiated with is the least
         # at least for now
         else:

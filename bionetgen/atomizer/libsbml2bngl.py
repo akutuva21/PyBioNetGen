@@ -173,13 +173,6 @@ def readFromString(
     one of the library's main entry methods. Process data from a string
     """
 
-    # console = None
-    # if loggingStream:
-    #     console = logging.StreamHandler(loggingStream)
-    #     console.setLevel(logging.DEBUG)
-
-    #     # setupStreamLog(console)
-
     reader = libsbml.SBMLReader()
     document = reader.readSBMLFromString(inputString)
     parser = SBML2BNGL(
@@ -220,9 +213,6 @@ def readFromString(
         database.species = translator.keys()
     else:
         translator = {}
-    # logging.getLogger().flush()
-    # if loggingStream:
-    #     finishStreamLog(console)
     returnArray = analyzeHelper(
         document,
         reactionDefinitions,
@@ -298,7 +288,9 @@ def processFunctions(functions, sbmlfunctions, artificialObservables, tfunc):
             oldfunc = functions[idx]
             key = element.split(" = ")[0].split("(")[0]
             if (
-                re.search("(\W|^){0}(\W|$)".format(key), functions[idx].split(" = ")[1])
+                re.search(
+                    r"(\W|^){0}(\W|$)".format(key), functions[idx].split(" = ")[1]
+                )
                 != None
             ):
                 dependencies2[functions[idx].split(" = ")[0].split("(")[0]].append(key)
@@ -479,7 +471,6 @@ def reorder_and_replace_arules(functions, parser):
     frates = []
     for func in functions:
         splt = func.split("=")
-        # TODO: turn this into warning
         n = splt[0]
         f = "=".join(splt[1:])
         fname = n.rstrip().replace("()", "")
@@ -487,6 +478,9 @@ def reorder_and_replace_arules(functions, parser):
             fs = sympy.sympify(f, locals=parser.all_syms)
         except:
             # Can't parse this func
+            logging.warning(
+                f"Cannot parse function {fname} during dependency resolution"
+            )
             if fname.startswith("fRate"):
                 frates.append((fname.strip(), f))
             else:
@@ -511,20 +505,30 @@ def reorder_and_replace_arules(functions, parser):
     # Now reorder accordingly
     ordered_funcs = []
     # this ensures we write the independendent functions first
-    stck = sorted(dep_dict.keys(), key=lambda x: len(dep_dict[x]))
-    # FIXME: This algorithm works but likely inefficient
-    while len(stck) > 0:
-        k = stck.pop()
-        deps = dep_dict[k]
-        if len(deps) == 0:
-            if k not in ordered_funcs:
-                ordered_funcs.append(k)
-        else:
-            stck.append(k)
-            for dep in deps:
-                if dep not in ordered_funcs:
-                    stck.append(dep)
-                dep_dict[k].remove(dep)
+    # using Kahn's algorithm for topological sorting
+    dep_count = {k: len(v) for k, v in dep_dict.items()}
+    reverse_deps = defaultdict(list)
+    for k, v in dep_dict.items():
+        for dep in v:
+            reverse_deps[dep].append(k)
+
+    from collections import deque
+
+    queue = deque([k for k, count in dep_count.items() if count == 0])
+
+    while queue:
+        node = queue.popleft()
+        ordered_funcs.append(node)
+        for dependent in reverse_deps.get(node, []):
+            dep_count[dependent] -= 1
+            if dep_count[dependent] == 0:
+                queue.append(dependent)
+
+    # fallback for cyclic dependencies or remaining nodes
+    for k in dep_dict:
+        if k not in ordered_funcs:
+            ordered_funcs.append(k)
+
     # print ordered functions and return
     for fname in ordered_funcs:
         fs = func_dict[fname]
@@ -552,7 +556,7 @@ def reorderFunctions(functions):
     functionNames = []
     tmp = []
     for function in functions:
-        m = re.split("(?<=\()[\w)]", function)
+        m = re.split(r"(?<=\()[\w)]", function)
         functionName = m[0]
         if "=" in functionName:
             functionName = functionName.split("=")[0].strip() + "("
@@ -703,11 +707,6 @@ def analyzeFile(
     pr = cProfile.Profile()
     pr.enable()
     """
-    # TODO: replace this setup log with our own logging system
-    # setupLog(
-    #     outputFile + ".log", getattr(logging, logLevel.upper()), quietMode=quietMode
-    # )
-
     logMess.log = []
     logMess.counter = -1
     reader = libsbml.SBMLReader()
@@ -933,6 +932,174 @@ def unrollFunctions(functions):
     return functions
 
 
+def _replace_artificial_observables(artificialObservables):
+    art_names = dict([(key[:-3], key) for key in artificialObservables])
+    for key in artificialObservables:
+        changed = False
+        f = artificialObservables[key]
+
+        fsplt = f.split("=")
+        fn = fsplt[0]
+        fd = "=".join(fsplt[1:])
+        for an in art_names:
+            # We need an exact match
+            if re.search(r"\b{}\b".format(an), fd) is not None:
+                fd = re.sub(r"\b{}\b".format(an), art_names[an], fd)
+                changed = True
+        if changed:
+            artificialObservables[key] = fn.split()[0] + " = " + fd
+
+
+def _add_removed_parameters_back(
+    removeParams, artificialObservables, molecules, observables, initialConditions, tags
+):
+    for remPar in removeParams:
+        par_nam = remPar.split()[0]
+        write = True
+        # Check assignment rules first
+        for key in artificialObservables:
+            if (par_nam == key) or (par_nam + "_ar" == key):
+                # We have an assignment rule for this parameter
+                # and we don't want to have molecules and stuff
+                write = False
+                break
+        if write:
+            if par_nam not in molecules:
+                molecules.append(par_nam)
+            obs_str = "Species {0} {0}".format(par_nam)
+            if obs_str not in molecules:
+                observables.append(obs_str)
+            init_cond = par_nam + tags + " " + " ".join(remPar.split()[1:])
+            if init_cond not in initialConditions:
+                initialConditions.append(init_cond)
+
+
+def _handle_artificial_observables(
+    artificialObservables, observables, functions, molecules, initialConditions, rules
+):
+    deleteMolecules = []
+    deleteMoleculesFlag = True
+
+    for key in artificialObservables:
+        flag = -1
+        for idx, observable in enumerate(observables):
+            if "Species {0} {0}()".format(key) in observable:
+                flag = idx
+        if flag != -1:
+            observables.pop(flag)
+        functions.append(artificialObservables[key])
+        flag = -1
+
+        if "{0}()".format(key) in molecules:
+            flag = molecules.index("{0}()".format(key))
+
+        if flag != -1:
+            if deleteMoleculesFlag:
+                deleteMolecules.append(flag)
+            else:
+                deleteMolecules.append(key)
+            # result =validateReactionUsage(molecules[flag], rules)
+            # if result != None:
+            #    logMess('ERROR', 'Pseudo observable {0} in reaction {1}'.format(molecules[flag], result))
+            # molecules.pop(flag)
+
+        flag = -1
+        for idx, specie in enumerate(initialConditions):
+            if ":{0}(".format(key) in specie:
+                flag = idx
+        if flag != -1:
+            initialConditions[flag] = "#" + initialConditions[flag]
+
+    for flag in sorted(deleteMolecules, reverse=True):
+        if deleteMoleculesFlag:
+            logMess(
+                "WARNING:SIM101",
+                "{0} reported as function, but usage is ambiguous".format(
+                    molecules[flag]
+                ),
+            )
+            result = validateReactionUsage(molecules[flag], rules)
+            if result is not None:
+                logMess(
+                    "ERROR:Simulation",
+                    "Pseudo observable {0} in reaction {1}".format(
+                        molecules[flag], result
+                    ),
+                )
+
+            # since we are considering it an observable delete it from the molecule and
+            # initial conditions list
+            # s = molecules.pop(flag)
+            # initialConditions = [x for x in initialConditions if '$' + s not in x]
+        else:
+            logMess(
+                "WARNING:SIM101",
+                "{0} reported as species, but usage is ambiguous.".format(flag),
+            )
+            artificialObservables.pop(flag)
+
+
+def _evaluate_functions_sympy(functions, parser):
+    prnter = StrPrinter({"full_prec": False})
+    try:
+        new_funcs = []
+        obs_syms = list(map(sympy.Symbol, parser.obs_names))
+        for func in functions:
+            splt = func.split("=")
+            n = splt[0]
+            f = "=".join(splt[1:])
+            n, f = splt
+            try:
+                fs = sympy.sympify(f, locals=parser.all_syms)
+            except SympifyError:
+                logMess(
+                    "ERROR:SYMP002",
+                    "Sympy can't parse a function during post-processing",
+                )
+                raise TranslationException(f)
+            # Test if we get a complex i from simplification
+            smpl = fs.nsimplify().evalf().simplify()
+            # Epsilon checking
+            n, d = smpl.as_numer_denom()
+            # I don't want to touch the current rate parsing so
+            # I'll remove it and then add it back if needed
+            # TODO: mentioned above is a temporary solution
+            had_epsilon = False
+            if parser.all_syms["__epsilon__"] in d.atoms():
+                d = d - parser.all_syms["__epsilon__"]
+                had_epsilon = True
+            # for item in parser.all_syms.items():
+            for s in obs_syms:
+                # k, s = item
+                if s in d.atoms():
+                    d = d.subs(s, 0)
+            if d == 0:
+                if had_epsilon:
+                    new_f = prnter.doprint(smpl)
+                else:
+                    n, d = smpl.as_numer_denom()
+                    logMess(
+                        "WARNING:RATE001",
+                        "Post-parameter replacement, the denominator can be 0, adding an epsilon to avoid discontinuities",
+                    )
+                    new_f = (
+                        "("
+                        + prnter.doprint(n)
+                        + ")/("
+                        + prnter.doprint(d)
+                        + "+ __epsilon__)"
+                    )
+                    parser.write_epsilon = True
+            else:
+                new_f = prnter.doprint(smpl)
+            new_f = new_f.replace("**", "^")
+            new_funcs.append(splt[0] + " = " + new_f)
+        return new_funcs
+    except:
+        pass
+    return functions
+
+
 def analyzeHelper(
     document,
     reactionDefinitions,
@@ -999,12 +1166,12 @@ def analyzeHelper(
 
     compartments = parser.getCompartments()
     functions = []
-    assigmentRuleDefinedParameters = []
+    assignmentRuleDefinedParameters = []
 
     # FIXME: We should determine if an assignment rule
     # if being used along with a reaction and ignore the
     # reaction if it is being modified by both. This will
-    # likely require us to feed something from the assingment
+    # likely require us to feed something from the assignment
     # rule result into the following function
     reactionParameters, rules, rateFunctions = parser.getReactions(
         translator,
@@ -1041,118 +1208,40 @@ def analyzeHelper(
 
     # We need to replace stuff that we have a definition for
     # if they are used in assignment rules
-    art_names = dict([(key[:-3], key) for key in artificialObservables])
-    for key in artificialObservables:
-        changed = False
-        f = artificialObservables[key]
-
-        fsplt = f.split("=")
-        fn = fsplt[0]
-        fd = "=".join(fsplt[1:])
-        for an in art_names:
-            # We need an exact match
-            if re.search("\b{}\b".format(an), fd) is not None:
-                fd = re.sub("\b{}\b".format(an), art_names[an], fd)
-                changed = True
-        if changed:
-            artificialObservables[key] = fn.split()[0] + " = " + fd
+    _replace_artificial_observables(artificialObservables)
     # Here we are adding removed parameters back as
     # molecules, species and observables? How do we know
     # we need these?
-    for remPar in removeParams:
-        par_nam = remPar.split()[0]
-        write = True
-        # Check assignment rules first
-        for key in artificialObservables:
-            if (par_nam == key) or (par_nam + "_ar" == key):
-                # We have an assignment rule for this parameter
-                # and we don't want to have molecules and stuff
-                write = False
-                break
-        if write:
-            if par_nam not in molecules:
-                molecules.append(par_nam)
-            obs_str = "Species {0} {0}".format(par_nam)
-            if obs_str not in molecules:
-                observables.append(obs_str)
-            init_cond = par_nam + tags + " " + " ".join(remPar.split()[1:])
-            if init_cond not in initialConditions:
-                initialConditions.append(init_cond)
+    _add_removed_parameters_back(
+        removeParams,
+        artificialObservables,
+        molecules,
+        observables,
+        initialConditions,
+        tags,
+    )
     ## Comment out those parameters that are defined with assignment rules
-    ## TODO: I think this is correct, but it may need to be checked
     tmpParams = []
     for idx, parameter in enumerate(param):
         for key in artificialObservables:
-            if re.search("^{0}\s".format(key), parameter) != None:
-                assigmentRuleDefinedParameters.append(idx)
+            if re.search(r"^{0}\s".format(key), parameter) != None:
+                assignmentRuleDefinedParameters.append(idx)
     tmpParams.extend(artificialObservables)
     tmpParams.extend(removeParams)
     tmpParams = set(tmpParams)
     correctRulesWithParenthesis(rules, tmpParams)
 
-    for element in assigmentRuleDefinedParameters:
+    for element in assignmentRuleDefinedParameters:
         param[element] = "#" + param[element]
 
-    deleteMolecules = []
-    deleteMoleculesFlag = True
-
-    for key in artificialObservables:
-        flag = -1
-        for idx, observable in enumerate(observables):
-            if "Species {0} {0}()".format(key) in observable:
-                flag = idx
-        if flag != -1:
-            observables.pop(flag)
-        functions.append(artificialObservables[key])
-        flag = -1
-
-        if "{0}()".format(key) in molecules:
-            flag = molecules.index("{0}()".format(key))
-
-        if flag != -1:
-            if deleteMoleculesFlag:
-                deleteMolecules.append(flag)
-            else:
-                deleteMolecules.append(key)
-            # result =validateReactionUsage(molecules[flag], rules)
-            # if result != None:
-            #    logMess('ERROR', 'Pseudo observable {0} in reaction {1}'.format(molecules[flag], result))
-            # molecules.pop(flag)
-
-        flag = -1
-        for idx, specie in enumerate(initialConditions):
-            if ":{0}(".format(key) in specie:
-                flag = idx
-        if flag != -1:
-            initialConditions[flag] = "#" + initialConditions[flag]
-
-    for flag in sorted(deleteMolecules, reverse=True):
-        if deleteMoleculesFlag:
-            logMess(
-                "WARNING:SIM101",
-                "{0} reported as function, but usage is ambiguous".format(
-                    molecules[flag]
-                ),
-            )
-            result = validateReactionUsage(molecules[flag], rules)
-            if result is not None:
-                logMess(
-                    "ERROR:Simulation",
-                    "Pseudo observable {0} in reaction {1}".format(
-                        molecules[flag], result
-                    ),
-                )
-
-            # since we are considering it an observable delete it from the molecule and
-            # initial conditions list
-            # s = molecules.pop(flag)
-            # initialConditions = [x for x in initialConditions if '$' + s not in x]
-        else:
-            logMess(
-                "WARNING:SIM101",
-                "{0} reported as species, but usage is ambiguous.".format(flag),
-            )
-            artificialObservables.pop(flag)
+    _handle_artificial_observables(
+        artificialObservables,
+        observables,
+        functions,
+        molecules,
+        initialConditions,
+        rules,
+    )
 
     sbmlfunctions = parser.getSBMLFunctions()
     functions.extend(aRules)
@@ -1170,10 +1259,10 @@ def analyzeHelper(
                         sbmlfunctions[sbml2], sbml, sbmlfunctions[sbml]
                     )
 
-    # TODO: if an observable is defined via artificial obs
-    # we should overwrite it in obs dict
-    for key in observablesDict:
-        if key + "_ar" in artificialObservables:
+    for key in list(observablesDict.keys()):
+        if observablesDict[key] + "_ar" in artificialObservables:
+            observablesDict[key] = observablesDict[key] + "_ar"
+        elif key + "_ar" in artificialObservables:
             observablesDict[key] = key + "_ar"
     #
     functions = reorderFunctions(functions)
@@ -1209,75 +1298,7 @@ def analyzeHelper(
     # using sympy, port those in or turn them into importable
     # stuff
     # TODO: Check if full_prec is bad, make it optional
-    prnter = StrPrinter({"full_prec": False})
-    try:
-        new_funcs = []
-        obs_syms = list(map(sympy.Symbol, parser.obs_names))
-        for func in functions:
-            splt = func.split("=")
-            n = splt[0]
-            f = "=".join(splt[1:])
-            n, f = splt
-            try:
-                fs = sympy.sympify(f, locals=parser.all_syms)
-            except SympifyError:
-                logMess(
-                    "ERROR:SYMP002",
-                    "Sympy can't parse a function during post-processing",
-                )
-                raise TranslationException(f)
-            # Test if we get a complex i from simplification
-            smpl = fs.nsimplify().evalf().simplify()
-            # Epsilon checking
-            n, d = smpl.as_numer_denom()
-            # I don't want to touch the current rate parsing so
-            # I'll remove it and then add it back if needed
-            # TODO: mentioned above is a temporary solution
-            had_epsilon = False
-            if parser.all_syms["__epsilon__"] in d.atoms():
-                d = d - parser.all_syms["__epsilon__"]
-                had_epsilon = True
-            # for item in parser.all_syms.items():
-            for s in obs_syms:
-                # k, s = item
-                if s in d.atoms():
-                    d = d.subs(s, 0)
-            if d == 0:
-                if had_epsilon:
-                    new_f = prnter.doprint(smpl)
-                else:
-                    n, d = smpl.as_numer_denom()
-                    logMess(
-                        "WARNING:RATE001",
-                        "Post-parameter replacement, the denominator can be 0, adding an epsilon to avoid discontinuities",
-                    )
-                    new_f = (
-                        "("
-                        + prnter.doprint(n)
-                        + ")/("
-                        + prnter.doprint(d)
-                        + "+ __epsilon__)"
-                    )
-                    parser.write_epsilon = True
-            else:
-                new_f = prnter.doprint(smpl)
-            new_f = new_f.replace("**", "^")
-            # We want to do this if it makes the rate constant
-            # more readable
-            # FIXME: This doesn't mesh well with AR replacement
-            # if len(new_f) < len(func):
-            #    new_funcs.append(splt[0] + " = " + new_f)
-            # else:
-            #    new_funcs.append(func)
-            new_funcs.append(splt[0] + " = " + new_f)
-        functions = new_funcs
-    except:
-        # raise
-        # This is not essential, let's just move on if
-        # sympify fails. This catch-all is here because
-        # I know there will be random small things and that
-        # this bit is entirely optional
-        pass
+    functions = _evaluate_functions_sympy(functions, parser)
 
     functions = reorder_and_replace_arules(functions, parser)
     # ASS2019 - we need to adjust initial conditions of assignment rules
@@ -1412,23 +1433,33 @@ def analyzeHelper(
     # and observables
     obs_to_rem = []
     for iobs, obs_str in enumerate(observables):
-        oname = obs_str.split()[2]
-        comp = None
-        # we can have multiple patterns and/or molecules, if so
-        # let's assume they are useful
-        if "." in oname:
-            continue
-        if "@" in oname:
-            if len(oname.split(":")) > 1:
-                # using @comp:spec
-                oname = oname.split(":")[1]
-            else:
-                # using spec@comp
-                oname, comp = oname.split("@")
-        if "(" in oname:
-            oname = oname[: oname.find("(")]
-        if oname not in parser.used_molecules:
-            obs_to_rem.append(obs_str)
+        parts = obs_str.split()
+        if len(parts) > 2:
+            onames = parts[2]
+            useful = False
+            # split by commas to get individual patterns
+            patterns = onames.split(",")
+            for pattern in patterns:
+                # each pattern can be a complex separated by dots
+                mols = pattern.split(".")
+                for mol in mols:
+                    if "@" in mol:
+                        if len(mol.split(":")) > 1:
+                            # using @comp:spec
+                            mol = mol.split(":")[1]
+                        else:
+                            # using spec@comp
+                            mol = mol.split("@")[0]
+                    if "(" in mol:
+                        mol = mol[: mol.find("(")]
+                    # If ANY molecule in the pattern is used, we keep the observable
+                    if mol in parser.used_molecules:
+                        useful = True
+                        break
+                if useful:
+                    break
+            if not useful:
+                obs_to_rem.append(obs_str)
     for i in obs_to_rem:
         observables.remove(i)
     # done removing useless species/seed species/obs
@@ -1441,12 +1472,12 @@ def analyzeHelper(
         if param_name in parser.bngModel.parameters:
             parser.bngModel.parameters[param_name].val = param_val
 
-    # TODO: temporary: check structured molecule ratio
+    # check structured molecule ratio
     struc_count = 0
     for molec_str in molecules:
-        srch = re.search(r"(\W|^)(.+)\((.*)\)", molec_str)
-        if srch is not None:
-            if len(srch.group(3)) > 0:
+        if "(" in molec_str:
+            comp_str = molec_str[molec_str.find("(") + 1 : molec_str.rfind(")")]
+            if len(comp_str.strip()) > 0:
                 struc_count += 1
     struc_ratio = float(struc_count) / len(molecules) if len(molecules) > 0 else 0
     print("Structured molecule type ratio: {}".format(struc_ratio))

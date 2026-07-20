@@ -71,22 +71,25 @@ class BNGFile:
         """
         if model_file is None:
             model_file = self.path
-        cur_dir = os.getcwd()
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
         try:
             # make a stripped copy without actions in the folder
             stripped_bngl = self.strip_actions(model_file, temp_folder)
             # run with --xml
-            os.chdir(temp_folder)
             # If BNG2.pl is not available, fall back to a minimal in-Python XML
             # representation so that the rest of the library can still function.
             if self.bngexec is None:
-                return self._generate_minimal_xml(xml_file, stripped_bngl)
+                return self._generate_minimal_xml(
+                    xml_file, stripped_bngl
+                )  # no need to chdir here, handled by finally block
 
-            # TODO: take stdout option from app instead
+            app_stdout = conf.get("stdout")
+            app_suppress = False if app_stdout == "STDOUT" else self.suppress
             rc, _ = run_command(
-                ["perl", self.bngexec, "--xml", stripped_bngl], suppress=self.suppress
+                ["perl", self.bngexec, "--xml", stripped_bngl],
+                suppress=app_suppress,
+                cwd=temp_folder,
             )
             if rc != 0:
                 msg = f"BNG-XML generation failed for {model_file}"
@@ -125,7 +128,6 @@ class BNGFile:
             xml_file.seek(0)
             return True
         finally:
-            os.chdir(cur_dir)
             try:
                 shutil.rmtree(temp_folder)
             except Exception:
@@ -226,7 +228,8 @@ class BNGFile:
                     remove_from = iline
                 elif re.match(r"\s*(end)\s+(actions)\s*", line):
                     remove_to = iline
-            if remove_from > 0:
+
+            if remove_from >= 0:
                 # we have a begin/end actions block
                 if remove_to < 0:
                     msg = f'There is a "begin actions" statement at line {remove_from} without a matching "end actions" statement'
@@ -234,11 +237,10 @@ class BNGFile:
                 stripped_lines = (
                     stripped_lines[:remove_from] + stripped_lines[remove_to + 1 :]
                 )
-            if remove_to > 0:
-                if remove_from < 0:
-                    msg = f'There is an "end actions" statement at line {remove_to} without a matching "begin actions" statement'
-                    raise BNGFileError(model_path, message=msg)
-        # TODO: read stripped lines and store the actions
+            elif remove_to >= 0:
+                msg = f'There is an "end actions" statement at line {remove_to} without a matching "begin actions" statement'
+                raise BNGFileError(model_path, message=msg)
+
         # open new file and write just the model
         stripped_model = os.path.join(folder, model_file)
         if self.generate_network:
@@ -265,28 +267,28 @@ class BNGFile:
         write new BNG-XML or SBML of file by calling BNG2.pl again
         or can take BNGL string in as well.
         """
-        # TODO: Implement the route where this function uses the file itself
-        # for this generation
         if bngl_str is None:
-            # should load in the right str here
-            raise NotImplementedError
+            with open(self.path, "r", encoding="UTF-8") as f:
+                bngl_str = f.read()
 
-        cur_dir = os.getcwd()
         # temporary folder to work in
         temp_folder = tempfile.mkdtemp(prefix="pybng_")
         try:
             # write the current model to temp folder
-            os.chdir(temp_folder)
-            with open("temp.bngl", "w", encoding="UTF-8") as f:
+            with open(
+                os.path.join(temp_folder, "temp.bngl"), "w", encoding="UTF-8"
+            ) as f:
                 f.write(bngl_str)
             # run with --xml
-            # TODO: Make output supression an option somewhere
+            # Output suppression is handled downstream by self.suppress
             if xml_type == "bngxml":
                 if self.bngexec is None:
                     msg = "BNG-XML generation requires BNG2.pl (BioNetGen) to be installed."
                     self._raise_file_error(msg, loc=f"{__file__} : BNGFile.write_xml()")
                 rc, _ = run_command(
-                    ["perl", self.bngexec, "--xml", "temp.bngl"], suppress=self.suppress
+                    ["perl", self.bngexec, "--xml", "temp.bngl"],
+                    suppress=self.suppress,
+                    cwd=temp_folder,
                 )
                 if rc != 0:
                     msg = f"BNG-XML generation failed for {self.path}"
@@ -311,7 +313,7 @@ class BNGFile:
                     )
                     self._raise_file_error(msg, loc=f"{__file__} : BNGFile.write_xml()")
                 command = ["perl", self.bngexec, "temp.bngl"]
-                rc, _ = run_command(command, suppress=self.suppress)
+                rc, _ = run_command(command, suppress=self.suppress, cwd=temp_folder)
                 if rc != 0:
                     msg = f"SBML generation failed for {self.path}"
                     self._raise_file_error(msg, loc=f"{__file__} : BNGFile.write_xml()")
@@ -331,7 +333,6 @@ class BNGFile:
                 msg = f"XML type {xml_type} not recognized"
                 self._raise_file_error(msg, loc=f"{__file__} : BNGFile.write_xml()")
         finally:
-            os.chdir(cur_dir)
             try:
                 shutil.rmtree(temp_folder)
             except Exception:

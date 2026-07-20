@@ -1,10 +1,10 @@
 import subprocess, os, sys
+from bionetgen.core.exc import BNGFileError
 from bionetgen.core.tools import BNGInfo
 from bionetgen.core.tools import BNGVisualize
 from bionetgen.core.tools import BNGCLI
 from bionetgen.core.tools import BNGGdiff
 from bionetgen.core.notebook import BNGNotebook
-from bionetgen.core.utils.utils import run_command
 
 
 def runCLI(app):
@@ -60,12 +60,18 @@ def plotDAT(app):
     """
     args = app.pargs
     # we need to have gdat/cdat files
-    # TODO: Transition to BNGErrors and logging
-    assert (
+    if not (
         args.input.endswith(".gdat")
         or args.input.endswith(".cdat")
         or args.input.endswith(".scan")
-    ), "Input file has to be either a gdat or a cdat file"
+    ):
+        app.log.error(
+            "Input file has to be either a gdat, cdat or scan file",
+            f"{__file__} : plotDAT()",
+        )
+        raise BNGFileError(
+            args.input, "Input file has to be either a gdat, cdat or scan file"
+        )
     inp = args.input
     out = args.output
     kw = dict(args._get_kwargs())
@@ -76,7 +82,9 @@ def plotDAT(app):
         fnoext, ext = os.path.splitext(fname)
         out = os.path.join(path, "{}.png".format(fnoext))
     # use the plotter object to get the plot
-    from bionetgen.core.tools import BNGPlotter
+    import bionetgen.core.tools
+
+    BNGPlotter = bionetgen.core.tools.BNGPlotter
 
     app.log.debug("Instantiating BNGPlotter object", f"{__file__} : plotDAT()")
     plotter = BNGPlotter(inp, out, app=app, **kw)
@@ -92,7 +100,7 @@ def runAtomizeTool(app):
     args = app.pargs
     config = app.config
     # run AtomizeTool
-    from bionetgen.atomizer import AtomizeTool
+    from bionetgen.atomizer.atomizeTool import AtomizeTool
 
     app.log.debug("Instantiating AtomizeTool object", f"{__file__} : runAtomizeTool()")
     a = AtomizeTool(parser_namespace=args, app=app)
@@ -195,15 +203,19 @@ def generate_notebook(app):
     args = app.pargs
     if args.input is not None:
         # we want to use the template to write a custom notebok
-        # TODO: Transition to BNGErrors and logging
-        assert args.input.endswith(
-            ".bngl"
-        ), f"File {args.input} doesn't have bngl extension!"
+        if not args.input.endswith(".bngl"):
+            app.log.error(
+                f"File {args.input} doesn't have bngl extension!",
+                f"{__file__} : generate_notebook()",
+            )
+            raise BNGFileError(
+                args.input, f"File {args.input} doesn't have bngl extension!"
+            )
         try:
             app.log.debug("Loading model", f"{__file__} : notebook()")
-            import bionetgen
+            from bionetgen import bngmodel
 
-            m = bionetgen.bngmodel(args.input)
+            m = bngmodel(args.input)
             str(m)
         except:
             app.log.error("Failed to load model", f"{__file__} : notebook()")
@@ -233,13 +245,24 @@ def generate_notebook(app):
     app.log.debug(f"Writing notebook to file: {fname}", f"{__file__} : notebook()")
     notebook.write(fname)
     # open the notebook with nbopen
-    # TODO: deal with stdout/err
     app.log.debug(
         f"Attempting to open notebook {fname} with nbopen",
         f"{__file__} : notebook()",
     )
-    stdout = getattr(subprocess, app.config["bionetgen"]["stdout"])
-    stderr = getattr(subprocess, app.config["bionetgen"]["stderr"])
+    try:
+        stdout_loc = getattr(subprocess, app.config["bionetgen"]["stdout"])
+    except (AttributeError, KeyError):
+        stdout_loc = subprocess.PIPE
+    try:
+        stderr_loc = getattr(subprocess, app.config["bionetgen"]["stderr"])
+    except (AttributeError, KeyError):
+        stderr_loc = subprocess.STDOUT
+
     if args.open:
         command = ["nbopen", fname]
-        rc, _ = run_command(command)
+        process = subprocess.Popen(
+            command,
+            stdout=stdout_loc,
+            stderr=stderr_loc,
+        )
+        rc = process.wait()

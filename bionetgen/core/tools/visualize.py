@@ -36,8 +36,8 @@ class VisResult:
         # we need to assume some sort of GML output
         # at least for now
         # use the name, if given, search for GMLs if not
-        gmls = glob.glob("*.gml")
-        graphmls = glob.glob("*.graphml")
+        gmls = glob.glob(os.path.join(self.input_folder, "*.gml"))
+        graphmls = glob.glob(os.path.join(self.input_folder, "*.graphml"))
         graphfiles = gmls + graphmls
         for gfile in graphfiles:
             if self.name is None:
@@ -48,7 +48,7 @@ class VisResult:
                 self.file_strs[gfile] = l
             else:
                 # pull GMLs that contain the name
-                if self.name in gfile:
+                if self.name in os.path.basename(gfile):
                     self.files.append(gfile)
                     # now load into string
                     with open(gfile, "r") as f:
@@ -59,10 +59,10 @@ class VisResult:
         self.logger.debug(
             "Writing graphml/gml files", loc=f"{__file__} : VisResult._dump_files()"
         )
-        os.chdir(folder)
         for gfile in self.files:
             g_name = os.path.split(gfile)[-1]
-            with open(g_name, "w") as f:
+            dest = os.path.join(folder, g_name)
+            with open(dest, "w") as f:
                 f.write(self.file_strs[gfile])
 
 
@@ -171,7 +171,6 @@ class BNGVisualize:
                 )
             else:
                 model.add_action("visualize", action_args={"type": f"'{self.vtype}'"})
-        # TODO: Work in temp folder
         cur_dir = os.getcwd()
         from bionetgen.core.main import BNGCLI
 
