@@ -226,6 +226,13 @@ def test_bngmodel_passes_path_options_to_bngparser(mock_parser_cls):
     from bionetgen.modelapi.model import bngmodel
 
     parser = MagicMock()
+
+    def _fake_parse_model(model):
+        for b in model._block_order:
+            if b not in model.active_blocks:
+                model.active_blocks.append(b)
+
+    parser.parse_model.side_effect = _fake_parse_model
     mock_parser_cls.return_value = parser
 
     bngmodel(
