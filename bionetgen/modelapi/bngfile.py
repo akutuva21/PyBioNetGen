@@ -4,16 +4,10 @@ import shutil
 import tempfile
 from typing import NoReturn
 
-from bionetgen.main import BioNetGen
+from bionetgen.main import get_default_bng_path
 from bionetgen.core.exc import BNGFileError
 from bionetgen.core.utils.logging import BNGLogger
 from bionetgen.core.utils.utils import find_BNG_path, run_command, ActionList
-
-# This allows access to the CLIs config setup
-app = BioNetGen()
-app.setup()
-conf = app.config["bionetgen"]
-def_bng_path = conf["bngpath"]
 
 
 class BNGFile:
@@ -45,7 +39,7 @@ class BNGFile:
     """
 
     def __init__(
-        self, path, BNGPATH=def_bng_path, generate_network=False, suppress=True
+        self, path, BNGPATH=None, generate_network=False, suppress=True
     ) -> None:
         self.path = path
         self.logger = BNGLogger()
@@ -53,6 +47,8 @@ class BNGFile:
         self.suppress = suppress
         AList = ActionList()
         self._action_list = [i + "(" for i in AList.possible_types]
+        if BNGPATH is None:
+            BNGPATH = get_default_bng_path()
         BNGPATH, bngexec = find_BNG_path(BNGPATH)
         self.BNGPATH = BNGPATH
         self.bngexec = bngexec

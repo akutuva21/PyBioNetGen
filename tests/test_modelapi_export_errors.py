@@ -202,6 +202,48 @@ def test_parse_model_xml_generation_failure_wraps_bngfile_error(mock_bngfile_cls
         parser.parse_model(MagicMock())
 
 
+@patch("bionetgen.modelapi.bngparser.BNGFile")
+def test_bngparser_passes_path_options_to_bngfile(mock_bngfile_cls):
+    from bionetgen.modelapi.bngparser import BNGParser
+
+    BNGParser(
+        "/some/model.bngl",
+        BNGPATH="/custom/bng",
+        generate_network=True,
+        suppress=False,
+    )
+
+    mock_bngfile_cls.assert_called_once_with(
+        "/some/model.bngl",
+        BNGPATH="/custom/bng",
+        generate_network=True,
+        suppress=False,
+    )
+
+
+@patch("bionetgen.modelapi.model.BNGParser")
+def test_bngmodel_passes_path_options_to_bngparser(mock_parser_cls):
+    from bionetgen.modelapi.model import bngmodel
+
+    parser = MagicMock()
+    mock_parser_cls.return_value = parser
+
+    bngmodel(
+        "/some/model.bngl",
+        BNGPATH="/custom/bng",
+        generate_network=True,
+        suppress=False,
+    )
+
+    mock_parser_cls.assert_called_once_with(
+        "/some/model.bngl",
+        BNGPATH="/custom/bng",
+        generate_network=True,
+        suppress=False,
+    )
+    parser.parse_model.assert_called_once()
+
+
 def test_setup_simulator_write_xml_failure_raises_bngmodel_error_and_restores_actions(
     tmp_path, monkeypatch
 ):

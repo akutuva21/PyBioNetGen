@@ -1,4 +1,3 @@
-from bionetgen.main import BioNetGen
 from bionetgen.network.networkparser import BNGNetworkParser
 from bionetgen.core.exc import BNGModelError
 from bionetgen.core.utils.logging import BNGLogger
@@ -9,12 +8,7 @@ from bionetgen.network.blocks import (
     NetworkSpeciesBlock,
 )
 
-# This allows access to the CLIs config setup
-app = BioNetGen()
-app.setup()
-conf = app.config["bionetgen"]
-def_bng_path = conf["bngpath"]
-logger = BNGLogger(app=None)
+logger = BNGLogger()
 
 
 ###### CORE OBJECT AND PARSING FRONT-END ######
@@ -45,7 +39,7 @@ class Network:
         type of simulator is libRR for libRoadRunner simulator.
     """
 
-    def __init__(self, bngl_model, BNGPATH=def_bng_path):
+    def __init__(self, bngl_model, BNGPATH=None):
         self.active_blocks = []
         # We want blocks to be printed in the same order every time
         self.block_order = [
